@@ -13,7 +13,7 @@ router.post('/verify-company', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, name FROM companies WHERE login_pin = $1',
+      'SELECT id, name FROM companies WHERE login_pin::text = $1',
       [pin]
     );
 
@@ -51,9 +51,9 @@ router.post('/login', async (req, res) => {
       SELECT e.id, e.username, e.name, e.role, e.active, e.company_id, c.name as company_name 
       FROM employees e
       LEFT JOIN companies c ON e.company_id = c.id
-      WHERE e."PIN" = $1 AND e.active = true
+      WHERE e."PIN"::text = $1 AND e.active = true
     `;
-    let params = [parseInt(pin)];
+    let params = [pin];
 
     if (company_id) {
       query += ' AND e.company_id = $2';
@@ -137,7 +137,7 @@ router.post('/register-company', async (req, res) => {
     const employeeResult = await client.query(
       `INSERT INTO employees (username, name, email, role, "PIN", password_hash, company_id) 
        VALUES ($1, $2, $3, 'admin', $4, $5, $6) RETURNING id`,
-      [email.toLowerCase(), ownerName, email.toLowerCase(), parseInt(pin), password, companyId]
+      [email.toLowerCase(), ownerName, email.toLowerCase(), pin, password, companyId]
     );
 
     // 3. Create Default Settings for the company
@@ -314,14 +314,14 @@ router.post('/change-password', verifyToken, async (req, res) => {
     const employee = result.rows[0];
 
     // Verify current PIN
-    if (employee.PIN !== parseInt(currentPin)) {
+    if (String(employee.PIN) !== currentPin) {
       return res.status(401).json({ success: false, error: 'Current PIN is incorrect' });
     }
 
     // Update PIN
     await pool.query(
       'UPDATE employees SET "PIN" = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [parseInt(newPin), req.user.id]
+      [newPin, req.user.id]
     );
 
     res.json({ success: true, message: 'PIN changed successfully' });
@@ -383,8 +383,8 @@ router.post('/employees', verifyToken, async (req, res) => {
 
     // Check if PIN exists
     const existingPin = await pool.query(
-      'SELECT id FROM employees WHERE "PIN" = $1 AND company_id = $2',
-      [parseInt(pin), req.company_id]
+      'SELECT id FROM employees WHERE "PIN"::text = $1 AND company_id = $2',
+      [pin, req.company_id]
     );
 
     if (existingPin.rows.length > 0) {
@@ -395,7 +395,7 @@ router.post('/employees', verifyToken, async (req, res) => {
       `INSERT INTO employees (username, "PIN", name, role, company_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, username, name, role, active, created_at`,
-      [username.toLowerCase().trim(), parseInt(pin), name, role, req.company_id]
+      [username.toLowerCase().trim(), pin, name, role, req.company_id]
     );
 
     res.status(201).json({ success: true, employee: result.rows[0] });
@@ -427,8 +427,8 @@ router.put('/employees/:id', verifyToken, async (req, res) => {
 
       // Check if PIN is already in use by another employee in this company
       const existingPin = await pool.query(
-        'SELECT id FROM employees WHERE "PIN" = $1 AND id != $2 AND company_id = $3',
-        [parseInt(pin), id, req.company_id]
+        'SELECT id FROM employees WHERE "PIN"::text = $1 AND id != $2 AND company_id = $3',
+        [pin, id, req.company_id]
       );
 
       if (existingPin.rows.length > 0) {
@@ -436,7 +436,7 @@ router.put('/employees/:id', verifyToken, async (req, res) => {
       }
 
       query += `, "PIN" = $${paramCount}`;
-      params.push(parseInt(pin));
+      params.push(pin);
       paramCount++;
     }
 
