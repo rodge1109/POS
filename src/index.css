@@ -1,0 +1,161 @@
+/* Google Fonts Imports */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Inter:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;700&family=Lato:wght@400;700&family=Montserrat:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@400;500;700&family=Quicksand:wght@400;500;700&family=Source+Sans+Pro:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Typography Utility Classes ===== */
+
+/* Data Tables - Roboto, Inter, IBM Plex Sans */
+.font-data-table {
+  font-family: 'Roboto', 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* Dashboards - Inter, Lato, Montserrat */
+.font-dashboard {
+  font-family: 'Inter', 'Lato', 'Montserrat', system-ui, sans-serif;
+}
+
+/* Cards/Layouts - Poppins, Open Sans, Proxima Nova */
+.font-card {
+  font-family: 'Poppins', 'Open Sans', system-ui, sans-serif;
+}
+
+/* Admin Panels - Source Sans Pro, Helvetica, Arial */
+.font-admin {
+  font-family: 'Source Sans Pro', 'Helvetica', 'Arial', system-ui, sans-serif;
+}
+
+/* Product Grids - Montserrat, Poppins, Quicksand */
+.font-product {
+  font-family: 'Montserrat', 'Poppins', 'Quicksand', system-ui, sans-serif;
+}
+
+/* ===== Global Typography ===== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  max-width: 100vw;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  max-width: 100vw;
+  font-family: 'Inter', 'Lato', 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+/* Prevent iOS Safari zoom on input focus */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+@media (min-width: 768px) {
+  input, select, textarea {
+    font-size: 14px !important;
+  }
+}
+
+/* Payment amount input override */
+input.payment-amount-input {
+  font-size: 36px !important;
+}
+
+/* Success overlay animation */
+.animate-fade-in {
+  animation: fadeInOut 2s ease-in-out forwards;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: scale(0.9); }
+  15% { opacity: 1; transform: scale(1); }
+  75% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* ===== Thermal Printer Printing Styles ===== */
+@media print {
+  /* Hide everything except the receipt */
+  body * {
+    visibility: hidden;
+  }
+  
+  #printable-receipt, #printable-receipt * {
+    visibility: visible;
+  }
+
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm !important; /* Force 58mm width */
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  /* Reset layout for print */
+  body, html {
+    width: 58mm !important;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible !important;
+  }
+
+  /* Remove headers/footers from browser */
+  @page {
+    size: 58mm auto;
+    margin: 0;
+  }
+
+  /* Success overlay and other fixed elements must be hidden */
+  .fixed, .absolute:not(#printable-receipt), nav, header {
+    display: none !important;
+  }
+}
+
+/* Custom class for 58mm receipts */
+.thermal-58 {
+  width: 58mm;
+  font-family: 'Courier New', Courier, monospace;
+  color: black;
+  line-height: 1.2;
+}
+
+.thermal-80 {
+  width: 80mm;
+  font-family: sans-serif;
+  color: black;
+}

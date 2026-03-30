@@ -1,0 +1,46 @@
+{
+  "companies": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "Initial Shop (Default)"
+    },
+    {
+      "id": "49cbf30f-867a-4346-bf2b-541bcd0e6aa2",
+      "name": "Kylle"
+    }
+  ],
+  "ingredient_counts": [
+    {
+      "company_id": "00000000-0000-0000-0000-000000000000",
+      "count": "12"
+    }
+  ],
+  "product_counts": [
+    {
+      "company_id": "00000000-0000-0000-0000-000000000000",
+      "count": "20"
+    }
+  ],
+  "employees": [
+    {
+      "id": 1,
+      "username": "admin",
+      "company_id": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "id": 2,
+      "username": "roger",
+      "company_id": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "id": 3,
+      "username": "james",
+      "company_id": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "id": 4,
+      "username": "rodge1109@yahoo.com",
+      "company_id": "49cbf30f-867a-4346-bf2b-541bcd0e6aa2"
+    }
+  ]
+}
