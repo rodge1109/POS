@@ -97,17 +97,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Serve built frontend (if present) for root and non-API routes
-const staticPath = path.resolve(__dirname, '../dist');
-if (fs.existsSync(staticPath)) {
-  app.use(express.static(staticPath));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(staticPath, 'index.html'));
-  });
-} else {
-  console.warn('Static assets not found at', staticPath);
-}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
