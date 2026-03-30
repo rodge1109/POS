@@ -16,6 +16,7 @@ import inventoryRoutes from './routes/inventory.js';
 import modifiersRoutes from './routes/modifiers.js';
 import { verifyToken } from './routes/auth.js'; // Import the protection middleware!
 import { startScheduler } from './services/scheduler.js' 
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +54,30 @@ app.use(session({
   }
 }));
 
+// Serve built frontend (if present) for root and non-API routes
+// Check common locations: project root `dist` and relative `../dist`
+const distCandidates = [
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(__dirname, '../dist')
+];
+let staticPath = null;
+for (const p of distCandidates) {
+  if (fs.existsSync(p)) {
+    staticPath = p;
+    break;
+  }
+}
+if (staticPath) {
+  app.use(express.static(staticPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(staticPath, 'index.html'));
+  });
+  console.log('Serving static assets from', staticPath);
+} else {
+  console.warn('Static assets not found in any of:', distCandidates.join(', '));
+}
+
 // Routes
 app.use('/api/auth', authRoutes);
 
@@ -71,6 +96,18 @@ app.use('/api/modifiers', verifyToken, modifiersRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
+
+// Serve built frontend (if present) for root and non-API routes
+const staticPath = path.resolve(__dirname, '../dist');
+if (fs.existsSync(staticPath)) {
+  app.use(express.static(staticPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(staticPath, 'index.html'));
+  });
+} else {
+  console.warn('Static assets not found at', staticPath);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
