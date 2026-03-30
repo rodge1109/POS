@@ -13,22 +13,59 @@ const { Pool } = pg;
 const isProduction = process.env.NODE_ENV === 'production';
 const databaseUrl = process.env.DATABASE_URL;
 
-const poolConfig = databaseUrl 
-  ? {
-      connectionString: databaseUrl,
-      ssl: {
-        rejectUnauthorized: false
+// Build pool config. If DATABASE_URL is set, prefer it but attempt an IPv4 fallback
+// when DNS returns A records (to avoid IPv6 routing issues on some hosts).
+let poolConfig = null;
+let pool = null;
+
+if (databaseUrl) {
+  try {
+    // Try to prefer IPv4: resolve A records for host and, if found, replace hostname
+    const url = new URL(databaseUrl);
+    const host = url.hostname;
+    let useHost = host;
+    try {
+      const aRecords = await dns.resolve4(host);
+      if (aRecords && aRecords.length > 0) {
+        useHost = aRecords[0];
+        console.log('Using IPv4 address for DB host:', useHost);
+      } else {
+        console.log('No A records found for', host);
       }
+    } catch (e) {
+      console.warn('IPv4 lookup failed for', host, '-', e.message);
     }
-  : {
+
+    // If host changed to IPv4, rebuild connection string
+    if (useHost !== host) {
+      url.hostname = useHost;
+      // Reconstruct connection string preserving query/search params
+      const connStr = url.toString();
+      poolConfig = { connectionString: connStr, ssl: { rejectUnauthorized: false } };
+    } else {
+      poolConfig = { connectionString: databaseUrl, ssl: { rejectUnauthorized: false } };
+    }
+  } catch (e) {
+    console.warn('Failed to parse/handle DATABASE_URL, falling back to individual DB_* vars:', e.message);
+    poolConfig = {
       host: process.env.DB_HOST || 'localhost',
       port: process.env.DB_PORT || 5432,
       database: process.env.DB_NAME || 'restaurant_db',
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || '',
     };
+  }
+} else {
+  poolConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || 'restaurant_db',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || '',
+  };
+}
 
-const pool = new Pool(poolConfig);
+pool = new Pool(poolConfig);
 
 // Test connection
 pool.on('connect', () => {
