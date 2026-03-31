@@ -4316,6 +4316,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   const [lastKeyTime, setLastKeyTime] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerError, setScannerError] = useState('');
+  const [activeCameraLabel, setActiveCameraLabel] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scannerMode, setScannerMode] = useState('native'); // native | html5
   const [scannerErrorDetail, setScannerErrorDetail] = useState('');
@@ -4908,6 +4909,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     }
     setIsScanning(false);
     setShowScanner(false);
+    setActiveCameraLabel(null);
   };
 
   useEffect(() => stopScanner, []);
@@ -4929,12 +4931,19 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     try {
       // Try to pick a rear-facing camera deviceId when available
       let preferredDeviceId = null;
+      let chosenLabel = null;
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoInputs = devices.filter(d => d.kind === 'videoinput');
         const rear = videoInputs.find(d => /rear|back|environment/i.test(d.label));
-        if (rear) preferredDeviceId = rear.deviceId;
-        else if (videoInputs.length === 1) preferredDeviceId = videoInputs[0].deviceId;
+        const first = videoInputs[0];
+        if (rear) {
+          preferredDeviceId = rear.deviceId;
+          chosenLabel = rear.label || 'Rear camera';
+        } else if (videoInputs.length === 1) {
+          preferredDeviceId = first.deviceId;
+          chosenLabel = first.label || 'Camera';
+        }
       } catch (e) {
         console.warn('Could not enumerate devices for camera selection:', e && e.message ? e.message : e);
       }
@@ -4944,6 +4953,14 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         const videoConstraints = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
         const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
         streamRef.current = stream;
+        try {
+          const track = stream.getVideoTracks()[0];
+          if (track && track.label) setActiveCameraLabel(track.label);
+          else if (chosenLabel) setActiveCameraLabel(chosenLabel);
+          else setActiveCameraLabel('Camera');
+        } catch (e) {
+          // ignore
+        }
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
@@ -4996,6 +5013,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
       html5ScannerRef.current = html5;
       setScannerMode('html5');
       const startCameraConfig = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
+      if (chosenLabel && !activeCameraLabel) setActiveCameraLabel(chosenLabel);
       html5.start(
         startCameraConfig,
         { fps: 10, qrbox: { width: 260, height: 260 } },
@@ -6404,6 +6422,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
             <div>
               <p className="text-sm font-semibold text-gray-800">Scan Barcode</p>
               <p className="text-xs text-gray-500">Align the code within the frame</p>
+              {activeCameraLabel && (
+                <p className="text-[11px] text-green-600 mt-1 truncate" title={activeCameraLabel}>
+                  Camera: {activeCameraLabel}
+                </p>
+              )}
             </div>
             <button onClick={stopScanner} className="text-gray-500 hover:text-gray-700 text-sm">Close</button>
           </div>
