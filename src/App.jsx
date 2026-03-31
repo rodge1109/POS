@@ -4927,11 +4927,22 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     setIsScanning(true);
     setScannerMode('native');
     try {
+      // Try to pick a rear-facing camera deviceId when available
+      let preferredDeviceId = null;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        const rear = videoInputs.find(d => /rear|back|environment/i.test(d.label));
+        if (rear) preferredDeviceId = rear.deviceId;
+        else if (videoInputs.length === 1) preferredDeviceId = videoInputs[0].deviceId;
+      } catch (e) {
+        console.warn('Could not enumerate devices for camera selection:', e && e.message ? e.message : e);
+      }
+
       // Preferred: native BarcodeDetector
       if ('BarcodeDetector' in window) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        });
+        const videoConstraints = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
+        const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -4984,8 +4995,9 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
       });
       html5ScannerRef.current = html5;
       setScannerMode('html5');
+      const startCameraConfig = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
       html5.start(
-        { facingMode: 'environment' },
+        startCameraConfig,
         { fps: 10, qrbox: { width: 260, height: 260 } },
         (decodedText) => handleScanResult(decodedText),
         () => {}
