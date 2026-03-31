@@ -296,7 +296,8 @@ export default function App() {
   // End current shift
   const handleEndShift = async (closingCash, notes) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetchWithAuth(`${API_URL}/shifts/end`, {
         method: 'POST',
@@ -304,8 +305,10 @@ export default function App() {
           closing_cash: closingCash,
           notes,
           shift_id: currentShift?.id
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const result = await response.json();
       if (result.success) {
         setShiftReport(result.data.report);
@@ -318,7 +321,11 @@ export default function App() {
       }
     } catch (error) {
       console.error('Error ending shift:', error);
-      alert('Failed to end shift. Please try again.');
+      if (error.name === 'AbortError') {
+        alert('Request timed out. Please check your connection and try again.');
+      } else {
+        alert('Failed to end shift. Please try again.');
+      }
       return false;
     }
   };
@@ -1008,7 +1015,12 @@ export default function App() {
                 onClick={() => {
                   setShowCart(false);
                   if (currentPage === 'pos') {
-                    handlePaymentWithShiftCheck();
+                    try {
+                      window.dispatchEvent(new CustomEvent('open-payment'));
+                    } catch (e) {
+                      // fallback: navigate to cart
+                      setCurrentPage('cart');
+                    }
                   } else {
                     setCurrentPage('cart');
                   }
@@ -1034,12 +1046,12 @@ export default function App() {
               </button>
             </div>
           </nav>
-        ) : currentPage === 'pos' ? (
-          <nav className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 md:hidden z-50 pb-safe">
+        ) : (currentPage === 'pos' && !showShiftEndModal && !showShiftStartModal && !shiftReport) ? (
+          <nav className="fixed bottom-0 left-0 right-0 bg-green-700 border-t border-green-600 md:hidden z-50 pb-safe">
             <div className="flex items-center justify-between py-2 px-4">
               <button
-                onClick={() => startScanner()}
-                className="flex flex-col items-center text-gray-300 hover:text-white"
+                onClick={() => window.dispatchEvent(new CustomEvent('pos-open-scanner'))}
+                className="flex flex-col items-center text-green-100 hover:text-white"
                 title="Open Scanner"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1049,15 +1061,20 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => handlePaymentWithShiftCheck()}
-                className="relative bg-green-600 text-white px-5 py-2 rounded-full flex items-center space-x-2 font-bold text-sm shadow-lg"
+                onClick={() => window.dispatchEvent(new CustomEvent('pos-open-payment'))}
+                className="relative bg-white text-green-700 px-5 py-2 rounded-full flex items-center space-x-2 font-bold text-sm shadow-lg"
                 title="Checkout"
                 disabled={cartItems.length === 0}
               >
-                <ShoppingCart className="w-5 h-5" />
-                <span>Checkout</span>
-                {getTotalItems() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                <ShoppingCart className="w-5 h-5 text-green-600" />
+                <span>
+                  {cartItems.length > 0 
+                    ? `Charge ${formatMoney(getTotalPrice() + (getTotalPrice() * (parseFloat(sysConfig.tax_rate) / 100)))}` 
+                    : 'Checkout'
+                  }
+                </span>
+                {cartItems.length > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold animate-pulse">
                     {getTotalItems()}
                   </span>
                 )}
@@ -1065,7 +1082,7 @@ export default function App() {
 
               <button
                 onClick={() => setShowShiftEndModal(true)}
-                className="flex flex-col items-center text-orange-400 hover:text-orange-300"
+                className="flex flex-col items-center text-yellow-300 hover:text-yellow-100"
                 title="End Shift"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1119,7 +1136,9 @@ export default function App() {
           </nav>
         )}
       </div>
-      <PrintableReceipt order={lastOrderData} config={sysConfig} />
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
+        <PrintableReceipt order={lastOrderData} config={sysConfig} />
+      </div>
     </CartContext.Provider>
   );
 }
@@ -3947,7 +3966,7 @@ function ShiftStartModal({ onClose, onShiftStarted }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Start New Shift</h2>
 
@@ -4024,6 +4043,7 @@ function ShiftEndModal({ shift, onEnd, onCancel }) {
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [expectedCash, setExpectedCash] = useState(null);
+  const money = (val) => formatCurrency(val, 'PHP');
 
   useEffect(() => {
     if (shift) {
@@ -4085,7 +4105,7 @@ function ShiftEndModal({ shift, onEnd, onCancel }) {
   const { mood, message } = getBotFeedback();
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         {/* Header */}
         <div className="bg-red-600 text-white p-4 rounded-t-xl">
@@ -4220,7 +4240,7 @@ function ShiftReportModal({ report, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="bg-green-600 text-white p-4 rounded-t-xl sticky top-0">
           <h2 className="text-xl font-bold">Shift Report</h2>
@@ -5245,6 +5265,24 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     handlePayment();
   };
 
+  // Listen for mobile nav checkout button
+  useEffect(() => {
+    const handleOpenPayment = () => {
+      handlePaymentWithShiftCheck();
+    };
+    window.addEventListener('pos-open-payment', handleOpenPayment);
+    return () => window.removeEventListener('pos-open-payment', handleOpenPayment);
+  }, [handlePaymentWithShiftCheck]);
+
+  // Listen for mobile nav scan button
+  useEffect(() => {
+    const handleOpenScanner = () => {
+      startScanner();
+    };
+    window.addEventListener('pos-open-scanner', handleOpenScanner);
+    return () => window.removeEventListener('pos-open-scanner', handleOpenScanner);
+  }, [startScanner]);
+
   return (
     <>
     <div className="bg-gray-200 h-screen overflow-hidden">
@@ -5474,6 +5512,16 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                     {cartItems.map((item, index) => (
                       <div key={`${item.id}-${item.selectedSize || 'default'}-${index}`} className="bg-white px-2 md:px-3 py-1.5 md:py-2">
                         <div className="flex items-center gap-1 md:gap-2">
+                          {/* Product Thumbnail */}
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                            {item.image && (item.image.startsWith('http') || item.image.startsWith('assets/') || item.image.startsWith('/')) ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : item.image && item.image.length < 5 ? (
+                              <span className="text-base md:text-lg">{item.image}</span>
+                            ) : (
+                              <UtensilsCrossed className="w-4 h-4 md:w-5 md:h-5 text-gray-300" />
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <span className="text-gray-800 font-medium text-xs md:text-sm truncate block">
                               {item.name}{item.selectedSize ? ` (${item.selectedSize})` : ''}
@@ -5668,7 +5716,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 <button
                   onClick={handlePaymentWithShiftCheck}
                   disabled={cartItems.length === 0}
-                className={`w-full py-2.5 md:py-4 rounded font-bold text-xs md:text-base transition-all ${cartItems.length === 0
+                className={`hidden md:block w-full py-2.5 md:py-4 rounded font-bold text-xs md:text-base transition-all ${cartItems.length === 0
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg'
                   }`}
