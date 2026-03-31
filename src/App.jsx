@@ -1032,73 +1032,41 @@ export default function App() {
           </nav>
         ) : currentPage === 'pos' ? (
           <nav className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 md:hidden z-50 pb-safe">
-            <div className="flex items-center py-2 gap-1 overflow-x-auto">
+            <div className="flex items-center justify-between py-2 px-4">
               <button
-                onClick={() => setCurrentPage('home')}
-                className="flex flex-col items-center px-2 py-1 text-gray-300 hover:text-white flex-shrink-0"
+                onClick={() => startScanner()}
+                className="flex flex-col items-center text-gray-300 hover:text-white"
+                title="Open Scanner"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v4a1 1 0 001 1h4M21 7v4a1 1 0 01-1 1h-4M3 17v-4a1 1 0 011-1h4M21 17v-4a1 1 0 00-1-1h-4" />
                 </svg>
-                <span className="text-xs font-medium">Home</span>
+                <span className="text-[11px] mt-1">Scan</span>
               </button>
+
               <button
-                onClick={() => setCurrentPage('orders-active')}
-                className="flex flex-col items-center px-2 py-1 text-gray-300 hover:text-white flex-shrink-0"
+                onClick={() => { setShowCart(false); setCurrentPage('cart'); }}
+                className="relative bg-green-600 text-white px-5 py-2 rounded-full flex items-center space-x-2 font-bold text-sm shadow-lg"
+                title="Checkout"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span className="text-xs font-medium">Orders</span>
+                <ShoppingCart className="w-5 h-5" />
+                <span>Checkout</span>
+                {getTotalItems() > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    {getTotalItems()}
+                  </span>
+                )}
               </button>
-              {employee && ['admin', 'manager'].includes(employee.role) && (
-                <>
-                  <button
-                    onClick={() => setCurrentPage('products')}
-                    className="flex flex-col items-center px-2 py-1 text-blue-400 hover:text-blue-300 flex-shrink-0"
-                  >
-                    <Package className="w-6 h-6" />
-                    <span className="text-xs font-medium">Products</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage('inventory')}
-                    className="flex flex-col items-center px-2 py-1 text-purple-400 hover:text-purple-300 flex-shrink-0"
-                  >
-                    <ClipboardList className="w-6 h-6" />
-                    <span className="text-xs font-medium">Inventory</span>
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setCurrentPage('reports-sales')}
-                className="flex flex-col items-center px-2 py-1 text-gray-300 hover:text-white flex-shrink-0"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span className="text-xs font-medium">Reports</span>
-              </button>
+
               <button
                 onClick={() => setShowShiftEndModal(true)}
-                className="flex flex-col items-center px-2 py-1 text-orange-400 hover:text-orange-300 flex-shrink-0"
+                className="flex flex-col items-center text-orange-400 hover:text-orange-300"
+                title="End Shift"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-xs font-medium">End Shift</span>
-              </button>
-              <button
-                onClick={() => {
-                  setEmployee(null);
-                  sessionStorage.removeItem('employee');
-                  setCurrentPage('home');
-                }}
-                className="flex flex-col items-center px-2 py-1 text-red-400 hover:text-red-300 flex-shrink-0"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span className="text-xs font-medium">Logout</span>
+                <span className="text-[11px] mt-1">End</span>
               </button>
             </div>
           </nav>
