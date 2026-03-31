@@ -1007,7 +1007,11 @@ export default function App() {
               <button
                 onClick={() => {
                   setShowCart(false);
-                  setCurrentPage('cart');
+                  if (currentPage === 'pos') {
+                    handlePaymentWithShiftCheck();
+                  } else {
+                    setCurrentPage('cart');
+                  }
                 }}
                 className="relative bg-green-600 text-white px-6 py-2 rounded-full flex items-center space-x-2 font-bold text-sm shadow-lg"
               >
