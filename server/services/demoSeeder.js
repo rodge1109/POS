@@ -18,14 +18,16 @@ export async function seedDemoData(company_id) {
     await client.query('BEGIN');
     
     // 1. Force ensure the company exists (UPSERT)
+    // We use a timestamp to ensure the name doesn't conflict with any unique constraints
+    const uniqueName = `Demo Restaurant (${Date.now()})`;
     await client.query(
       `INSERT INTO companies (id, name, login_pin, status) 
-       VALUES ($1, 'Demo Restaurant', '1109', 'active') 
+       VALUES ($1, $2, '1109', 'active') 
        ON CONFLICT (id) DO UPDATE SET 
          name = EXCLUDED.name,
          status = EXCLUDED.status,
          login_pin = EXCLUDED.login_pin`,
-      [targetId]
+      [targetId, uniqueName]
     );
 
     // 2. Clear existing demo data for this company (to avoid unique violations on re-run)

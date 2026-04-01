@@ -3251,7 +3251,7 @@ function CheckoutPage({ setCurrentPage, clearCart, setPendingOrderNumber, taxRat
 
 // Confirmation Page
 function ConfirmationPage({ setCurrentPage, orderNumber, paymentStatus }) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
   const displayOrderNumber = orderNumber || `ORD-${Date.now()}`;
   const [orderStatus, setOrderStatus] = useState('received');
   const [orderTime, setOrderTime] = useState(new Date());
@@ -9282,7 +9282,7 @@ const Ticket = ({ order, formatTimer, getUrgency, updateOrderStatus }) => {
 };
 
 function KitchenDisplayPage() {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
   const [orders, setOrders] = useState([]);
   const [now, setNow] = useState(Date.now());
   const [completedTimes, setCompletedTimes] = useState([]);
@@ -9496,7 +9496,7 @@ function KitchenDisplayPage() {
 }
 // Kitchen Report Page
 function KitchenReportPage() {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -10338,7 +10338,7 @@ function ReceiveStockView({ ingredients, API_URL, onRefresh }) {
 
 // Inventory Page
 function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts }) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
   const [products, setProducts] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [recipes, setRecipes] = useState([]);
@@ -11708,7 +11708,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
     { id: 'settings-integrations', name: 'Integrations' },
   ];
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
 
   const [configSaving, setConfigSaving] = useState(false);
   const [configMsg, setConfigMsg] = useState('');
