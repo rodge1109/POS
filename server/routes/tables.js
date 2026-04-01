@@ -571,9 +571,9 @@ router.get('/:id/orders', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT o.*, (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
-       FROM orders o WHERE o.table_id = $1 AND o.order_status = 'open' ORDER BY o.id`,
-      [id]
+      `SELECT o.*, (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND company_id = o.company_id) as item_count
+       FROM orders o WHERE o.table_id = $1 AND o.order_status = 'open' AND o.company_id = $2 ORDER BY o.id`,
+      [id, req.company_id]
     );
     // Fetch items for each order
     const orders = [];

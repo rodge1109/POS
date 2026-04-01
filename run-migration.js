@@ -3,7 +3,7 @@ import pool from './server/config/database.js';
 
 async function runMigration() {
   try {
-    const sql = fs.readFileSync('./server/migration_v3_add_product_cost.sql', 'utf8');
+    const sql = fs.readFileSync('./server/migration_multi_tenant.sql', 'utf8');
     await pool.query(sql);
     console.log('Migration successful!');
   } catch (err) {
