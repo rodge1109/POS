@@ -9,14 +9,14 @@ const __dirname = path.dirname(__filename);
 export async function seedDemoData(company_id) {
   const client = await pool.connect();
   try {
-    console.log(`[Seeder] Starting seed for company: ${company_id}`);
+    console.log(`[Seeder] Finalized ID to use: ${company_id}`);
     await client.query('BEGIN');
-
-    // NEW: Ensure the company exists first to prevent foreign key errors on reference tables
+    
+    // 1. Force ensure the company exists (UPSERT)
     await client.query(
-      `INSERT INTO companies (id, name, login_pin) 
-       VALUES ($1, 'My Restaurant', '1109') 
-       ON CONFLICT (id) DO NOTHING`,
+      `INSERT INTO companies (id, name, login_pin, status) 
+       VALUES ($1, 'Demo Restaurant', '1109', 'active') 
+       ON CONFLICT (id) DO UPDATE SET name = 'Demo Restaurant' WHERE companies.id = $1`,
       [company_id]
     );
 
