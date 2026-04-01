@@ -16,11 +16,16 @@ router.get('/', async (req, res) => {
       SELECT t.*,
         o.order_number, o.total_amount as order_total,
         o.created_at as order_opened_at,
-        (SELECT COUNT(*) FROM order_items WHERE order_id = t.current_order_id::uuid AND company_id = t.company_id::uuid) as item_count
+        (SELECT COUNT(*) FROM order_items WHERE order_id = t.current_order_id AND company_id = t.company_id) as item_count
       FROM tables t
-      LEFT JOIN orders o ON t.current_order_id::uuid = o.id::uuid AND t.company_id::uuid = o.company_id::uuid
+      LEFT JOIN orders o ON t.current_order_id = o.id AND t.company_id = o.company_id
       WHERE t.company_id = $1
-      ORDER BY t.table_number::int
+      ORDER BY 
+        CASE 
+          WHEN t.table_number ~ '^[0-9]+$' THEN t.table_number::int 
+          ELSE 999999 
+        END, 
+        t.table_number
     `, [req.company_id]);
     res.json({ success: true, tables: result.rows });
   } catch (error) {

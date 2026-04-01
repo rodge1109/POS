@@ -124,6 +124,7 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [pendingOrderNumber, setPendingOrderNumber] = useState(null);
+  const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
 
   // Products state
   const [menuData, setMenuData] = useState([]);
@@ -734,7 +735,7 @@ export default function App() {
           employee={employee}
         />
       )}
-      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden pt-14 md:pt-16 pb-16 md:pb-0' : currentPage === 'home' ? 'bg-gradient-to-br from-gray-900 via-green-900 to-gray-900 min-h-screen pb-16 md:pb-0' : 'bg-gradient-to-br from-gray-900 via-green-900 to-gray-900 min-h-screen pb-16 md:pb-0 pt-[90px] md:pt-[100px]'}`}>
+      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden pt-14 md:pt-16 pb-16 md:pb-0' : currentPage === 'home' ? 'bg-gray-100 min-h-screen pb-16 md:pb-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 pt-[90px] md:pt-[100px]'}`}>
         {currentPage === 'home' && (
           <HomePage
             setCurrentPage={setCurrentPage}
@@ -1044,7 +1045,7 @@ export default function App() {
           </nav>
         ) : employee && !['company-register', 'admin-login'].includes(currentPage) ? (
           /* Staff/Operational Nav bar - Focused for POS vs General for others */
-          <nav className="fixed bottom-0 left-0 right-0 bg-green-700 border-t border-green-600 md:hidden z-50 pb-safe">
+          <nav className="fixed bottom-0 left-0 right-0 bg-green-700 md:hidden z-50 pb-safe">
             {currentPage === 'pos' ? (
               /* POS Focused Navigation - Only 3 Buttons as requested */
               <div className="flex items-center justify-around py-2 px-4 gap-4">
@@ -1089,106 +1090,104 @@ export default function App() {
               </div>
             ) : (
               /* General Administration Nav bar - Expanded for full operational management */
-              <div className="flex items-center gap-1 py-1.5 overflow-x-auto scrollbar-hide px-2 bg-green-700/50 backdrop-blur-sm border-t border-white/10">
-                {/* Analytics/Home Section */}
-                <button
-                  onClick={() => setCurrentPage('dashboard')}
-                  className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'dashboard' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                >
-                  <TrendingUp className="w-5 h-5" />
-                  <span className="text-[10px] font-medium mt-1">Analytics</span>
-                </button>
-
-                {/* Operations Section */}
-                <button
-                  onClick={() => setCurrentPage('pos')}
-                  className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'pos' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  <span className="text-[10px] font-medium mt-1">POS</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage('pos')}
-                  className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'pos' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                >
-                  <LayoutGrid className="w-5 h-5" />
-                  <span className="text-[10px] font-medium mt-1">Tables</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage('orders-active')}
-                  className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage.startsWith('orders') ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                >
-                  <Receipt className="w-5 h-5" />
-                  <span className="text-[10px] font-medium mt-1">Orders</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage('kitchen')}
-                  className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'kitchen' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                >
-                  <ClipboardList className="w-5 h-5" />
-                  <span className="text-[10px] font-medium mt-1">Kitchen</span>
-                </button>
-
-                {/* Management Section */}
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button
-                    onClick={() => setCurrentPage('products')}
-                    className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'products' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                  >
-                    <UtensilsCrossed className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">Menu</span>
+              <>
+                <div className="flex justify-around items-center py-1.5 px-2 bg-gray-100 z-50 relative">
+                  {/* Top 4 visible items */}
+                  <button onClick={() => setCurrentPage('dashboard')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage === 'dashboard' ? 'bg-green-100 text-green-700' : 'text-green-600 hover:bg-gray-200'}`}>
+                    <TrendingUp className="w-5 h-5" />
+                    <span className="text-[10px] font-medium mt-1">Analytics</span>
                   </button>
-                )}
-
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button
-                    onClick={() => setCurrentPage('inventory-stock')}
-                    className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'inventory-stock' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                  >
-                    <Package className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">Inventory</span>
+                  <button onClick={() => setCurrentPage('pos')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage === 'pos' ? 'bg-green-100 text-green-700' : 'text-green-600 hover:bg-gray-200'}`}>
+                    <ShoppingCart className="w-5 h-5" />
+                    <span className="text-[10px] font-medium mt-1">POS</span>
                   </button>
-                )}
-
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button
-                    onClick={() => setCurrentPage('customers')}
-                    className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'customers' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                  >
-                    <User className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">Clients</span>
+                  <button onClick={() => setCurrentPage('pos')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage === 'pos' ? 'bg-green-100 text-green-700' : 'text-green-600 hover:bg-gray-200'}`}>
+                    <LayoutGrid className="w-5 h-5" />
+                    <span className="text-[10px] font-medium mt-1">Tables</span>
                   </button>
-                )}
-
-                {/* Admin/System Section */}
-                {employee.role === 'admin' && (
-                  <button
-                    onClick={() => setCurrentPage('staff-employees')}
-                    className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'staff-employees' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                  >
-                    <User className="w-5 h-5 opacity-70" />
-                    <span className="text-[10px] font-medium mt-1">Staff</span>
+                  <button onClick={() => setCurrentPage('orders-active')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage.startsWith('orders') ? 'bg-green-100 text-green-700' : 'text-green-600 hover:bg-gray-200'}`}>
+                    <Receipt className="w-5 h-5" />
+                    <span className="text-[10px] font-medium mt-1">Orders</span>
                   </button>
-                )}
 
-                {employee.role === 'admin' && (
-                  <button
-                    onClick={() => setCurrentPage('settings-general')}
-                    className={`flex flex-col items-center min-w-[65px] shrink-0 py-1 rounded-lg transition-colors ${currentPage === 'settings-general' ? 'bg-white/15 text-white' : 'text-green-50 hover:bg-white/10'}`}
-                  >
-                    <Settings className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">System</span>
+                  {/* 5th Icon: Hamburger Drawer Toggle */}
+                  <button onClick={() => setIsNavDrawerOpen(prev => !prev)} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${isNavDrawerOpen ? 'bg-green-100 text-green-700' : 'text-green-600 hover:bg-gray-200'}`}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    <span className="text-[10px] font-medium mt-1">More</span>
                   </button>
+                </div>
+
+                {/* Drawer Menu */}
+                <div 
+                  className={`fixed left-0 right-0 bottom-14 bg-gray-50 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] rounded-t-3xl transition-transform duration-300 ease-in-out z-40 ${isNavDrawerOpen ? 'translate-y-0' : 'translate-y-full'}`}
+                  style={{ height: '40vh' }}
+                >
+                  <div className="p-4 pt-6 h-full overflow-y-auto">
+                    <div className="flex justify-between items-center mb-6 pb-2 border-b border-gray-200">
+                      <h3 className="font-black text-gray-800 tracking-wider">MORE OPTIONS</h3>
+                      <button onClick={() => setIsNavDrawerOpen(false)} className="text-gray-500 p-2 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {/* Grid of 3 columns */}
+                    <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
+                      <button onClick={() => {setCurrentPage('kitchen'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-green-100 text-green-700 shadow-md scale-105' : 'text-green-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                        <ClipboardList className="w-7 h-7 mb-2" />
+                        <span className="text-[11px] font-bold">Kitchen</span>
+                      </button>
+
+                      {['admin', 'manager'].includes(employee.role) && (
+                        <button onClick={() => {setCurrentPage('products'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-green-100 text-green-700 shadow-md scale-105' : 'text-green-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                          <UtensilsCrossed className="w-7 h-7 mb-2" />
+                          <span className="text-[11px] font-bold">Menu</span>
+                        </button>
+                      )}
+
+                      {['admin', 'manager'].includes(employee.role) && (
+                        <button onClick={() => {setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-green-100 text-green-700 shadow-md scale-105' : 'text-green-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                          <Package className="w-7 h-7 mb-2" />
+                          <span className="text-[11px] font-bold">Inventory</span>
+                        </button>
+                      )}
+
+                      {['admin', 'manager'].includes(employee.role) && (
+                        <button onClick={() => {setCurrentPage('customers'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'customers' ? 'bg-green-100 text-green-700 shadow-md scale-105' : 'text-green-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                          <User className="w-7 h-7 mb-2" />
+                          <span className="text-[11px] font-bold">Clients</span>
+                        </button>
+                      )}
+
+                      {employee.role === 'admin' && (
+                        <button onClick={() => {setCurrentPage('staff-employees'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-green-100 text-green-700 shadow-md scale-105' : 'text-green-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                          <User className="w-7 h-7 mb-2 opacity-70" />
+                          <span className="text-[11px] font-bold">Staff</span>
+                        </button>
+                      )}
+
+                      {employee.role === 'admin' && (
+                        <button onClick={() => {setCurrentPage('settings-general'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-green-100 text-green-700 shadow-md scale-105' : 'text-green-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                          <Settings className="w-7 h-7 mb-2" />
+                          <span className="text-[11px] font-bold">System</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overlay for clicking outside */}
+                {isNavDrawerOpen && (
+                  <div 
+                    className="fixed inset-0 bg-black/40 z-30 transition-opacity backdrop-blur-sm"
+                    onClick={() => setIsNavDrawerOpen(false)}
+                  />
                 )}
-              </div>
+              </>
+
             )}
           </nav>
         ) : (
           /* Default/Auth fallback nav */
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-50 pb-safe">
+          <nav className="fixed bottom-0 left-0 right-0 bg-white md:hidden z-50 pb-safe">
             <div className="flex justify-around items-center py-2">
               <button
                 onClick={() => setCurrentPage('home')}
@@ -1287,10 +1286,10 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
           <div className="flex items-center justify-between gap-4 h-full">
             {/* Logo - hidden on mobile when search is shown */}
             <div className={`flex items-center space-x-3 cursor-pointer ${(currentPage === 'home' || currentPage === 'menu') ? 'hidden md:flex' : 'flex'}`} onClick={() => setCurrentPage('home')}>
-              <div className="text-4xl font-black text-white">K</div>
+              <div className="text-3xl font-black text-white">K</div>
               <div>
-                <h1 className="text-xl font-black text-white tracking-wider">Kuchefnero.ph</h1>
-                <p className="text-[9px] text-white font-bold">Food Ordering System (ver 1.0)</p>
+                <h1 className="text-lg font-black text-white tracking-wider">Kuchefnero.ph</h1>
+                <p className="text-[8px] text-white font-bold opacity-90">Food Ordering System (ver 1.0)</p>
               </div>
             </div>
 
@@ -1812,7 +1811,7 @@ function DashboardPage({ setCurrentPage, employee }) {
   }, [timeframe, currency]);
 
   return (
-    <div className="bg-gray-50 min-h-screen pt-4 pb-20">
+    <div className="bg-gray-100 min-h-screen pt-4 pb-20">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header with Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -3618,24 +3617,24 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
   const pinDots = loginStep === 'company' ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3];
 
   return (
-    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn p-4 md:p-8">
-      <div className="bg-white w-full max-w-sm md:max-w-4xl min-h-[600px] rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row border border-gray-100">
+    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn p-4 md:p-8 font-dashboard">
+      <div className="bg-white w-full max-w-sm md:max-w-lg min-h-[400px] md:min-h-[440px] rounded-[2.5rem] shadow-[0_30px_70px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row border border-gray-100">
         
         {/* ── Keypad Section ── */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 relative">
-          <div className="text-center w-full mb-8">
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 relative">
+          <div className="text-center w-full mb-4">
+            <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">
               {loginStep === 'company' ? 'Store Key' : 'Staff Login'}
             </h2>
-            <div className="h-0.5 w-12 bg-green-600 mx-auto my-3 rounded-full" />
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-              {loginStep === 'company' ? 'Enter 6-digit access code' : 'Enter personal 4-digit PIN'}
+            <div className="h-0.5 w-8 bg-green-600 mx-auto my-2 rounded-full" />
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] opacity-80">
+              {loginStep === 'company' ? 'Enter 6-digit access code' : 'Enter 4-digit PIN'}
             </p>
             
             {loginStep === 'employee' && localStorage.getItem('active_company_name') && (
-              <div className="mt-4 flex flex-col items-center animate-fadeIn">
-                <p className="text-gray-900 text-sm font-black tracking-tight">{localStorage.getItem('active_company_name')}</p>
-                <button onClick={handleSwitchStore} className="text-[9px] font-black text-green-600 uppercase tracking-widest mt-1 hover:text-green-700 transition-colors">
+              <div className="mt-2 flex flex-col items-center animate-fadeIn">
+                <p className="text-gray-900 text-xs font-black tracking-tight">{localStorage.getItem('active_company_name')}</p>
+                <button onClick={handleSwitchStore} className="text-[8px] font-black text-green-600 uppercase tracking-widest mt-0.5 hover:text-green-700 transition-colors">
                   Change Location
                 </button>
               </div>
@@ -3643,13 +3642,13 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
           </div>
 
           {/* PIN Visualization */}
-          <div className={`flex gap-4 mb-10 ${shake ? 'animate-shake' : ''}`}>
+          <div className={`flex gap-3 mb-6 ${shake ? 'animate-shake' : ''}`}>
             {pinDots.map(i => (
               <div
                 key={i}
-                className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
+                className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
                   i < pin.length
-                    ? 'bg-green-600 border-green-600 scale-125 shadow-lg shadow-green-100'
+                    ? 'bg-green-600 border-green-600 scale-110 shadow-lg shadow-green-100'
                     : 'bg-gray-50 border-gray-200'
                 }`}
               />
@@ -3657,19 +3656,19 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
           </div>
 
           {/* Status Display */}
-          <div className="h-10 mb-2">
+          <div className="h-8 mb-2">
             {error ? (
-              <p className="text-red-500 text-[10px] font-black uppercase tracking-widest bg-red-50 px-4 py-2 rounded-full border border-red-100 animate-fadeIn">{error}</p>
+              <p className="text-red-500 text-[9px] font-black uppercase tracking-widest bg-red-50 px-3 py-1 rounded-full border border-red-100 animate-fadeIn">{error}</p>
             ) : isLoading ? (
-              <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full border border-green-100 animate-pulse">
-                <div className="w-2 h-2 bg-green-600 rounded-full" />
-                <p className="text-[10px] text-green-700 font-black uppercase tracking-widest">Validating...</p>
+              <div className="flex items-center gap-1.5 bg-green-50 px-3 py-1 rounded-full border border-green-100 animate-pulse">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+                <p className="text-[9px] text-green-700 font-black uppercase tracking-widest">Validating...</p>
               </div>
             ) : null}
           </div>
 
           {/* Numeric Keypad */}
-          <div className="grid grid-cols-3 gap-4 w-full max-w-[300px]">
+          <div className="grid grid-cols-3 gap-2.5 w-full max-w-[240px]">
             {keys.map((key, idx) => {
               if (key === null) return <div key={idx} />;
               if (key === 'del') {
@@ -3678,9 +3677,9 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
                     key={idx}
                     onClick={handleDelete}
                     disabled={isLoading}
-                    className="h-16 md:h-20 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all active:scale-95 disabled:opacity-50"
+                    className="h-12 md:h-14 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all active:scale-95 disabled:opacity-50"
                   >
-                    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={3}>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={3}>
                       <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
                       <line x1="18" y1="9" x2="12" y2="15" />
                       <line x1="12" y1="9" x2="18" y2="15" />
@@ -3693,7 +3692,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
                   key={idx}
                   onClick={() => handleKey(String(key))}
                   disabled={isLoading}
-                  className="h-16 md:h-20 rounded-2xl bg-white border border-gray-100 shadow-sm text-gray-900 text-2xl font-black transition-all hover:bg-gray-50 hover:shadow-md active:scale-95 disabled:opacity-50"
+                  className="h-12 md:h-14 rounded-xl bg-white border border-gray-100 shadow-sm text-gray-900 text-lg font-black transition-all hover:bg-gray-50 hover:shadow-md active:scale-95 disabled:opacity-50"
                 >
                   {key}
                 </button>
@@ -3701,24 +3700,24 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
             })}
           </div>
 
-          <div className="mt-12 flex flex-col items-center gap-5">
+          <div className="mt-6 flex flex-col items-center gap-3">
             <button
                onClick={() => onAction('company-register')}
-               className="text-[10px] font-black text-green-600 uppercase tracking-widest hover:text-green-700 transition-all bg-green-50/50 px-6 py-2 rounded-full border border-green-100/50 shadow-sm active:scale-95"
+               className="text-[9px] font-black text-green-600 uppercase tracking-widest hover:text-green-700 transition-all bg-green-50/50 px-4 py-1.5 rounded-full border border-green-100/50 shadow-sm active:scale-95"
             >
-              Create your own store
+              Create store
             </button>
-            <div className="flex gap-6">
+            <div className="flex gap-4">
               <button
                 onClick={() => onAction('admin-login')}
-                className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                className="text-[8px] font-black text-gray-600 uppercase tracking-widest hover:text-gray-800 transition-colors"
               >
                 Owner Access
               </button>
-              <div className="w-1 h-1 bg-gray-200 rounded-full mt-1.5" />
+              <div className="w-0.5 h-0.5 bg-gray-300 rounded-full mt-1.5" />
               <button
                 onClick={onBack}
-                className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors"
+                className="text-[8px] font-black text-gray-600 uppercase tracking-widest hover:text-red-600 transition-colors"
               >
                 Exit Terminal
               </button>
@@ -3727,31 +3726,36 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
         </div>
 
         {/* ── Branding Panel (Desktop Only) ── */}
-        <div className="hidden md:flex w-[40%] bg-gradient-to-br from-green-700 to-green-900 p-12 flex-col justify-between relative overflow-hidden">
+        <div className="hidden md:flex w-[38%] bg-gradient-to-br from-green-700 to-green-900 p-6 flex-col justify-between relative overflow-hidden">
           {/* Decorative background elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24" />
           
           <div className="relative z-10">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl rotate-3 mb-8">
-              <span className="text-4xl font-black text-green-700">K</span>
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-2xl rotate-3 mb-4">
+              <span className="text-xl font-black text-green-700">K</span>
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Nero POS</h1>
-            <p className="text-green-200 text-xs font-bold tracking-widest uppercase mt-2 opacity-80">Management Portal</p>
+            <h1 className="text-xl font-black text-white tracking-tight uppercase leading-none">Nero POS</h1>
+            <p className="text-green-200 text-[9px] font-bold tracking-widest uppercase mt-1.5 opacity-80">Management Portal</p>
           </div>
 
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-4 text-white/60">
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                <Check className="w-4 h-4" />
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-3 text-white/50">
+              <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                <Check className="w-3 h-3 text-green-200" />
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-widest">Enterprise Security</p>
+              <p className="text-[8px] font-black uppercase tracking-widest">Enterprise Secure</p>
             </div>
-            <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
-              <p className="text-white text-xs font-bold mb-1 uppercase tracking-tight">System Status</p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[10px] text-green-200 font-bold uppercase tracking-widest">Network Connected</span>
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+              <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-1 italic">V1.0 - Stable</p>
+              <p className="text-[8px] text-white/30 leading-tight mb-3">Terminal ID: {Math.random().toString(36).substring(7).toUpperCase()}</p>
+              
+              <div className="pt-3 border-t border-white/10">
+                <p className="text-white text-[8px] font-black mb-1.5 uppercase tracking-widest opacity-60">System Status</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+                  <span className="text-[9px] text-green-200 font-black uppercase tracking-widest">Network Connected</span>
+                </div>
               </div>
             </div>
           </div>
@@ -5652,31 +5656,47 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               <div className="p-1.5 md:p-4 space-y-1 md:space-y-2 bg-white border-t border-gray-100 flex-shrink-0">
                 {/* Main action button - context-dependent */}
                 {selectedTable && selectedTable.status === 'available' ? (
-                  /* Table selected - Open Check */
+                  /* Table selected - First order */
                   <button
-                    onClick={() => {
-                      openCheckOnTable(selectedTable.id);
-                    }}
+                    onClick={() => openCheckOnTable(selectedTable.id)}
                     disabled={cartItems.length === 0}
-                    className={`w-full py-2.5 md:py-4 rounded font-bold text-xs md:text-base transition-all ${cartItems.length === 0
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                    className={`w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all flex flex-col items-center justify-center gap-1 ${cartItems.length === 0
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200 active:scale-95'
                       }`}
                   >
-                    Open Check → Table {selectedTable.table_number}
+                    <span className="uppercase tracking-widest text-[10px] opacity-80">Phase 1: Save Order</span>
+                    <span>PLACE ORDER → TABLE {selectedTable.table_number}</span>
                   </button>
                 ) : isAddingToTable && selectedTable ? (
                   /* Adding items to occupied table */
                   <button
                     onClick={() => addItemsToTable(selectedTable.id)}
                     disabled={cartItems.length === 0}
-                    className={`w-full py-2.5 md:py-4 rounded font-bold text-xs md:text-base transition-all ${cartItems.length === 0
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-orange-600 text-white hover:bg-orange-700 shadow-md hover:shadow-lg'
+                    className={`w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all flex flex-col items-center justify-center gap-1 ${cartItems.length === 0
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg hover:shadow-orange-200 active:scale-95'
                       }`}
                   >
-                    Add Items → Table {selectedTable.table_number}
+                    <span className="uppercase tracking-widest text-[10px] opacity-80">Update Bill</span>
+                    <span>ADD TO TABLE {selectedTable.table_number}</span>
                   </button>
+                ) : cartItems.length > 0 && !selectedTable ? (
+                  /* Items in cart but no table selected - show a specific 'Save to Table' prompt */
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setShowTableView(true)}
+                      className="w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all bg-indigo-100 text-indigo-700 border-2 border-dashed border-indigo-300 hover:bg-indigo-200"
+                    >
+                      SELECT TABLE TO SAVE ORDER
+                    </button>
+                    <button
+                      onClick={handlePaymentWithShiftCheck}
+                      className="w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all bg-green-600 text-white hover:bg-green-700 shadow-md"
+                    >
+                      CHARGE {money(total)} (NO TABLE)
+                    </button>
+                  </div>
                 ) : employee?.role === 'waiter' ? (
                   /* Waiter — no direct charge, must use table view */
                   <button
@@ -5724,8 +5744,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
         {/* Payment Modal */}
         {showPaymentModal && (
-          <div className="fixed inset-0 bg-white z-[100] flex flex-col overflow-hidden animate-fadeIn">
-            <div className="flex-1 flex flex-col h-full bg-white shadow-2xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-10 animate-fadeIn font-dashboard">
+            <div className="w-full max-w-[34rem] h-full md:h-auto md:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
               {/* Green Header */}
               <div className="bg-green-600 text-white px-5 py-4 flex-shrink-0">
                 <div className="flex justify-between items-center">
@@ -5742,7 +5762,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-24">
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 space-y-6 pb-24">
                 {/* Order Summary */}
                 <div className="bg-green-50 border border-green-100 p-3 rounded-lg">
                   <div className="flex justify-between items-center">
@@ -5931,8 +5951,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   </div>
                 )}
 
-                {/* Action Buttons - Fixed at bottom */}
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex gap-3 z-10 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                {/* Action Buttons - Pinned to bottom of modal */}
+                <div className="sticky bottom-0 p-4 bg-white border-t border-gray-100 flex gap-3 z-[20] shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                   <button
                     onClick={() => setShowPaymentModal(false)}
                     className="px-6 py-4 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition-colors font-bold text-sm uppercase tracking-wide"
