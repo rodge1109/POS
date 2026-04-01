@@ -9,7 +9,12 @@ const __dirname = path.dirname(__filename);
 export async function seedDemoData(company_id) {
   const client = await pool.connect();
   try {
-    console.log(`[Seeder] Finalized ID to use: ${company_id}`);
+    // HARD FALLBACK: Ensure we always have a valid UUID to link to
+    const targetId = (company_id && company_id !== 'undefined' && company_id !== 'null') 
+      ? company_id 
+      : '00000000-0000-0000-0000-000000000000';
+
+    console.log(`[Seeder] Finalized ID to use: ${targetId}`);
     await client.query('BEGIN');
     
     // 1. Force ensure the company exists (UPSERT)
@@ -17,8 +22,12 @@ export async function seedDemoData(company_id) {
       `INSERT INTO companies (id, name, login_pin, status) 
        VALUES ($1, 'Demo Restaurant', '1109', 'active') 
        ON CONFLICT (id) DO UPDATE SET name = 'Demo Restaurant' WHERE companies.id = $1`,
-      [company_id]
+      [targetId]
     );
+
+    // 2. Clear existing demo data for this company (to avoid unique violations on re-run)
+    await client.query('DELETE FROM tables WHERE company_id = $1', [targetId]);
+    await client.query('DELETE FROM products WHERE company_id = $1', [targetId]);
 
     // 1. Seed Tables (T1 - T10)
     console.log('[Seeder] Step 1: Seeding tables...');
@@ -27,7 +36,7 @@ export async function seedDemoData(company_id) {
         `INSERT INTO tables (table_number, capacity, section, company_id) 
          VALUES ($1, 4, 'Main', $2) 
          ON CONFLICT (company_id, table_number) DO NOTHING`,
-        [`T${i}`, company_id]
+        [`T${i}`, targetId]
       );
     }
     console.log('[Seeder] Step 1 complete.');
@@ -44,7 +53,7 @@ export async function seedDemoData(company_id) {
         `INSERT INTO modifiers (name, type, price, company_id) 
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (company_id, name) DO NOTHING`,
-        [mod.name, mod.type, mod.price, company_id]
+        [mod.name, mod.type, mod.price, targetId]
       );
     }
     console.log('[Seeder] Step 2 complete.');
@@ -75,7 +84,7 @@ export async function seedDemoData(company_id) {
             `INSERT INTO products (name, category, price, description, image, popular, company_id, stock_quantity, active)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 100, true)
              ON CONFLICT (company_id, name) DO NOTHING`,
-            [name, category, price || 0, description, image, popular, company_id]
+            [name, category, price || 0, description, image, popular, targetId]
           );
         }
       }
