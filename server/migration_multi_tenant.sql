@@ -9,6 +9,7 @@
 CREATE TABLE IF NOT EXISTS public.companies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
+    login_pin VARCHAR(20),
     profile_image TEXT,
     address TEXT,
     tax_id VARCHAR(100),
