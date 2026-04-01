@@ -12,6 +12,14 @@ export async function seedDemoData(company_id) {
     console.log(`[Seeder] Starting seed for company: ${company_id}`);
     await client.query('BEGIN');
 
+    // NEW: Ensure the company exists first to prevent foreign key errors on reference tables
+    await client.query(
+      `INSERT INTO companies (id, name, pin) 
+       VALUES ($1, 'My Restaurant', '1109') 
+       ON CONFLICT (id) DO NOTHING`,
+      [company_id]
+    );
+
     // 1. Seed Tables (T1 - T10)
     console.log('[Seeder] Step 1: Seeding tables...');
     for (let i = 1; i <= 10; i++) {
