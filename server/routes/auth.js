@@ -204,7 +204,7 @@ router.post('/admin-login', async (req, res) => {
       `SELECT e.id, e.username, e.name, e.role, e.company_id, c.name as company_name 
        FROM employees e 
        LEFT JOIN companies c ON e.company_id = c.id
-       WHERE e.username = $1 AND e.password_hash = $2 AND e.role = $3 AND e.active = true`,
+       WHERE (e.username = $1 OR e.email = $1) AND e.password_hash = $2 AND e.role = $3 AND e.active = true`,
       [email.toLowerCase(), password, 'admin']
     );
 
