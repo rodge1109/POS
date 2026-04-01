@@ -16,9 +16,9 @@ router.get('/', async (req, res) => {
       SELECT t.*,
         o.order_number, o.total_amount as order_total,
         o.created_at as order_opened_at,
-        (SELECT COUNT(*) FROM order_items WHERE order_id = t.current_order_id AND company_id = t.company_id) as item_count
+        (SELECT COUNT(*) FROM order_items WHERE order_id = t.current_order_id::uuid AND company_id = t.company_id::uuid) as item_count
       FROM tables t
-      LEFT JOIN orders o ON t.current_order_id = o.id AND t.company_id = o.company_id
+      LEFT JOIN orders o ON t.current_order_id::uuid = o.id::uuid AND t.company_id::uuid = o.company_id::uuid
       WHERE t.company_id = $1
       ORDER BY t.table_number::int
     `, [req.company_id]);

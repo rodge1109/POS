@@ -147,7 +147,7 @@ function buildEmailHtml(title, period, businessName, salesData, kitchenOrders = 
           <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:bold;color:#16a34a;border-radius:0 8px 8px 0;">${summary.total_orders}</td>
         </tr>
         <tr>
-          <td style="padding:10px 14px;font-weight:bold;">Total Revenue</td>
+          <td style="padding:10px 14px;font-weight:bold;">Total Sales</td>
           <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:bold;color:#16a34a;">${fmt(summary.total_revenue)}</td>
         </tr>
         <tr style="background:#f9fafb;">

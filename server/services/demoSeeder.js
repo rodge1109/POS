@@ -14,7 +14,7 @@ export async function seedDemoData(company_id) {
 
     // NEW: Ensure the company exists first to prevent foreign key errors on reference tables
     await client.query(
-      `INSERT INTO companies (id, name, pin) 
+      `INSERT INTO companies (id, name, login_pin) 
        VALUES ($1, 'My Restaurant', '1109') 
        ON CONFLICT (id) DO NOTHING`,
       [company_id]
