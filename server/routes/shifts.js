@@ -53,7 +53,11 @@ router.post('/start', async (req, res) => {
     });
   } catch (error) {
     console.error('Error starting shift:', error);
-    res.status(500).json({ success: false, error: 'Failed to start shift' });
+    console.error('Error details - employee:', req.user, 'company_id:', req.company_id);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
+    res.status(500).json({ success: false, error: 'Failed to start shift: ' + error.message });
   }
 });
 

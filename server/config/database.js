@@ -65,7 +65,12 @@ if (databaseUrl) {
   };
 }
 
-pool = new Pool(poolConfig);
+pool = new Pool({
+  ...poolConfig,
+  max: isProduction ? 10 : 20,
+  idleTimeoutMillis: isProduction ? 30000 : 60000,
+  connectionTimeoutMillis: isProduction ? 10000 : 5000,
+});
 
 // Test connection
 pool.on('connect', () => {
@@ -121,7 +126,8 @@ pool.on('connect', () => {
 
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  // Don't crash the process — the pool will create new connections as needed.
+  // Crashing here kills the server on Render/cloud when idle connections are reaped.
 });
 
 export default pool;
