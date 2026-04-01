@@ -9,9 +9,11 @@ const __dirname = path.dirname(__filename);
 export async function seedDemoData(company_id) {
   const client = await pool.connect();
   try {
+    console.log(`[Seeder] Starting seed for company: ${company_id}`);
     await client.query('BEGIN');
 
     // 1. Seed Tables (T1 - T10)
+    console.log('[Seeder] Step 1: Seeding tables...');
     for (let i = 1; i <= 10; i++) {
       await client.query(
         `INSERT INTO tables (table_number, capacity, section, company_id) 
@@ -20,8 +22,10 @@ export async function seedDemoData(company_id) {
         [`T${i}`, company_id]
       );
     }
+    console.log('[Seeder] Step 1 complete.');
 
     // 2. Seed Common Modifiers
+    console.log('[Seeder] Step 2: Seeding modifiers...');
     const modifiers = [
       { name: 'Extra Cheese', type: 'addon', price: 2.00 },
       { name: 'Bacon', type: 'addon', price: 3.00 },
@@ -35,18 +39,21 @@ export async function seedDemoData(company_id) {
         [mod.name, mod.type, mod.price, company_id]
       );
     }
+    console.log('[Seeder] Step 2 complete.');
 
     // 3. Parse and Seed Products from CSV
     const csvPath = path.resolve(__dirname, '../../SAMPLE_PRODUCTS.csv');
+    console.log(`[Seeder] Step 3: Checking CSV at ${csvPath}`);
     if (fs.existsSync(csvPath)) {
+      console.log('[Seeder] CSV file found. Parsing lines...');
       const csvData = fs.readFileSync(csvPath, 'utf8');
       const lines = csvData.split(/\r?\n/);
-      // Skip header (id,name,category,price,image,description,popular)
+      console.log(`[Seeder] CSV has ${lines.length} lines.`);
+      
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        // Naive CSV split since our sample data doesn't have commas in quoted fields
         const cols = line.split(',');
         if (cols.length >= 7) {
           const name = cols[1];
@@ -54,7 +61,7 @@ export async function seedDemoData(company_id) {
           const price = parseFloat(cols[3]) || 0;
           const image = cols[4];
           const description = cols[5];
-          const popular = cols[6].toUpperCase() === 'TRUE';
+          const popular = cols[6] && cols[6].toUpperCase() === 'TRUE';
 
           await client.query(
             `INSERT INTO products (name, category, price, description, image, popular, company_id, stock_quantity, active)
@@ -64,13 +71,17 @@ export async function seedDemoData(company_id) {
           );
         }
       }
+      console.log('[Seeder] Step 3 complete.');
+    } else {
+      console.warn(`[Seeder] CSV file NOT FOUND at: ${csvPath}`);
     }
 
     await client.query('COMMIT');
+    console.log('[Seeder] Seed process finished successfully.');
     return { success: true };
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error seeding demo data:', error);
+    console.error('[Seeder] Seed process CRASHED:', error);
     throw error;
   } finally {
     client.release();
