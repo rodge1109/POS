@@ -12166,12 +12166,17 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
                     onClick={async () => {
                       if (!confirm('This will add sample products to your restaurant. Continue?')) return;
                       try {
-                        const res = await fetchWithAuth(`${API_URL}/products/seed-demo`, { method: 'POST' });
+                        const res = await fetchWithAuth(`${API_URL}/settings/seed`, { method: 'POST' });
                         const d = await res.json();
+                        if (res.status === 401) {
+                          alert('Session expired. Please log in again.');
+                          return;
+                        }
                         alert(d.success ? 'Success! Sample data added. Refreshing...' : (d.error || 'Failed to seed.'));
                         if (d.success) window.location.reload();
                       } catch (err) {
-                        alert('Connect error: Failed to seed demo data.');
+                        console.error('Seed error:', err);
+                        alert('Connect error: Failed to seed demo data. Check your network or if the server is up.');
                       }
                     }}
                     className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
