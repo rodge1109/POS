@@ -14,6 +14,7 @@ import tablesRoutes from './routes/tables.js';
 import settingsRoutes from './routes/settings.js';
 import inventoryRoutes from './routes/inventory.js';
 import modifiersRoutes from './routes/modifiers.js';
+import categoriesRoutes from './routes/categories.js';
 import { verifyToken } from './routes/auth.js'; // Import the protection middleware!
 import { startScheduler } from './services/scheduler.js' 
 import fs from 'fs';
@@ -91,6 +92,7 @@ app.use('/api/tables', verifyToken, tablesRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
 app.use('/api/inventory', verifyToken, inventoryRoutes);
 app.use('/api/modifiers', verifyToken, modifiersRoutes);
+app.use('/api/categories', verifyToken, categoriesRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

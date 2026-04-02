@@ -22,20 +22,18 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
     for (const item of items) {
       const isCombo = item.isCombo || (typeof item.id === 'string' && item.id.startsWith('combo-'));
       let productCompositions = [];
+      const productId = item.product_id || item.id;
 
       if (isCombo) {
-        // For combos, get compositions of each product in the combo
         const comboId = typeof item.id === 'string' && item.id.startsWith('combo-')
           ? parseInt(item.id.replace('combo-', ''))
           : item.id;
 
-        // Get products in the combo
         const comboItemsResult = await client.query(
           'SELECT product_id, quantity FROM combo_items WHERE combo_id = $1 AND company_id = $2',
           [comboId, companyId]
         );
 
-        // Get compositions for each product in combo
         for (const comboItem of comboItemsResult.rows) {
           const compositionResult = await client.query(
             'SELECT ingredient_id, quantity_required FROM product_composition WHERE product_id = $1 AND company_id = $2',
@@ -44,46 +42,79 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
           for (const comp of compositionResult.rows) {
             productCompositions.push({
               ingredient_id: comp.ingredient_id,
-              // Total quantity = (ingredient qty for product) * (product qty in combo) * (combo order qty)
               quantity: comp.quantity_required * comboItem.quantity * item.quantity
             });
           }
         }
       } else {
-        // For regular products, get ingredient composition
-        const productId = item.product_id || item.id;
-        const compositionResult = await client.query(
-          'SELECT ingredient_id, quantity_required FROM product_composition WHERE product_id = $1 AND company_id = $2',
-          [productId, companyId]
-        );
+        // Find composition - prioritize size-specific recipe, fallback to global product recipe
+        const orderedSizeId = item.size_id || item.product_size_id || null;
+        
+        let compositionResult;
+        if (orderedSizeId) {
+          compositionResult = await client.query(
+            `SELECT ingredient_id, quantity_required FROM product_composition 
+             WHERE product_id = $1 AND company_id = $2 AND size_id = $3`,
+            [productId, companyId, orderedSizeId]
+          );
+        }
+
+        // If no size-specific recipe or no size provided, check for general recipe
+        if (!compositionResult || compositionResult.rows.length === 0) {
+          compositionResult = await client.query(
+            `SELECT ingredient_id, quantity_required FROM product_composition 
+             WHERE product_id = $1 AND company_id = $2 AND size_id IS NULL`,
+            [productId, companyId]
+          );
+        }
+
         for (const comp of compositionResult.rows) {
           productCompositions.push({
             ingredient_id: comp.ingredient_id,
-            quantity: comp.quantity_required * item.quantity
+            quantity: comp.quantity_required * item.quantity,
+            size_id: orderedSizeId
           });
         }
       }
 
-      // Verify stock availability before deducting
-      for (const comp of productCompositions) {
-        const ingredientResult = await client.query(
-          'SELECT current_stock, name FROM ingredients WHERE id = $1 AND company_id = $2',
-          [comp.ingredient_id, companyId]
-        );
+      // ─── PART A: Ingredient Validation ───
+      if (productCompositions.length > 0) {
+        for (const comp of productCompositions) {
+          const ingredientResult = await client.query(
+            'SELECT current_stock, name FROM ingredients WHERE id = $1 AND company_id = $2',
+            [comp.ingredient_id, companyId]
+          );
 
-        if (ingredientResult.rows.length > 0) {
-          const ingredient = ingredientResult.rows[0];
-          if (ingredient.current_stock < comp.quantity) {
+          if (ingredientResult.rows.length > 0) {
+            const ingredient = ingredientResult.rows[0];
+            if (ingredient.current_stock < comp.quantity) {
+              insufficientStockItems.push({
+                ingredient: ingredient.name,
+                required: comp.quantity,
+                available: ingredient.current_stock
+              });
+            }
+          }
+        }
+      } 
+      // ─── PART B: Direct Product Stock Validation (For non-recipe items like Bottled Drinks) ───
+      else if (!isCombo) {
+        const productResult = await client.query(
+          'SELECT stock_quantity, name FROM products WHERE id = $1 AND company_id = $2',
+          [productId, companyId]
+        );
+        if (productResult.rows.length > 0) {
+          const product = productResult.rows[0];
+          if (product.stock_quantity < item.quantity) {
             insufficientStockItems.push({
-              ingredient: ingredient.name,
-              required: comp.quantity,
-              available: ingredient.current_stock
+              ingredient: product.name,
+              required: item.quantity,
+              available: product.stock_quantity
             });
           }
         }
       }
 
-      // If any ingredient has insufficient stock, return error
       if (insufficientStockItems.length > 0) {
         return {
           success: false,
@@ -92,9 +123,8 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
         };
       }
 
-      // All checks passed, deduct the ingredients
+      // ─── PART C: Ingredient Deduction ───
       for (const comp of productCompositions) {
-        // Update ingredient stock
         const updateResult = await client.query(
           `UPDATE ingredients 
            SET current_stock = current_stock - $1, updated_at = CURRENT_TIMESTAMP
@@ -104,21 +134,11 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
         );
 
         if (updateResult.rows.length > 0) {
-          // Record transaction
           await client.query(
             `INSERT INTO inventory_transactions 
-             (ingredient_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, created_by, company_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              comp.ingredient_id,
-              'order_deduction',
-              -comp.quantity,
-              updateResult.rows[0].current_stock,
-              orderId,
-              'order',
-              'system',
-              companyId
-            ]
+             (ingredient_id, product_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, created_by, company_id, size_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [comp.ingredient_id, productId, 'order_deduction', -comp.quantity, updateResult.rows[0].current_stock, orderId, 'order', 'system', companyId, comp.size_id]
           );
 
           deductedItems.push({
@@ -128,12 +148,46 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
           });
         }
       }
+
+      // ─── PART D: Direct Product Deduction (Only if no recipe exists) ───
+      if (productCompositions.length === 0 && !isCombo) {
+        const updateResult = await client.query(
+          `UPDATE products 
+           SET stock_quantity = stock_quantity - $1, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2 AND company_id = $3
+           RETURNING stock_quantity, name`,
+          [item.quantity, productId, companyId]
+        );
+
+        if (updateResult.rows.length > 0) {
+          // Record in central inventory ledger using the new product_id column
+          await client.query(
+            `INSERT INTO inventory_transactions 
+             (product_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, notes, created_by, company_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              productId, 
+              'product_deduction', 
+              -item.quantity, 
+              updateResult.rows[0].stock_quantity, 
+              orderId, 
+              'order', 
+              'Direct product sale (No recipe)', 
+              'system', 
+              companyId
+            ]
+          );
+
+          deductedItems.push({
+            ingredient: updateResult.rows[0].name,
+            quantity_deducted: item.quantity,
+            remaining_stock: updateResult.rows[0].stock_quantity
+          });
+        }
+      }
     }
 
-    return {
-      success: true,
-      deducted: deductedItems
-    };
+    return { success: true, deducted: deductedItems };
   } catch (error) {
     console.error('Error deducting inventory:', error);
     return {
@@ -171,10 +225,10 @@ export const getLowStockIngredients = async (companyId) => {
 export const checkInventoryAvailability = async (items, companyId) => {
   try {
     const insufficientItems = [];
-
     for (const item of items) {
       const isCombo = item.isCombo || (typeof item.id === 'string' && item.id.startsWith('combo-'));
       let productCompositions = [];
+      const productId = item.product_id || item.id;
 
       if (isCombo) {
         const comboId = typeof item.id === 'string' && item.id.startsWith('combo-')
@@ -199,11 +253,27 @@ export const checkInventoryAvailability = async (items, companyId) => {
           }
         }
       } else {
-        const productId = item.product_id || item.id;
-        const compositionResult = await pool.query(
-          'SELECT ingredient_id, quantity_required FROM product_composition WHERE product_id = $1 AND company_id = $2',
-          [productId, companyId]
-        );
+        // Find composition - prioritize size-specific recipe, fallback to global product recipe
+        const orderedSizeId = item.size_id || item.product_size_id || null;
+        
+        let compositionResult;
+        if (orderedSizeId) {
+          compositionResult = await pool.query(
+            `SELECT ingredient_id, quantity_required FROM product_composition 
+             WHERE product_id = $1 AND company_id = $2 AND size_id = $3`,
+            [productId, companyId, orderedSizeId]
+          );
+        }
+
+        // If no size-specific recipe or no size provided, check for general recipe
+        if (!compositionResult || compositionResult.rows.length === 0) {
+          compositionResult = await pool.query(
+            `SELECT ingredient_id, quantity_required FROM product_composition 
+             WHERE product_id = $1 AND company_id = $2 AND size_id IS NULL`,
+            [productId, companyId]
+          );
+        }
+
         for (const comp of compositionResult.rows) {
           productCompositions.push({
             ingredient_id: comp.ingredient_id,
@@ -212,19 +282,39 @@ export const checkInventoryAvailability = async (items, companyId) => {
         }
       }
 
-      for (const comp of productCompositions) {
-        const ingredientResult = await pool.query(
-          'SELECT current_stock, name FROM ingredients WHERE id = $1 AND company_id = $2',
-          [comp.ingredient_id, companyId]
-        );
+      // ─── PART A: Ingredient Availability Check ───
+      if (productCompositions.length > 0) {
+        for (const comp of productCompositions) {
+          const ingredientResult = await pool.query(
+            'SELECT current_stock, name FROM ingredients WHERE id = $1 AND company_id = $2',
+            [comp.ingredient_id, companyId]
+          );
 
-        if (ingredientResult.rows.length > 0) {
-          const ingredient = ingredientResult.rows[0];
-          if (ingredient.current_stock < comp.quantity) {
+          if (ingredientResult.rows.length > 0) {
+            const ingredient = ingredientResult.rows[0];
+            if (ingredient.current_stock < comp.quantity) {
+              insufficientItems.push({
+                ingredient: ingredient.name,
+                required: comp.quantity,
+                available: ingredient.current_stock
+              });
+            }
+          }
+        }
+      } 
+      // ─── PART B: Product Stock Availability Check (For Direct Sales Items) ───
+      else if (!isCombo) {
+        const productResult = await pool.query(
+          'SELECT stock_quantity, name FROM products WHERE id = $1 AND company_id = $2',
+          [productId, companyId]
+        );
+        if (productResult.rows.length > 0) {
+          const product = productResult.rows[0];
+          if (product.stock_quantity < item.quantity) {
             insufficientItems.push({
-              ingredient: ingredient.name,
-              required: comp.quantity,
-              available: ingredient.current_stock
+              ingredient: product.name,
+              required: item.quantity,
+              available: product.stock_quantity
             });
           }
         }

@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
       const sizes = sizesResult.rows
         .filter(size => size.product_id === product.id)
         .map(size => ({
+          id: size.id,
           name: size.size_name,
           price: parseFloat(size.price)
         }));
@@ -281,11 +282,14 @@ router.get('/inventory/low-stock', async (req, res) => {
 
 // POST adjust stock (add or subtract)
 router.post('/:id/stock', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { adjustment, reason } = req.body;
 
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    const result = await client.query(
       `UPDATE products
        SET stock_quantity = GREATEST(0, stock_quantity + $1), updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 AND company_id = $3 RETURNING *`,
@@ -293,10 +297,21 @@ router.post('/:id/stock', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
 
     const product = result.rows[0];
+
+    // Record the manual adjustment in the ledger
+    await client.query(
+      `INSERT INTO inventory_transactions (product_id, transaction_type, quantity_change, quantity_after, notes, created_by, company_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, 'manual_adjustment', adjustment, product.stock_quantity, reason || 'Manual stock update', 'admin', req.company_id]
+    );
+
+    await client.query('COMMIT');
+
     const isLowStock = product.stock_quantity <= product.low_stock_threshold;
 
     res.json({
@@ -310,8 +325,11 @@ router.post('/:id/stock', async (req, res) => {
       }
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error adjusting stock:', error);
     res.status(500).json({ success: false, error: 'Failed to adjust stock' });
+  } finally {
+    client.release();
   }
 });
 
@@ -360,6 +378,70 @@ router.post('/seed-demo', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Error seeding demo data:', error);
     res.status(500).json({ success: false, error: 'Failed to seed demo data' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST bulk upload products via CSV
+router.post('/bulk', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { csv } = req.body;
+    if (!csv || typeof csv !== 'string') {
+      return res.status(400).json({ success: false, error: 'CSV content is required' });
+    }
+
+    const lines = csv.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length <= 1) {
+      return res.status(400).json({ success: false, error: 'No data rows found in CSV' });
+    }
+
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',').map(p => p.trim());
+      if (parts.length < 2) continue;
+      // Format: name,category,price,sku,cost,stock_quantity,low_stock_threshold
+      const [name, category, price = 0, sku = null, cost = 0, stock_quantity = 0, low_stock_threshold = 10] = parts;
+      if (!name || !category) continue;
+      rows.push({
+        name,
+        category,
+        price: parseFloat(price) || 0,
+        sku: sku || null,
+        cost: parseFloat(cost) || 0,
+        stock_quantity: parseFloat(stock_quantity) || 0,
+        low_stock_threshold: parseFloat(low_stock_threshold) || 10
+      });
+    }
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'No valid rows to import' });
+    }
+
+    await client.query('BEGIN');
+    const inserted = [];
+    for (const r of rows) {
+      const result = await client.query(
+        `INSERT INTO products (name, category, price, sku, cost, stock_quantity, low_stock_threshold, company_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (name, company_id) DO UPDATE SET
+           category = EXCLUDED.category,
+           price = EXCLUDED.price,
+           sku = EXCLUDED.sku,
+           cost = EXCLUDED.cost,
+           updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [r.name, r.category, r.price, r.sku, r.cost, r.stock_quantity, r.low_stock_threshold, req.company_id]
+      );
+      inserted.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    res.json({ success: true, imported: inserted.length, products: inserted });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error bulk uploading products:', error);
+    res.status(500).json({ success: false, error: 'Failed to import products' });
   } finally {
     client.release();
   }

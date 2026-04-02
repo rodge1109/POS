@@ -129,7 +129,7 @@ router.get('/ingredients/template', (req, res) => {
   res.send(template);
 });
 
-// POST bulk upload ingredients via CSV (simple comma-separated, no quoted fields)
+// POST bulk upload ingredients via CSV
 router.post('/ingredients/bulk', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -144,7 +144,6 @@ router.post('/ingredients/bulk', async (req, res) => {
     }
 
     const rows = [];
-    // skip header
     for (let i = 1; i < lines.length; i++) {
       const parts = lines[i].split(',').map(p => p.trim());
       if (parts.length < 2) continue;
@@ -225,6 +224,7 @@ router.put('/ingredients/:id', async (req, res) => {
 
 // POST add inventory transaction (manual adjustment)
 router.post('/adjust', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { ingredient_id, quantity_change, notes, created_by = 'manual' } = req.body;
 
@@ -232,75 +232,74 @@ router.post('/adjust', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Ingredient ID and quantity change are required' });
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    await client.query('BEGIN');
 
-      // Get current stock
+    // Get current stock
     const ingredientResult = await client.query(
       'SELECT current_stock FROM ingredients WHERE id = $1 AND company_id = $2',
       [ingredient_id, req.company_id]
     );
 
-      if (ingredientResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ success: false, error: 'Ingredient not found' });
-      }
+    if (ingredientResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Ingredient not found' });
+    }
 
-      const newStock = Math.round((parseFloat(ingredientResult.rows[0].current_stock) + parseFloat(quantity_change)) * 100) / 100;
+    const newStock = Math.round((parseFloat(ingredientResult.rows[0].current_stock) + parseFloat(quantity_change)) * 100) / 100;
 
-      if (newStock < 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ success: false, error: 'Insufficient stock' });
-      }
+    if (newStock < 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'Insufficient stock' });
+    }
 
-      // Update ingredient stock
+    // Update ingredient stock
     await client.query(
       'UPDATE ingredients SET current_stock = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND company_id = $3',
       [newStock, ingredient_id, req.company_id]
     );
 
-      console.log(`Updated ingredient ${ingredient_id}: old stock + ${quantity_change} = ${newStock}`);
-     
-
-// Record transaction
+    // Record transaction
     const transactionResult = await client.query(
       `INSERT INTO inventory_transactions (ingredient_id, transaction_type, quantity_change, quantity_after, notes, created_by, company_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [ingredient_id, 'adjustment', quantity_change, newStock, notes || null, created_by, req.company_id]
     );
 
-      await client.query('COMMIT');
-      res.json({ success: true, transaction: transactionResult.rows[0] });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    await client.query('COMMIT');
+    res.json({ success: true, transaction: transactionResult.rows[0] });
   } catch (error) {
+    if (client) await client.query('ROLLBACK');
     console.error('Error adjusting inventory:', error);
     res.status(500).json({ success: false, error: 'Failed to adjust inventory' });
+  } finally {
+    client.release();
   }
 });
 
-// GET inventory transactions for an ingredient
-router.get('/transactions/:ingredientId', async (req, res) => {
+// GET inventory transactions for an ingredient OR product
+router.get('/transactions/:id', async (req, res) => {
   try {
-    const { ingredientId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const { id } = req.params;
+    const { type = 'ingredient', limit = 100, offset = 0 } = req.query;
+    const column = type === 'product' ? 'product_id' : 'ingredient_id';
 
     const result = await pool.query(
-      `SELECT * FROM inventory_transactions
-       WHERE ingredient_id = $1 AND company_id = $2
-       ORDER BY created_at DESC
+      `SELECT 
+        it.*, 
+        p.name as product_name, 
+        ps.name as size_name
+       FROM inventory_transactions it
+       LEFT JOIN products p ON it.product_id = p.id AND it.company_id = p.company_id
+       LEFT JOIN product_sizes ps ON it.size_id = ps.id AND it.company_id = ps.company_id
+       WHERE it.${column} = $1 AND it.company_id = $2
+       ORDER BY it.created_at DESC
        LIMIT $3 OFFSET $4`,
-      [ingredientId, req.company_id, limit, offset]
+      [id, req.company_id, parseInt(limit), parseInt(offset)]
     );
 
     const countResult = await pool.query(
-      'SELECT COUNT(*) as total FROM inventory_transactions WHERE ingredient_id = $1 AND company_id = $2',
-      [ingredientId, req.company_id]
+      `SELECT COUNT(*) as total FROM inventory_transactions WHERE ${column} = $1 AND company_id = $2`,
+      [id, req.company_id]
     );
 
     res.json({
@@ -320,7 +319,6 @@ router.get('/transactions/:ingredientId', async (req, res) => {
 router.get('/recipes/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
-
     const result = await pool.query(`
       SELECT pc.id, pc.product_id, pc.ingredient_id, pc.quantity_required,
              i.name as ingredient_name, i.unit, i.current_stock
@@ -329,11 +327,52 @@ router.get('/recipes/:productId', async (req, res) => {
       WHERE pc.product_id = $1 AND pc.company_id = $2
       ORDER BY i.name
     `, [productId, req.company_id]);
-
     res.json({ success: true, recipe: result.rows });
   } catch (error) {
     console.error('Error fetching recipe:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch recipe' });
+  }
+});
+
+// POST auto-link products and ingredients with matching names
+router.post('/recipes/auto-link', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Find products and ingredients with identical names that aren't already linked
+    const matches = await client.query(`
+      SELECT p.id as product_id, i.id as ingredient_id, p.name
+      FROM products p
+      JOIN ingredients i ON LOWER(TRIM(p.name)) = LOWER(TRIM(i.name)) AND p.company_id = i.company_id
+      LEFT JOIN product_composition pc ON p.id = pc.product_id AND i.id = pc.ingredient_id AND p.company_id = pc.company_id
+      WHERE p.company_id = $1 AND pc.id IS NULL
+    `, [req.company_id]);
+
+    if (matches.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.json({ success: true, message: 'No new matching products and ingredients found.', linked_count: 0 });
+    }
+
+    const linkedItems = [];
+    for (const match of matches.rows) {
+      const result = await client.query(
+        `INSERT INTO product_composition (product_id, ingredient_id, quantity_required, company_id)
+         VALUES ($1, $2, 1, $3)
+         RETURNING *`,
+        [match.product_id, match.ingredient_id, req.company_id]
+      );
+      linkedItems.push({ name: match.name, ...result.rows[0] });
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: `Successfully auto-linked ${linkedItems.length} matching items.`, linked_count: linkedItems.length, items: linkedItems });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error auto-linking recipes:', error);
+    res.status(500).json({ success: false, error: 'Failed to auto-link matching items' });
+  } finally {
+    client.release();
   }
 });
 
@@ -356,91 +395,115 @@ router.get('/recipes', async (req, res) => {
   }
 });
 
+// GET specific product recipe
+router.get('/recipes/:productId', async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const result = await pool.query(`
+      SELECT 
+        pc.id as composition_id,
+        pc.ingredient_id,
+        pc.quantity_required,
+        pc.size_id,
+        ps.name as size_name,
+        i.name as ingredient_name,
+        i.unit,
+        i.current_stock
+      FROM product_composition pc
+      JOIN ingredients i ON pc.ingredient_id = i.id
+      LEFT JOIN product_sizes ps ON pc.size_id = ps.id
+      WHERE pc.product_id = $1 AND pc.company_id = $2
+    `, [productId, req.company_id]);
+    res.json({ success: true, recipe: result.rows });
+  } catch (error) {
+    console.error('Error fetching product recipe:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 // POST add ingredient to recipe
 router.post('/recipes/:productId/ingredients', async (req, res) => {
   try {
     const { productId } = req.params;
-    const { ingredient_id, quantity_required } = req.body;
+    const { ingredient_id, quantity_required, size_id } = req.body;
 
     if (!ingredient_id || !quantity_required) {
       return res.status(400).json({ success: false, error: 'Ingredient ID and quantity are required' });
     }
 
-    // Check if product exists
     const productResult = await pool.query('SELECT id FROM products WHERE id = $1 AND company_id = $2', [productId, req.company_id]);
     if (productResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
+    
+    // Check if link already exists for this size
+    const existing = await pool.query(
+      'SELECT id FROM product_composition WHERE product_id = $1 AND ingredient_id = $2 AND (size_id = $3 OR (size_id IS NULL AND $3 IS NULL)) AND company_id = $4',
+      [productId, ingredient_id, size_id || null, req.company_id]
+    );
 
-    // Check if ingredient exists
-    const ingredientResult = await pool.query('SELECT id FROM ingredients WHERE id = $1 AND company_id = $2', [ingredient_id, req.company_id]);
-    if (ingredientResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Ingredient not found' });
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, error: 'This ingredient is already linked to this product size' });
     }
 
     const result = await pool.query(
-      `INSERT INTO product_composition (product_id, ingredient_id, quantity_required, company_id)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (company_id, product_id, ingredient_id) DO UPDATE
-       SET quantity_required = $3, updated_at = CURRENT_TIMESTAMP
+      `INSERT INTO product_composition (product_id, ingredient_id, quantity_required, size_id, company_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [productId, ingredient_id, quantity_required, req.company_id]
+      [productId, ingredient_id, quantity_required, size_id || null, req.company_id]
     );
-
     res.json({ success: true, composition: result.rows[0] });
   } catch (error) {
-    console.error('Error adding ingredient to recipe:', error);
-    res.status(500).json({ success: false, error: 'Failed to add ingredient to recipe' });
+    console.error('Error adding recipe ingredient:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-// PUT update ingredient quantity in recipe
+// PUT update recipe ingredient
 router.put('/recipes/:productId/ingredients/:ingredientId', async (req, res) => {
   try {
     const { productId, ingredientId } = req.params;
-    const { quantity_required } = req.body;
-
-    if (!quantity_required) {
-      return res.status(400).json({ success: false, error: 'Quantity is required' });
-    }
-
+    const { quantity_required, size_id } = req.body;
+    
     const result = await pool.query(
-      `UPDATE product_composition
+      `UPDATE product_composition 
        SET quantity_required = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE product_id = $2 AND ingredient_id = $3 AND company_id = $4
+       WHERE product_id = $2 AND ingredient_id = $3 AND (size_id = $4 OR (size_id IS NULL AND $4 IS NULL)) AND company_id = $5
        RETURNING *`,
-      [parseFloat(quantity_required), productId, ingredientId, req.company_id]
+      [quantity_required, productId, ingredientId, size_id || null, req.company_id]
     );
-
+    
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Recipe ingredient not found' });
+      return res.status(404).json({ success: false, error: 'Recipe item not found' });
     }
-
     res.json({ success: true, composition: result.rows[0] });
   } catch (error) {
     console.error('Error updating recipe ingredient:', error);
-    res.status(500).json({ success: false, error: 'Failed to update recipe ingredient' });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-// DELETE ingredient from recipe
+// DELETE recipe ingredient
 router.delete('/recipes/:productId/ingredients/:ingredientId', async (req, res) => {
   try {
     const { productId, ingredientId } = req.params;
+    const { size_id } = req.query; // Optional size filter
 
-    const result = await pool.query(
-      'DELETE FROM product_composition WHERE product_id = $1 AND ingredient_id = $2 AND company_id = $3 RETURNING *',
-      [productId, ingredientId, req.company_id]
-    );
+    let query = 'DELETE FROM product_composition WHERE product_id = $1 AND ingredient_id = $2 AND company_id = $3';
+    let params = [productId, ingredientId, req.company_id];
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Recipe ingredient not found' });
+    if (size_id) {
+      query += ' AND (size_id = $4 OR (size_id IS NULL AND $4 IS NULL))';
+      params.push(size_id);
+    } else {
+      query += ' AND size_id IS NULL';
     }
 
+    const result = await pool.query(query, params);
     res.json({ success: true, message: 'Ingredient removed from recipe' });
   } catch (error) {
-    console.error('Error removing ingredient from recipe:', error);
-    res.status(500).json({ success: false, error: 'Failed to remove ingredient from recipe' });
+    console.error('Error deleting recipe ingredient:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -463,7 +526,6 @@ router.get('/status', async (req, res) => {
       ORDER BY stock_status DESC, name ASC
     `, [req.company_id]);
 
-    // Calculate summary stats
     const lowStockCount = result.rows.filter(i => i.stock_status === 'low').length;
     const totalValue = result.rows.reduce((sum, i) => sum + toNum(i.stock_value), 0);
 
@@ -485,7 +547,6 @@ router.get('/status', async (req, res) => {
 // GET inventory analytics
 router.get('/analytics', async (req, res) => {
   try {
-    // Top 10 most used ingredients
     const topUsed = await pool.query(`
       SELECT i.name, i.unit, COUNT(it.id) as usage_count
       FROM ingredients i
@@ -496,7 +557,6 @@ router.get('/analytics', async (req, res) => {
       LIMIT 10
     `, [req.company_id]);
 
-    // Inventory cost distribution
     const costDistribution = await pool.query(`
       SELECT name, (current_stock * cost_per_unit) as stock_value
       FROM ingredients
@@ -518,43 +578,69 @@ router.get('/analytics', async (req, res) => {
 
 // ============== INVENTORY REPORTS ==============
 
-// GET Stock Status Report (Current inventory levels)
+// GET Stock Status Report
 router.get('/reports/stock-status', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        id,
-        name,
-        unit,
-        current_stock,
-        reorder_level,
-        supplier,
-        cost_per_unit,
-        (current_stock * cost_per_unit) as stock_value,
-        CASE 
-          WHEN current_stock <= reorder_level THEN 'Critical'
-          WHEN current_stock <= (reorder_level * 1.5) THEN 'Low'
-          WHEN current_stock > (reorder_level * 3) THEN 'High'
-          ELSE 'Normal'
-        END as status,
-        ROUND(((current_stock - reorder_level) / GREATEST(reorder_level, 1) * 100)::numeric, 2) as stock_level_percentage,
-        CASE
-          WHEN current_stock <= reorder_level THEN (reorder_level * 2 - current_stock)
-          ELSE 0
-        END as suggested_reorder_qty,
-        created_at,
-        updated_at
-      FROM ingredients
-      WHERE company_id = $1
-      ORDER BY 
-        CASE 
-          WHEN current_stock <= reorder_level THEN 1
-          WHEN current_stock <= (reorder_level * 1.5) THEN 2
-          ELSE 3
-        END,
-        stock_value DESC
-    `, [req.company_id]);
+    const { type = 'ingredient' } = req.query;
+    let query;
+    let params = [req.company_id];
 
+    if (type === 'product') {
+      query = `
+        SELECT 
+          id, name, category as unit, stock_quantity as current_stock, low_stock_threshold as reorder_level, 
+          'Retail' as supplier, price as cost_per_unit,
+          (stock_quantity * COALESCE(cost, 0)) as stock_value,
+          CASE 
+            WHEN stock_quantity <= low_stock_threshold THEN 'Critical'
+            WHEN stock_quantity <= (low_stock_threshold * 1.5) THEN 'Low'
+            WHEN stock_quantity > (low_stock_threshold * 3) THEN 'High'
+            ELSE 'Normal'
+          END as status,
+          ROUND(((stock_quantity - low_stock_threshold) / GREATEST(low_stock_threshold, 1) * 100)::numeric, 2) as stock_level_percentage,
+          CASE
+            WHEN stock_quantity <= low_stock_threshold THEN (low_stock_threshold * 2 - stock_quantity)
+            ELSE 0
+          END as suggested_reorder_qty,
+          created_at, updated_at
+        FROM products
+        WHERE company_id = $1
+        ORDER BY 
+          CASE 
+            WHEN stock_quantity <= low_stock_threshold THEN 1
+            WHEN stock_quantity <= (low_stock_threshold * 1.5) THEN 2
+            ELSE 3
+          END,
+          stock_value DESC`;
+    } else {
+      query = `
+        SELECT 
+          id, name, unit, current_stock, reorder_level, supplier, cost_per_unit,
+          (current_stock * cost_per_unit) as stock_value,
+          CASE 
+            WHEN current_stock <= reorder_level THEN 'Critical'
+            WHEN current_stock <= (reorder_level * 1.5) THEN 'Low'
+            WHEN current_stock > (reorder_level * 3) THEN 'High'
+            ELSE 'Normal'
+          END as status,
+          ROUND(((current_stock - reorder_level) / GREATEST(reorder_level, 1) * 100)::numeric, 2) as stock_level_percentage,
+          CASE
+            WHEN current_stock <= reorder_level THEN (reorder_level * 2 - current_stock)
+            ELSE 0
+          END as suggested_reorder_qty,
+          created_at, updated_at
+        FROM ingredients
+        WHERE company_id = $1
+        ORDER BY 
+          CASE 
+            WHEN current_stock <= reorder_level THEN 1
+            WHEN current_stock <= (reorder_level * 1.5) THEN 2
+            ELSE 3
+          END,
+          stock_value DESC`;
+    }
+
+    const result = await pool.query(query, params);
     const totalValue = result.rows.reduce((sum, item) => sum + toNum(item.stock_value), 0);
     const criticalCount = result.rows.filter(i => i.status === 'Critical').length;
     const lowCount = result.rows.filter(i => i.status === 'Low').length;
@@ -562,7 +648,7 @@ router.get('/reports/stock-status', async (req, res) => {
     res.json({
       success: true,
       report: {
-        title: 'Stock Status Report',
+        title: `${type === 'product' ? 'Product' : 'Ingredient'} Stock Status Report`,
         generated_at: new Date().toISOString(),
         summary: {
           total_items: result.rows.length,
@@ -580,91 +666,95 @@ router.get('/reports/stock-status', async (req, res) => {
   }
 });
 
-// GET Inventory Movement Report (Usage trends)
+// GET Inventory Movement Report
 router.get('/reports/movement', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(days));
+    const { days = 30, type = 'ingredient' } = req.query;
+    let query;
+    const params = [req.company_id, parseInt(days)];
 
-    const result = await pool.query(`
-      SELECT 
-        i.id,
-        i.name,
-        i.unit,
-        COUNT(CASE WHEN it.transaction_type = 'order_deduction' THEN 1 END) as usage_count,
-        SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) as total_used,
-        SUM(CASE WHEN it.transaction_type = 'purchase' THEN it.quantity_change ELSE 0 END) as total_received,
-        SUM(CASE WHEN it.transaction_type = 'adjustment' THEN it.quantity_change ELSE 0 END) as total_adjustments,
-        i.current_stock,
-        (i.current_stock * i.cost_per_unit) as current_value,
-        ROUND((SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / GREATEST(COUNT(CASE WHEN it.transaction_type = 'order_deduction' THEN 1 END), 1))::numeric, 2) as avg_usage_per_transaction
-      FROM ingredients i
-      LEFT JOIN inventory_transactions it ON i.id = it.ingredient_id AND i.company_id = it.company_id AND it.created_at >= $1
-      WHERE i.company_id = $2
-      GROUP BY i.id, i.name, i.unit, i.current_stock, i.cost_per_unit
-      ORDER BY total_used DESC NULLS LAST
-    `, [startDate, req.company_id]);
+    if (type === 'product') {
+      query = `
+        SELECT 
+          p.name, p.category as unit,
+          SUM(CASE WHEN t.quantity_change > 0 THEN t.quantity_change ELSE 0 END) as inward,
+          ABS(SUM(CASE WHEN t.quantity_change < 0 THEN t.quantity_change ELSE 0 END)) as outward,
+          p.stock_quantity as current_stock,
+          ABS(SUM(CASE WHEN t.transaction_type = 'product_deduction' THEN t.quantity_change ELSE 0 END)) as sales_deduction,
+          SUM(CASE WHEN t.transaction_type = 'manual_adjustment' AND t.quantity_change > 0 THEN t.quantity_change ELSE 0 END) as manual_additions
+        FROM products p
+        LEFT JOIN inventory_transactions t ON p.id = t.product_id 
+          AND t.created_at >= CURRENT_DATE - ($2 || ' days')::interval
+          AND t.company_id = $1
+        WHERE p.company_id = $1
+        GROUP BY p.id, p.name, p.category, p.stock_quantity
+        ORDER BY outward DESC`;
+    } else {
+      query = `
+        SELECT 
+          i.name, i.unit,
+          SUM(CASE WHEN t.quantity_change > 0 THEN t.quantity_change ELSE 0 END) as inward,
+          ABS(SUM(CASE WHEN t.quantity_change < 0 THEN t.quantity_change ELSE 0 END)) as outward,
+          i.current_stock,
+          ABS(SUM(CASE WHEN t.transaction_type = 'order_deduction' THEN t.quantity_change ELSE 0 END)) as order_usage,
+          SUM(CASE WHEN t.transaction_type = 'adjustment' AND t.quantity_change > 0 THEN t.quantity_change ELSE 0 END) as manuals_received
+        FROM ingredients i
+        LEFT JOIN inventory_transactions t ON i.id = t.ingredient_id 
+          AND t.created_at >= CURRENT_DATE - ($2 || ' days')::interval
+          AND t.company_id = $1
+        WHERE i.company_id = $1
+        GROUP BY i.id, i.name, i.unit, i.current_stock
+        ORDER BY outward DESC`;
+    }
 
-    const avgUsage = result.rows.filter(r => r.total_used).reduce((sum, r) => sum + (r.total_used || 0), 0) / result.rows.length;
+    const result = await pool.query(query, params);
+    
+    const totalInward = result.rows.reduce((sum, item) => sum + toNum(item.inward), 0);
+    const totalOutward = result.rows.reduce((sum, item) => sum + toNum(item.outward), 0);
 
     res.json({
       success: true,
       report: {
-        title: 'Inventory Movement Report',
-        period_days: parseInt(days),
+        title: `${type === 'product' ? 'Product' : 'Ingredient'} Movement Report (Last ${days} days)`,
         generated_at: new Date().toISOString(),
         summary: {
-          total_items_tracked: result.rows.length,
-          items_with_movement: result.rows.filter(r => r.usage_count > 0).length,
-          average_usage: parseFloat(avgUsage.toFixed(2))
+          period_days: parseInt(days),
+          total_items_moved: result.rows.length,
+          total_inward_volume: totalInward,
+          total_outward_volume: totalOutward,
+          net_movement: totalInward - totalOutward
         },
         data: result.rows
       }
     });
   } catch (error) {
-    console.error('Error fetching movement report:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch movement report' });
+    console.error('Error fetching inventory movement report:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch inventory movement report' });
   }
 });
 
 // GET Stock Valuation Report
 router.get('/reports/valuation', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        name,
-        current_stock,
-        cost_per_unit,
-        (current_stock * cost_per_unit) as stock_value,
-        ROUND((current_stock * cost_per_unit / SUM(current_stock * cost_per_unit) OVER () * 100)::numeric, 2) as percentage_of_total
-      FROM ingredients
-      WHERE current_stock > 0 AND company_id = $1
-      ORDER BY stock_value DESC
-    `, [req.company_id]);
-
+    const { type = 'ingredient' } = req.query;
+    let query;
+    if (type === 'product') {
+      query = `SELECT name, stock_quantity as current_stock, cost as cost_per_unit, (stock_quantity * COALESCE(cost,0)) as stock_value,
+               ROUND((stock_quantity * COALESCE(cost,0) / NULLIF(SUM(stock_quantity * COALESCE(cost,0)) OVER (), 0) * 100)::numeric, 2) as percentage_of_total
+               FROM products WHERE stock_quantity > 0 AND company_id = $1 ORDER BY stock_value DESC`;
+    } else {
+      query = `SELECT name, current_stock, cost_per_unit, (current_stock * cost_per_unit) as stock_value,
+               ROUND((current_stock * cost_per_unit / NULLIF(SUM(current_stock * cost_per_unit) OVER (), 0) * 100)::numeric, 2) as percentage_of_total
+               FROM ingredients WHERE current_stock > 0 AND company_id = $1 ORDER BY stock_value DESC`;
+    }
+    const result = await pool.query(query, [req.company_id]);
     const totalValue = result.rows.reduce((sum, item) => sum + toNum(item.stock_value), 0);
-    const categoryValue = {};
-    
-    result.rows.forEach(item => {
-      const category = item.percentage_of_total >= 20 ? 'High Value' : item.percentage_of_total >= 5 ? 'Medium Value' : 'Low Value';
-      if (!categoryValue[category]) categoryValue[category] = 0;
-      categoryValue[category] += toNum(item.stock_value);
-    });
-
     res.json({
       success: true,
       report: {
-        title: 'Stock Valuation Report',
+        title: `${type === 'product' ? 'Product' : 'Ingredient'} Stock Valuation Report`,
         generated_at: new Date().toISOString(),
-        summary: {
-          total_items: result.rows.length,
-          total_inventory_value: parseFloat(totalValue.toFixed(2)),
-          high_value_items: result.rows.filter(i => i.percentage_of_total >= 20).length,
-          medium_value_items: result.rows.filter(i => i.percentage_of_total >= 5 && i.percentage_of_total < 20).length,
-          low_value_items: result.rows.filter(i => i.percentage_of_total < 5).length,
-          value_distribution: categoryValue
-        },
+        summary: { total_items: result.rows.length, total_inventory_value: parseFloat(totalValue.toFixed(2)) },
         data: result.rows
       }
     });
@@ -674,71 +764,63 @@ router.get('/reports/valuation', async (req, res) => {
   }
 });
 
-// GET ABC Analysis Report (Pareto analysis)
+// GET ABC Analysis Report
 router.get('/reports/abc-analysis', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        name,
-        unit,
-        current_stock,
-        cost_per_unit,
-        (current_stock * cost_per_unit) as stock_value,
-        COUNT(it.id) as usage_frequency
-      FROM ingredients i
-      LEFT JOIN inventory_transactions it ON i.id = it.ingredient_id AND i.company_id = it.company_id AND it.transaction_type = 'order_deduction'
-      WHERE i.company_id = $1
-      GROUP BY i.id, i.name, i.unit, i.current_stock, i.cost_per_unit
-      ORDER BY stock_value DESC
-    `, [req.company_id]);
+    const { type = 'ingredient' } = req.query;
+    let query;
+    if (type === 'product') {
+      query = `
+        SELECT 
+          p.name, p.category as unit, p.stock_quantity as current_stock, p.price as cost_per_unit,
+          (p.stock_quantity * COALESCE(p.cost, 0)) as stock_value,
+          COUNT(it.id) as usage_frequency
+        FROM products p
+        LEFT JOIN inventory_transactions it ON p.id = it.product_id AND p.company_id = it.company_id AND it.transaction_type = 'product_deduction'
+        WHERE p.company_id = $1
+        GROUP BY p.id, p.name, p.category, p.stock_quantity, p.price, p.cost
+        ORDER BY stock_value DESC`;
+    } else {
+      query = `
+        SELECT 
+          name, unit, current_stock, cost_per_unit,
+          (current_stock * cost_per_unit) as stock_value,
+          COUNT(it.id) as usage_frequency
+        FROM ingredients i
+        LEFT JOIN inventory_transactions it ON i.id = it.ingredient_id AND i.company_id = it.company_id AND it.transaction_type = 'order_deduction'
+        WHERE i.company_id = $1
+        GROUP BY i.id, i.name, i.unit, i.current_stock, i.cost_per_unit
+        ORDER BY stock_value DESC`;
+    }
+    const result = await pool.query(query, [req.company_id]);
 
     const totalValue = result.rows.reduce((sum, item) => sum + toNum(item.stock_value), 0);
     let cumulativeValue = 0;
     
-    const classified = result.rows.map((item, idx) => {
-      const itemValue = toNum(item.stock_value);
-      cumulativeValue += itemValue;
+    const classified = result.rows.map((item) => {
+      cumulativeValue += toNum(item.stock_value);
       const percentage = totalValue > 0 ? (cumulativeValue / totalValue) * 100 : 0;
       
-      let classification = 'C'; // Low value, low frequency
-      if (percentage <= 80 && item.usage_frequency > 0) {
-        classification = 'A'; // High value, high frequency (80% of value)
-      } else if (percentage <= 95 && item.usage_frequency > 0) {
-        classification = 'B'; // Medium value, medium frequency (80-95% of value)
-      }
+      let classification = 'C';
+      if (percentage <= 80 && item.usage_frequency > 0) classification = 'A';
+      else if (percentage <= 95 && item.usage_frequency > 0) classification = 'B';
       
       return {
         ...item,
         cumulative_percentage: parseFloat(percentage.toFixed(2)),
         classification,
-        value_percentage: totalValue > 0 ? parseFloat(((itemValue / totalValue) * 100).toFixed(2)) : 0
+        value_percentage: totalValue > 0 ? parseFloat(((toNum(item.stock_value) / totalValue) * 100).toFixed(2)) : 0
       };
     });
-
-    const countA = classified.filter(i => i.classification === 'A').length;
-    const countB = classified.filter(i => i.classification === 'B').length;
-    const countC = classified.filter(i => i.classification === 'C').length;
-    
-    const valueA = classified.filter(i => i.classification === 'A').reduce((sum, i) => sum + toNum(i.stock_value), 0);
-    const valueB = classified.filter(i => i.classification === 'B').reduce((sum, i) => sum + toNum(i.stock_value), 0);
-    const valueC = classified.filter(i => i.classification === 'C').reduce((sum, i) => sum + toNum(i.stock_value), 0);
 
     res.json({
       success: true,
       report: {
-        title: 'ABC Analysis Report (Pareto - 80/20 Rule)',
+        title: `ABC Analysis (${type === 'product' ? 'Products' : 'Ingredients'}) Report`,
         generated_at: new Date().toISOString(),
         summary: {
           total_items: result.rows.length,
-          classification_a: { count: countA, value: parseFloat(valueA.toFixed(2)), percentage: totalValue > 0 ? parseFloat((valueA / totalValue * 100).toFixed(2)) : 0 },
-          classification_b: { count: countB, value: parseFloat(valueB.toFixed(2)), percentage: totalValue > 0 ? parseFloat((valueB / totalValue * 100).toFixed(2)) : 0 },
-          classification_c: { count: countC, value: parseFloat(valueC.toFixed(2)), percentage: totalValue > 0 ? parseFloat((valueC / totalValue * 100).toFixed(2)) : 0 },
           total_value: parseFloat(totalValue.toFixed(2))
-        },
-        classification_guide: {
-          A: 'High-value items (require frequent monitoring)',
-          B: 'Medium-value items (moderate monitoring)',
-          C: 'Low-value items (basic monitoring)'
         },
         data: classified
       }
@@ -749,173 +831,66 @@ router.get('/reports/abc-analysis', async (req, res) => {
   }
 });
 
-// GET Reorder Point Report
-router.get('/reports/reorder-analysis', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        id,
-        name,
-        unit,
-        current_stock,
-        reorder_level,
-        supplier,
-        cost_per_unit,
-        (current_stock * cost_per_unit) as current_value,
-        (reorder_level * cost_per_unit) as reorder_value,
-        CASE
-          WHEN current_stock <= reorder_level THEN (reorder_level * 1.5 - current_stock)
-          WHEN current_stock <= (reorder_level * 1.5) THEN (reorder_level * 2 - current_stock)
-          ELSE 0
-        END as recommended_order_qty,
-        CASE
-          WHEN current_stock <= reorder_level THEN 'URGENT'
-          WHEN current_stock <= (reorder_level * 1.5) THEN 'SOON'
-          ELSE 'OK'
-        END as reorder_status
-      FROM ingredients
-      WHERE company_id = $1
-      ORDER BY 
-        CASE
-          WHEN current_stock <= reorder_level THEN 1
-          WHEN current_stock <= (reorder_level * 1.5) THEN 2
-          ELSE 3
-        END,
-        current_stock ASC
-    `, [req.company_id]);
-
-    const urgent = result.rows.filter(i => i.reorder_status === 'URGENT');
-    const soon = result.rows.filter(i => i.reorder_status === 'SOON');
-    const totalOrderValue = result.rows.reduce((sum, i) => sum + (toNum(i.recommended_order_qty) * toNum(i.cost_per_unit)), 0);
-
-    res.json({
-      success: true,
-      report: {
-        title: 'Reorder Point Analysis',
-        generated_at: new Date().toISOString(),
-        summary: {
-          total_items: result.rows.length,
-          urgent_orders: urgent.length,
-          soon_to_order: soon.length,
-          estimated_order_value: parseFloat(totalOrderValue.toFixed(2))
-        },
-        data: result.rows
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching reorder analysis:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch reorder analysis' });
-  }
-});
-
-// GET Waste/Shrinkage Report
-router.get('/reports/waste-shrinkage', async (req, res) => {
-  try {
-    const { days = 30 } = req.query;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(days));
-
-    const result = await pool.query(`
-      SELECT 
-        i.id,
-        i.name,
-        i.unit,
-        SUM(CASE WHEN it.transaction_type = 'adjustment' AND it.quantity_change < 0 THEN ABS(it.quantity_change) ELSE 0 END) as waste_qty,
-        SUM(CASE WHEN it.transaction_type = 'adjustment' AND it.quantity_change < 0 THEN ABS(it.quantity_change) * i.cost_per_unit ELSE 0 END) as waste_value,
-        COUNT(CASE WHEN it.transaction_type = 'adjustment' AND it.quantity_change < 0 THEN 1 END) as waste_transactions,
-        i.current_stock,
-        (i.current_stock * i.cost_per_unit) as current_value,
-        ROUND((SUM(CASE WHEN it.transaction_type = 'adjustment' AND it.quantity_change < 0 THEN ABS(it.quantity_change) ELSE 0 END) / GREATEST(SUM(CASE WHEN it.transaction_type = 'purchase' THEN it.quantity_change ELSE 0 END), 1) * 100)::numeric, 2) as waste_percentage
-      FROM ingredients i
-      LEFT JOIN inventory_transactions it ON i.id = it.ingredient_id AND i.company_id = it.company_id AND it.created_at >= $1
-      WHERE i.company_id = $2
-      GROUP BY i.id, i.name, i.unit, i.current_stock, i.cost_per_unit
-      HAVING SUM(CASE WHEN it.transaction_type = 'adjustment' AND it.quantity_change < 0 THEN ABS(it.quantity_change) ELSE 0 END) > 0
-      ORDER BY waste_value DESC NULLS LAST
-    `, [startDate, req.company_id]);
-
-    const totalWaste = result.rows.reduce((sum, item) => sum + toNum(item.waste_value), 0);
-    const totalTransactions = result.rows.reduce((sum, item) => sum + toNum(item.waste_transactions), 0);
-
-    res.json({
-      success: true,
-      report: {
-        title: 'Waste & Shrinkage Report',
-        period_days: parseInt(days),
-        generated_at: new Date().toISOString(),
-        summary: {
-          items_with_waste: result.rows.length,
-          total_waste_value: parseFloat(totalWaste.toFixed(2)),
-          total_waste_transactions: totalTransactions,
-          average_waste_per_item: result.rows.length > 0 ? parseFloat((totalWaste / result.rows.length).toFixed(2)) : 0
-        },
-        data: result.rows
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching waste report:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch waste report' });
-  }
-});
-
-// GET Inventory Turnover Report
+// GET Turnover Report
 router.get('/reports/turnover', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
+    const { days = 30, type = 'ingredient' } = req.query;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
+    let query;
 
-    const result = await pool.query(`
-      SELECT 
-        i.id,
-        i.name,
-        i.unit,
-        i.current_stock,
-        i.cost_per_unit,
-        (i.current_stock * i.cost_per_unit) as current_value,
-        SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) as total_used,
-        COUNT(CASE WHEN it.transaction_type = 'order_deduction' THEN 1 END) as usage_count,
-        CASE
-          WHEN i.current_stock > 0 THEN ROUND((SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / i.current_stock)::numeric, 2)
-          ELSE 0
-        END as turnover_ratio,
-        CASE
-          WHEN i.current_stock > 0 AND SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) > 0 
-          THEN ROUND((i.current_stock / (SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / $2))::numeric, 2)
-          ELSE NULL
-        END as days_on_hand
-      FROM ingredients i
-      LEFT JOIN inventory_transactions it ON i.id = it.ingredient_id AND i.company_id = it.company_id AND it.created_at >= $1
-      WHERE i.company_id = $3
-      GROUP BY i.id, i.name, i.unit, i.current_stock, i.cost_per_unit
-      ORDER BY total_used DESC NULLS LAST
-    `, [startDate, parseInt(days), req.company_id]);
+    if (type === 'product') {
+      query = `
+        SELECT 
+          p.id, p.name, p.category as unit, p.stock_quantity as current_stock, p.price as cost_per_unit,
+          (p.stock_quantity * COALESCE(p.cost, 0)) as current_value,
+          SUM(CASE WHEN it.transaction_type = 'product_deduction' THEN ABS(it.quantity_change) ELSE 0 END) as total_used,
+          COUNT(CASE WHEN it.transaction_type = 'product_deduction' THEN 1 END) as usage_count,
+          CASE
+            WHEN p.stock_quantity > 0 THEN ROUND((SUM(CASE WHEN it.transaction_type = 'product_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / p.stock_quantity)::numeric, 2)
+            ELSE 0
+          END as turnover_ratio,
+          CASE
+            WHEN p.stock_quantity > 0 AND SUM(CASE WHEN it.transaction_type = 'product_deduction' THEN ABS(it.quantity_change) ELSE 0 END) > 0 
+            THEN ROUND((p.stock_quantity / (SUM(CASE WHEN it.transaction_type = 'product_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / $2))::numeric, 2)
+            ELSE NULL
+          END as days_on_hand
+        FROM products p
+        LEFT JOIN inventory_transactions it ON p.id = it.product_id AND p.company_id = it.company_id AND it.created_at >= $1
+        WHERE p.company_id = $3
+        GROUP BY p.id, p.name, p.category, p.stock_quantity, p.price, p.cost
+        ORDER BY total_used DESC NULLS LAST`;
+    } else {
+      query = `
+        SELECT 
+          i.id, i.name, i.unit, i.current_stock, i.cost_per_unit,
+          (i.current_stock * i.cost_per_unit) as current_value,
+          SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) as total_used,
+          COUNT(CASE WHEN it.transaction_type = 'order_deduction' THEN 1 END) as usage_count,
+          CASE
+            WHEN i.current_stock > 0 THEN ROUND((SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / i.current_stock)::numeric, 2)
+            ELSE 0
+          END as turnover_ratio,
+          CASE
+            WHEN i.current_stock > 0 AND SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) > 0 
+            THEN ROUND((i.current_stock / (SUM(CASE WHEN it.transaction_type = 'order_deduction' THEN ABS(it.quantity_change) ELSE 0 END) / $2))::numeric, 2)
+            ELSE NULL
+          END as days_on_hand
+        FROM ingredients i
+        LEFT JOIN inventory_transactions it ON i.id = it.ingredient_id AND i.company_id = it.company_id AND it.created_at >= $1
+        WHERE i.company_id = $3
+        GROUP BY i.id, i.name, i.unit, i.current_stock, i.cost_per_unit
+        ORDER BY total_used DESC NULLS LAST`;
+    }
 
-    const fastMoving = result.rows.filter(i => (toNum(i.days_on_hand) || 999) <= 7).length;
-    const slowMoving = result.rows.filter(i => (toNum(i.days_on_hand) || 999) > 30).length;
-    const avgTurnover = result.rows.length > 0
-      ? result.rows.reduce((sum, i) => sum + toNum(i.turnover_ratio), 0) / result.rows.length
-      : 0;
+    const result = await pool.query(query, [startDate, parseInt(days), req.company_id]);
 
     res.json({
       success: true,
       report: {
-        title: 'Inventory Turnover Report',
+        title: `${type === 'product' ? 'Product' : 'Ingredient'} Turnover Report`,
         period_days: parseInt(days),
         generated_at: new Date().toISOString(),
-        summary: {
-          total_items: result.rows.length,
-          fast_moving_items: fastMoving,
-          slow_moving_items: slowMoving,
-          average_turnover_ratio: parseFloat(avgTurnover.toFixed(2)),
-          items_with_no_movement: result.rows.filter(i => !i.usage_count).length
-        },
-        turnover_guide: {
-          'High (>5)': 'Fast-moving, reorder frequently',
-          'Medium (2-5)': 'Steady demand',
-          'Low (<2)': 'Slow-moving, monitor for obsolescence',
-          'None (0)': 'No recent usage, consider discontinuing'
-        },
         data: result.rows
       }
     });
@@ -924,17 +899,12 @@ router.get('/reports/turnover', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch turnover report' });
   }
 });
+
 // GET receive history
 router.get('/receive/history', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        it.id,
-        it.quantity_change,
-        it.notes,
-        it.created_at,
-        i.name as ingredient_name,
-        i.unit
+      SELECT it.id, it.quantity_change, it.notes, it.created_at, i.name as ingredient_name, i.unit
       FROM inventory_transactions it
       JOIN ingredients i ON it.ingredient_id = i.id AND it.company_id = i.company_id
       WHERE it.quantity_change > 0 AND it.company_id = $1
