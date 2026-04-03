@@ -306,6 +306,8 @@ CREATE TABLE public.inventory_transactions (
     reference_type character varying(50),
     notes text,
     created_by character varying(100),
+    company_id uuid DEFAULT '00000000-0000-0000-0000-000000000000'::uuid,
+    size_id integer,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -515,6 +517,8 @@ CREATE TABLE public.product_composition (
     product_id integer,
     ingredient_id integer,
     quantity_required numeric(10,3) NOT NULL,
+    company_id uuid DEFAULT '00000000-0000-0000-0000-000000000000'::uuid,
+    size_id integer,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -1358,6 +1362,9 @@ ALTER TABLE ONLY public.product_composition
 
 ALTER TABLE ONLY public.product_composition
     ADD CONSTRAINT product_composition_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.product_composition
+    ADD CONSTRAINT product_composition_unique_link UNIQUE (company_id, product_id, ingredient_id, size_id);
 
 
 --

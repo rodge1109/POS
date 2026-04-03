@@ -76,9 +76,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_ingredients_company_name_ci
 
 -- Table: product_composition
 ALTER TABLE public.product_composition ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);
+ALTER TABLE public.product_composition ADD COLUMN IF NOT EXISTS size_id INTEGER;
+
+-- Unique link for recipe variants
+ALTER TABLE public.product_composition DROP CONSTRAINT IF EXISTS product_composition_unique_link;
+ALTER TABLE public.product_composition ADD CONSTRAINT product_composition_unique_link UNIQUE (company_id, product_id, ingredient_id, size_id);
 
 -- Table: inventory_transactions
 ALTER TABLE public.inventory_transactions ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);
+ALTER TABLE public.inventory_transactions ADD COLUMN IF NOT EXISTS size_id INTEGER;
 
 -- Table: shifts
 ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);

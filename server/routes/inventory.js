@@ -380,7 +380,7 @@ router.post('/recipes/auto-link', async (req, res) => {
 router.get('/recipes', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT DISTINCT p.id, p.name, p.category,
+      SELECT DISTINCT p.id, p.name, p.category, p.price,
         (SELECT COUNT(*) FROM product_composition WHERE product_id = p.id AND company_id = $1) as ingredient_count
       FROM products p
       LEFT JOIN product_composition pc ON p.id = pc.product_id AND p.company_id = pc.company_id
@@ -408,7 +408,8 @@ router.get('/recipes/:productId', async (req, res) => {
         ps.name as size_name,
         i.name as ingredient_name,
         i.unit,
-        i.current_stock
+        i.current_stock,
+        i.cost_per_unit
       FROM product_composition pc
       JOIN ingredients i ON pc.ingredient_id = i.id
       LEFT JOIN product_sizes ps ON pc.size_id = ps.id

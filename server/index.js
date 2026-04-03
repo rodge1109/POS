@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import session from 'express-session';
 import dotenv from 'dotenv';
@@ -79,20 +80,51 @@ if (staticPath) {
   console.warn('Static assets not found in any of:', distCandidates.join(', '));
 }
 
-// Routes
+// Apply middleware for protected routes
 app.use('/api/auth', authRoutes);
+app.use('/api/settings/public', settingsRoutes);
 
-// Protected Routes (Required company_id in token)
+// Custom middleware to skip verifyToken for specific routes
+const optionalTokenRoutes = ['/api/customers/login', '/api/customers/register'];
+
+app.use((req, res, next) => {
+  if (optionalTokenRoutes.includes(req.path)) {
+    return next();
+  }
+  next();
+});
+
 app.use('/api/products', verifyToken, productsRoutes);
-app.use('/api/orders', verifyToken, ordersRoutes);
-app.use('/api/customers', verifyToken, customersRoutes);
 app.use('/api/combos', verifyToken, combosRoutes);
-app.use('/api/shifts', verifyToken, shiftsRoutes);
+app.use('/api/categories', verifyToken, categoriesRoutes);
 app.use('/api/tables', verifyToken, tablesRoutes);
+app.use('/api/orders', verifyToken, ordersRoutes);
+app.use('/api/shifts', verifyToken, shiftsRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
+app.use('/api/customers', (req, res, next) => {
+  // If it's a login or register route, we allow no token
+  if (optionalTokenRoutes.includes(req.originalUrl)) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) return next(); // Proceed without token (public mode)
+    
+    // If token exists, try to verify to get company_id context
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      req.user = decoded;
+      req.company_id = decoded.company_id;
+      return next();
+    } catch (err) {
+      console.error('Optional token verify error:', err.message);
+      // If token is invalid, we still allow public registration if no token was required
+      return next(); 
+    }
+  }
+  return verifyToken(req, res, next);
+}, customersRoutes);
 app.use('/api/inventory', verifyToken, inventoryRoutes);
 app.use('/api/modifiers', verifyToken, modifiersRoutes);
-app.use('/api/categories', verifyToken, categoriesRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

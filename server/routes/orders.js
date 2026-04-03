@@ -554,6 +554,62 @@ router.post('/', async (req, res) => {
       );
     }
 
+    // Loyalty Points Earning & Tier-Up Logic
+    if (customerId) {
+        // Fetch loyalty settings from system_settings
+        const settingsRes = await client.query(
+            `SELECT key, value FROM system_settings 
+             WHERE company_id = $1 AND key LIKE 'loyalty_%'`,
+            [req.company_id]
+        );
+        const settings = {};
+        settingsRes.rows.forEach(r => { settings[r.key] = r.value; });
+
+        // Default to 1 point per 50 Php if not set
+        const pointsPerPhp = parseFloat(settings.loyalty_points_per_php) || (1 / 50); 
+        const earnedPoints = Math.floor(canonicalTotal * pointsPerPhp);
+
+        if (earnedPoints > 0) {
+            // First get current points to calculate new tier
+            const custRes = await client.query('SELECT loyalty_points FROM customers WHERE id = $1', [customerId]);
+            if (custRes.rows.length > 0) {
+                const currentTotalPoints = (custRes.rows[0].loyalty_points || 0) + earnedPoints;
+                
+                // Fetch dynamic thresholds and discounts
+                const silverThreshold = parseInt(settings.loyalty_silver_threshold) || 100;
+                const silverDiscount = parseFloat(settings.loyalty_silver_discount) || 5;
+                const goldThreshold = parseInt(settings.loyalty_gold_threshold) || 500;
+                const goldDiscount = parseFloat(settings.loyalty_gold_discount) || 10;
+                const diamondThreshold = parseInt(settings.loyalty_diamond_threshold) || 1000;
+                const diamondDiscount = parseFloat(settings.loyalty_diamond_discount) || 15;
+
+                let tier = 'Bronze';
+                let discount = 0;
+                
+                if (currentTotalPoints >= diamondThreshold) {
+                    tier = 'Diamond';
+                    discount = diamondDiscount;
+                } else if (currentTotalPoints >= goldThreshold) {
+                    tier = 'Gold';
+                    discount = goldDiscount;
+                } else if (currentTotalPoints >= silverThreshold) {
+                    tier = 'Silver';
+                    discount = silverDiscount;
+                }
+
+                await client.query(
+                    `UPDATE customers SET 
+                      loyalty_points = loyalty_points + $1, 
+                      loyalty_tier = $2,
+                      loyalty_discount = $3,
+                      updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = $4 AND company_id = $5`,
+                    [earnedPoints, tier, discount, customerId, req.company_id]
+                );
+            }
+        }
+    }
+
     await client.query('COMMIT');
 
     res.status(201).json({

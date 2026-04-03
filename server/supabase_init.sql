@@ -71,6 +71,21 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00
 ALTER TABLE public.modifiers ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);
 ALTER TABLE public.modifiers ADD COLUMN IF NOT EXISTS type VARCHAR(30) DEFAULT 'addon';
 
+-- 6. INVENTORY & RECIPES REPAIR
+ALTER TABLE public.product_composition ADD COLUMN IF NOT EXISTS size_id INTEGER;
+ALTER TABLE public.inventory_transactions ADD COLUMN IF NOT EXISTS size_id INTEGER;
+
+-- 7. CUSTOMERS & LEDGER REPAIR
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS loyalty_points integer DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS loyalty_tier character varying(50) DEFAULT 'basic';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS loyalty_discount numeric(5,2) DEFAULT 0;
+ALTER TABLE public.customer_ledger ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);
+
+-- Ensure unique constraint for recipe variants
+ALTER TABLE public.product_composition DROP CONSTRAINT IF EXISTS product_composition_unique_link;
+ALTER TABLE public.product_composition ADD CONSTRAINT product_composition_unique_link UNIQUE (company_id, product_id, ingredient_id, size_id);
+
 -- INITIAL SEEDS
 INSERT INTO public.companies (id, name, login_pin, status)
 VALUES ('00000000-0000-0000-0000-000000000000', 'Initial Shop (Default)', '123456', 'active')

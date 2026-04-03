@@ -25,7 +25,10 @@ router.get('/', async (req, res) => {
 // POST register new customer
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, pin, email, address, city, barangay } = req.body;
+    const { name, phone, pin, email, address, city, barangay, company_id: bodyCompanyId } = req.body;
+    
+    // Determine company context
+    const company_id = req.company_id || bodyCompanyId || '00000000-0000-0000-0000-000000000000';
 
     // Validate required fields
     if (!name || !phone || !pin) {
@@ -40,7 +43,7 @@ router.post('/register', async (req, res) => {
     // Check if phone already exists
     const existing = await pool.query(
       'SELECT id FROM customers WHERE phone = $1 AND company_id = $2',
-      [phone, req.company_id]
+      [phone, company_id]
     );
 
     if (existing.rows.length > 0) {
@@ -49,21 +52,22 @@ router.post('/register', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO customers (name, phone, pin, email, address, city, barangay, company_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, phone, email, credit_balance, credit_limit, loyalty_points, loyalty_discount, loyalty_tier`,
-      [name, phone, pin, email || null, address || null, city || null, barangay || null, req.company_id]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, phone, email, credit_balance, credit_limit, loyalty_points, loyalty_discount, loyalty_tier, company_id`,
+      [name, phone, pin, email || null, address || null, city || null, barangay || null, company_id]
     );
 
     res.status(201).json({ success: true, customer: result.rows[0] });
   } catch (error) {
     console.error('Error registering customer:', error);
-    res.status(500).json({ success: false, error: 'Failed to register customer' });
+    res.status(500).json({ success: false, error: 'Failed to register customer: ' + error.message });
   }
 });
 
 // POST login customer
 router.post('/login', async (req, res) => {
   try {
-    const { phone, pin } = req.body;
+    const { phone, pin, company_id: bodyCompanyId } = req.body;
+    const company_id = req.company_id || bodyCompanyId || '00000000-0000-0000-0000-000000000000';
 
     if (!phone || !pin) {
       return res.status(400).json({ success: false, error: 'Phone and PIN are required' });
@@ -72,7 +76,7 @@ router.post('/login', async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, phone, email, address, city, barangay, credit_balance, credit_limit, loyalty_points, loyalty_discount, loyalty_tier
        FROM customers WHERE phone = $1 AND pin = $2 AND company_id = $3`,
-      [phone, pin, req.company_id]
+      [phone, pin, company_id]
     );
 
     if (result.rows.length === 0) {
@@ -86,25 +90,41 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET customer by phone (for POS lookup)
+// GET search customers (for POS lookup)
+router.get('/search', async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) return res.json({ success: true, customers: [] });
+
+    const searchQuery = `%${query}%`;
+    const result = await pool.query(
+      `SELECT id, name, phone, email, credit_balance, credit_limit, loyalty_points, loyalty_discount, loyalty_tier
+       FROM customers 
+       WHERE (phone ILIKE $1 OR name ILIKE $1) AND company_id = $2
+       LIMIT 10`,
+      [searchQuery, req.company_id]
+    );
+
+    res.json({ success: true, customers: result.rows });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ success: false, error: 'Search failed' });
+  }
+});
+
+// GET customer by phone (legacy support)
 router.get('/phone/:phone', async (req, res) => {
   try {
     const { phone } = req.params;
-
     const result = await pool.query(
       `SELECT id, name, phone, email, credit_balance, credit_limit, loyalty_points, loyalty_discount, loyalty_tier
        FROM customers WHERE phone = $1 AND company_id = $2`,
       [phone, req.company_id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Customer not found' });
-    }
-
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true, customer: result.rows[0] });
   } catch (error) {
-    console.error('Error fetching customer:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch customer' });
+    res.status(500).json({ success: false });
   }
 });
 

@@ -160,7 +160,12 @@ export default function App() {
     smtp_host: 'smtp.gmail.com', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from: '',
     printer_auto_receipt: 'true', printer_auto_kitchen: 'true', printer_width: '58mm',
     printer_header: '', printer_footer: '', printer_manual_tear: 'true',
-    kiosk_url: 'http://localhost:5173'
+    kiosk_url: 'http://localhost:5173',
+    // Loyalty Settings
+    loyalty_points_per_php: '0.02', // 1 point per 50 Php
+    loyalty_silver_threshold: '100', loyalty_silver_discount: '5',
+    loyalty_gold_threshold: '500', loyalty_gold_discount: '10',
+    loyalty_diamond_threshold: '1000', loyalty_diamond_discount: '15'
   });
 
   const currencySymbol = getCurrencySymbol(sysConfig.currency || 'PHP');
@@ -210,20 +215,26 @@ export default function App() {
     }
   }, [currentShift]);
 
-  // Check for active shift when employee logs in
+  const [publicCompanyId, setPublicCompanyId] = useState('00000000-0000-0000-0000-000000000000');
+
+  // Check for active shift and system settings
   useEffect(() => {
-    const checkActiveShift = async () => {
-      if (employee) {
-        try {
+    const initializeAppData = async () => {
+      try {
+        // Fetch system settings globally (publicly if needed)
+        const settingsRes = await fetchWithAuth(`${API_URL}/settings/public`);
+        const settingsData = await settingsRes.json();
+        if (settingsData.success) {
+          setSysConfig(prev => ({ ...prev, ...settingsData.settings }));
+          if (settingsData.company_id) {
+             setPublicCompanyId(settingsData.company_id);
+          }
+        }
+
+        if (employee) {
           // Give a small delay to ensure localStorage is updated
           await new Promise(r => setTimeout(r, 100));
-          const token = localStorage.getItem('auth_token');
-
-          if (!token) {
-            console.warn('No auth token found, skipping shift check');
-            return;
-          }
-
+          
           // Fetch current shift
           const shiftRes = await fetchWithAuth(`${API_URL}/shifts/current`);
           const shiftData = await shiftRes.json();
@@ -232,22 +243,14 @@ export default function App() {
           } else {
             setCurrentShift(null);
           }
-
-          // Fetch system settings
-          const settingsRes = await fetchWithAuth(`${API_URL}/settings`);
-          const settingsData = await settingsRes.json();
-          if (settingsData.success) {
-            setSysConfig(prev => ({ ...prev, ...settingsData.settings }));
-          }
-        } catch (error) {
-          console.error('Error checking shift/settings:', error);
+        } else {
           setCurrentShift(null);
         }
-      } else {
-        setCurrentShift(null);
+      } catch (error) {
+        console.error('Error initializing app data:', error);
       }
     };
-    checkActiveShift();
+    initializeAppData();
   }, [employee]);
 
   const handleLogout = () => {
@@ -839,7 +842,7 @@ export default function App() {
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
         )}
-        {currentPage === 'customer-login' && <CustomerLoginPage setCustomer={setCustomer} setCurrentPage={setCurrentPage} />}
+        {currentPage === 'customer-login' && <CustomerLoginPage setCustomer={setCustomer} setCurrentPage={setCurrentPage} companyId={publicCompanyId} />}
         {currentPage === 'customer-dashboard' && <CustomerDashboard customer={customer} onLogout={handleLogout} />}
 
         {/* Multi-Tenant Registration & Admin Login */}
@@ -2140,42 +2143,39 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
         </div>
       </section>
 
+      {/* Social Proof Ribbon */}
+      <section className="py-12 bg-white border-y border-gray-100 overflow-hidden">
+        <div className="w-full px-6">
+          <p className="text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] mb-10">POWERING THE NEXT GENERATION OF COMMERCE</p>
+          <div className="flex flex-wrap justify-center items-center gap-10 md:gap-20 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-700">
+             <div className="flex items-center space-x-2"><Layout className="w-5 h-5 text-gray-900"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">RETRO-FIT</span></div>
+             <div className="flex items-center space-x-2"><Zap className="w-5 h-5 text-cyan-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">NEO-CAFE</span></div>
+             <div className="flex items-center space-x-2"><Shield className="w-5 h-5 text-emerald-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">SAFE-STORE</span></div>
+             <div className="flex items-center space-x-2"><Box className="w-5 h-5 text-blue-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">ULTRA-RETAIL</span></div>
+             <div className="flex items-center space-x-2"><Activity className="w-5 h-5 text-purple-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">CORE-HUB</span></div>
+          </div>
+        </div>
+      </section>
+
       {/* Modern SME Features & Pricing Block */}
-      <section className="py-32 bg-gray-50 relative overflow-hidden">
-        <div className="w-full px-6 md:px-12">
+      <section id="pricing" className="py-32 bg-gray-50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
           <div className="text-center mb-24">
-            <h2 className="text-5xl md:text-7xl font-black text-gray-900 mb-6 tracking-tighter uppercase">SCALE WITHOUT <span className="text-cyan-600 underline decoration-cyan-200 underline-offset-8">LIMITS</span></h2>
-            <p className="text-xl text-gray-500 font-bold max-w-2xl mx-auto">One platform, infinite possibilities. Choose the engine that fits your ambition.</p>
+            <h2 className="text-5xl md:text-7xl font-black text-gray-900 uppercase tracking-tighter mb-6">ONE ENGINE. <span className="text-cyan-600">ALL POWER.</span></h2>
+            <p className="text-xl text-gray-500 font-bold max-w-2xl mx-auto">Choose the configuration that matches your ambition. From startup to enterprise dominance.</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            {/* Left: Value Prop Cards */}
-            <div className="lg:col-span-5 space-y-6">
-              {[
-                { icon: Zap, title: "Instant Deployment", desc: "Get your store running in under 5 minutes with zero technical overhead.", color: "bg-blue-50 text-blue-600" },
-                { icon: Shield, title: "Bank-Grade Security", desc: "Encrypted transactions and secure data storage protecting your business 24/7.", color: "bg-emerald-50 text-cyan-600" },
-                { icon: Box, title: "Universal Inventory", desc: "Sync physical and digital stock across all locations in real-time.", color: "bg-purple-50 text-purple-600" }
-              ].map((feature, i) => (
-                <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 hover:shadow-xl transition-all group hover:-translate-y-1">
-                  <div className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                    <feature.icon className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-2xl font-black text-gray-900 mb-3">{feature.title}</h3>
-                  <p className="text-gray-500 font-medium leading-relaxed">{feature.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Right: Pricing Cards */}
-            <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-16">
+            {/* TOP: Pricing Cards (3 Cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Starter Plan */}
-              <div className="bg-white border-2 border-gray-100 p-10 rounded-[3rem] hover:border-cyan-500 transition-all group relative overflow-hidden">
+              <div className="bg-white border-2 border-gray-100 p-10 rounded-[3rem] hover:border-cyan-500 transition-all group relative overflow-hidden flex flex-col">
                 <div className="mb-10">
                   <span className="bg-gray-100 text-gray-800 px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase">Starter</span>
-                  <h3 className="text-7xl font-black text-gray-900 mt-6">$50<span className="text-xl text-gray-400">/mo</span></h3>
+                  <h3 className="text-6xl font-black text-gray-900 mt-6">$50<span className="text-xl text-gray-400">/mo</span></h3>
                   <p className="text-gray-500 font-bold mt-4">Perfect for boutiques & startups</p>
                 </div>
-                <ul className="space-y-4 mb-10">
+                <ul className="space-y-4 mb-10 flex-1">
                   {['1 Location', 'Up to 5 Users', 'Basic Analytics', 'Mobile App Access'].map((feat, i) => (
                     <li key={i} className="flex items-center space-x-3 text-gray-600 font-bold">
                       <div className="w-5 h-5 bg-cyan-100 text-cyan-600 rounded-full flex items-center justify-center shrink-0">
@@ -2194,14 +2194,14 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
               </div>
 
               {/* Pro Plan */}
-              <div className="bg-cyan-600 p-10 rounded-[3rem] shadow-[0_30px_60px_rgba(6,182,212,0.3)] relative overflow-hidden group">
+              <div className="bg-cyan-600 p-10 rounded-[3rem] shadow-[0_30px_60px_rgba(6,182,212,0.3)] relative overflow-hidden group flex flex-col">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                 <div className="mb-10">
                   <span className="bg-white/20 text-white px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase">Professional</span>
-                  <h3 className="text-7xl font-black text-white mt-6">$100<span className="text-xl text-cyan-200">/mo</span></h3>
+                  <h3 className="text-6xl font-black text-white mt-6">$100<span className="text-xl text-cyan-200">/mo</span></h3>
                   <p className="text-cyan-100 font-bold mt-4">For growing multi-sector SMEs</p>
                 </div>
-                <ul className="space-y-4 mb-10">
+                <ul className="space-y-4 mb-10 flex-1">
                   {['Unlimited Locations', 'Unlimited Users', 'Advanced Inventory', 'CRM & Loyalty'].map((feat, i) => (
                     <li key={i} className="flex items-center space-x-3 text-white font-bold">
                       <div className="w-5 h-5 bg-white/20 text-white rounded-full flex items-center justify-center shrink-0">
@@ -2218,6 +2218,49 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
                   UPGRADE NOW
                 </button>
               </div>
+
+              {/* POS Source Code Plan */}
+              <div className="bg-gray-900 p-10 rounded-[3rem] border-2 border-gray-800 hover:border-cyan-500 transition-all group relative overflow-hidden flex flex-col">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                <div className="mb-10 text-white">
+                  <span className="bg-cyan-500 text-white px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase font-black">Full Ownership</span>
+                  <h3 className="text-6xl font-black text-white mt-6">$2,000</h3>
+                  <p className="text-gray-400 font-bold mt-4">Full POS Source Code Ownership</p>
+                </div>
+                <ul className="space-y-4 mb-10 flex-1">
+                  {['Complete Source Code', 'Self-Hosted Authority', 'White-Label Branding', 'Unlimited Stores', 'Lifetime Updates'].map((feat, i) => (
+                    <li key={i} className="flex items-center space-x-3 text-white font-bold">
+                      <div className="w-5 h-5 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center shrink-0">
+                        <Check className="w-3 h-3" />
+                      </div>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button 
+                  onClick={() => setCurrentPage('company-register')}
+                  className="w-full bg-cyan-600 text-white py-5 rounded-2xl font-black hover:bg-cyan-500 transition-all uppercase tracking-widest text-sm"
+                >
+                  BUY SOURCE CODE
+                </button>
+              </div>
+            </div>
+
+            {/* BOTTOM: Feature Cards (3 Cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                { icon: Zap, title: "Instant Deployment", desc: "Get your store running in under 5 minutes with zero technical overhead.", color: "bg-blue-50 text-blue-600" },
+                { icon: Shield, title: "Bank-Grade Security", desc: "Encrypted transactions and secure data storage protecting your business 24/7.", color: "bg-emerald-50 text-cyan-600" },
+                { icon: Box, title: "Universal Inventory", desc: "Sync physical and digital stock across all locations in real-time.", color: "bg-purple-50 text-purple-600" }
+              ].map((feature, i) => (
+                <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 hover:shadow-xl transition-all group hover:-translate-y-1">
+                  <div className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                    <feature.icon className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-3">{feature.title}</h3>
+                  <p className="text-gray-500 font-medium leading-relaxed">{feature.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -2225,23 +2268,36 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
 
       {/* Testimonials Segment */}
       <section className="py-32 bg-white px-6 md:px-12">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-6xl font-black text-gray-900 uppercase tracking-tighter mb-4">VOICE OF SUCCESS</h2>
-          <p className="text-lg text-gray-500 font-bold">Real stories from businesses powered by Lumina POS.</p>
+        <div className="text-center mb-24">
+          <span className="text-cyan-600 font-black text-[10px] tracking-[0.5em] uppercase border-b-2 border-cyan-600 pb-2 mb-8 inline-block">Social Proof</span>
+          <h2 className="text-5xl md:text-7xl font-black text-gray-900 uppercase tracking-tighter mt-4">VOICE OF <span className="text-gray-400">SUCCESS</span></h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-7xl mx-auto">
           {[
-            { name: "Sarah Jenkins", role: "Boutique Owner", quote: "Lumina transformed how we track our fashion inventory. The real-time sync across our 3 branches is seamless.", img: "👩‍💼" },
-            { name: "Marc Rivera", role: "Salon Manager", quote: "The customer loyalty features in the Pro plan increased our repeat bookings by 40% in just two months.", img: "👨‍🎨" },
-            { name: "Elena Chen", role: "Bakery Chain CEO", quote: "Finally, a POS that understands the complexity of multiple SKUs and wholesale ordering. Worth every penny.", img: "👩‍🍳" }
+            { name: "Sarah Jenkins", role: "Boutique Owner", quote: "Lumina transformed how we track our fashion inventory. The real-time sync across our 3 branches is seamless.", img: "👩‍💼", tags: ["Retail", "Multi-branch"] },
+            { name: "Marc Rivera", role: "Salon Manager", quote: "The customer loyalty features in the Pro plan increased our repeat bookings by 40% in just two months.", img: "👨‍🎨", tags: ["Service", "Loyalty"] },
+            { name: "Elena Chen", role: "Bakery Chain CEO", quote: "Finally, a POS that understands the complexity of multiple SKUs and wholesale ordering. Worth every penny.", img: "👩‍🍳", tags: ["F&B", "Scale"] }
           ].map((t, i) => (
-            <div key={i} className="bg-gray-50 p-10 rounded-[2.5rem] border border-gray-100 relative group hover:bg-white hover:shadow-2xl transition-all">
-              <div className="text-4xl mb-6">{t.img}</div>
-              <p className="text-xl text-gray-700 italic font-medium leading-relaxed mb-8">"{t.quote}"</p>
-              <div>
-                <p className="font-black text-gray-900 uppercase tracking-widest text-sm">{t.name}</p>
-                <p className="text-cyan-600 font-bold text-xs">{t.role}</p>
+            <div key={i} className="group relative">
+               <div className="absolute inset-0 bg-cyan-600 rounded-[3rem] translate-x-3 translate-y-3 opacity-0 group-hover:opacity-10 transition-all"></div>
+               <div className="bg-gray-50 p-12 rounded-[3rem] border border-gray-100 relative z-10 hover:bg-white hover:shadow-2xl transition-all duration-500 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="text-5xl grayscale group-hover:grayscale-0 transition-all duration-500">{t.img}</div>
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(s => <Plus key={s} className="w-3 h-3 text-cyan-500"/>)}
+                  </div>
+                </div>
+                <p className="text-2xl text-gray-800 italic font-medium leading-relaxed mb-10 flex-1">"{t.quote}"</p>
+                <div className="pt-8 border-t border-gray-200">
+                  <p className="font-black text-gray-900 uppercase tracking-widest text-sm">{t.name}</p>
+                  <p className="text-cyan-600 font-bold text-xs mb-4">{t.role}</p>
+                  <div className="flex gap-2">
+                    {t.tags.map(tag => (
+                      <span key={tag} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-gray-200 text-gray-500 rounded-md">{tag}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -4265,6 +4321,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
 
   // Note editing state
   const [editingNoteIndex, setEditingNoteIndex] = useState(null);
@@ -4734,22 +4791,27 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     }
   };
 
-  // Search customer by phone
-  const searchCustomer = async (phone) => {
-    if (phone.length < 3) {
+  // Search customers by name or phone
+  const searchCustomer = async (query) => {
+    if (query.trim().length < 2) {
       setCustomerSearchResults([]);
+      setIsSearchingCustomer(false);
       return;
     }
+    setIsSearchingCustomer(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/customers/phone/${phone}`);
+      const response = await fetchWithAuth(`${API_URL}/customers/search?query=${encodeURIComponent(query)}`);
       const result = await response.json();
       if (result.success) {
-        setCustomerSearchResults([result.customer]);
+        setCustomerSearchResults(result.customers || []);
       } else {
         setCustomerSearchResults([]);
       }
     } catch (error) {
+      console.error('Customer search error:', error);
       setCustomerSearchResults([]);
+    } finally {
+      setIsSearchingCustomer(false);
     }
   };
 
@@ -4984,7 +5046,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     if (discountType === 'senior' || discountType === 'pwd') {
       return subtotal * 0.20; // 20% discount for senior/PWD
     } else if (discountType === 'loyalty') {
-      return subtotal * 0.10; // 10% loyalty discount
+      const discountPercent = selectedCustomer?.loyalty_discount || 0;
+      return subtotal * (parseFloat(discountPercent) / 100);
     } else if (discountType === 'custom') {
       if (customDiscountPercent) {
         return subtotal * (parseFloat(customDiscountPercent) / 100);
@@ -5714,16 +5777,16 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 space-y-6 pb-24">
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-5 space-y-4 pb-20">
                 {/* Order Summary */}
                 <div className="bg-green-50 border border-cyan-100 p-3 rounded-lg">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 text-xs">Items in Cart</span>
                     <span className="font-medium text-sm">{cartItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
                   </div>
-                  <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-cyan-200">
-                    <span className="font-bold text-gray-800 text-sm">Amount Due</span>
-                    <span className="font-bold text-cyan-600 text-3xl">{money(total)}</span>
+                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-cyan-200">
+                    <span className="font-bold text-gray-800 text-xs">Amount Due</span>
+                    <span className="font-bold text-cyan-600 text-2xl">{money(total)}</span>
                   </div>
                 </div>
 
@@ -5804,57 +5867,116 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   )}
                 </div>
 
-                {/* Customer Selection for Credit */}
-                {paymentMethod === 'credit' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Customer</label>
-                    {selectedCustomer ? (
-                      <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-bold text-gray-800 text-sm">{selectedCustomer.name}</p>
-                            <p className="text-xs text-gray-500">{selectedCustomer.phone}</p>
-                            <p className="text-xs text-orange-600">
-                              Bal: Php {(parseFloat(selectedCustomer.credit_balance) || 0).toFixed(2)} /
-                              Lmt: Php {(parseFloat(selectedCustomer.credit_limit) || 0).toFixed(2)}
-                            </p>
-                          </div>
-                          <button onClick={() => setSelectedCustomer(null)} className="text-gray-400 hover:text-red-500">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          placeholder="Search by phone..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 text-sm"
-                        />
-                        {customerSearchResults.length > 0 && (
-                          <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 z-10">
-                            {customerSearchResults.map(c => (
-                              <button
-                                key={c.id}
-                                onClick={() => {
-                                  setSelectedCustomer(c);
-                                  setCustomerSearch('');
-                                  setCustomerSearchResults([]);
-                                }}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0 first:rounded-t-lg last:rounded-b-lg"
-                              >
-                                <p className="font-medium text-gray-800 text-sm">{c.name}</p>
-                                <p className="text-xs text-gray-500">{c.phone}</p>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                {/* Customer Selection - Linked to Loyalty/Points */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-gray-500">Customer (Points / Credit)</label>
+                    {selectedCustomer && (
+                      <div className="flex items-center gap-1">
+                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
+                          selectedCustomer.loyalty_tier === 'Diamond' ? 'bg-cyan-100 text-cyan-700' :
+                          selectedCustomer.loyalty_tier === 'Gold' ? 'bg-amber-100 text-amber-700' :
+                          selectedCustomer.loyalty_tier === 'Silver' ? 'bg-gray-100 text-gray-700' :
+                          'bg-orange-100 text-orange-700'
+                        }`}>
+                          {selectedCustomer.loyalty_tier}
+                        </span>
+                        <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 font-bold">
+                          {selectedCustomer.loyalty_points} PTS
+                        </span>
                       </div>
                     )}
                   </div>
-                )}
+                  
+                  {selectedCustomer ? (
+                    <div className={`${paymentMethod === 'credit' ? 'bg-orange-50 border-orange-200' : 'bg-cyan-50 border-cyan-100'} border p-3 rounded-xl transition-colors`}>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${paymentMethod === 'credit' ? 'bg-orange-200 text-orange-700' : 'bg-cyan-200 text-cyan-700'}`}>
+                            {selectedCustomer.name.substring(0,2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800 text-sm">{selectedCustomer.name}</p>
+                            <p className="text-[10px] text-gray-500 font-medium">{selectedCustomer.phone}</p>
+                            {paymentMethod === 'credit' && (
+                              <p className="text-[10px] font-bold text-orange-600 mt-0.5 uppercase tracking-tight">
+                                Credit Bal: ₱{(parseFloat(selectedCustomer.credit_balance) || 0).toFixed(0)} / 
+                                Lmt: ₱{(parseFloat(selectedCustomer.credit_limit) || 0).toFixed(0)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setSelectedCustomer(null);
+                            if (discountType === 'loyalty') setDiscountType(null);
+                          }} 
+                          className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        {isSearchingCustomer ? (
+                          <div className="w-3.5 h-3.5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Search className="w-3.5 h-3.5" />
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        placeholder="Search name or phone..."
+                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm transition-all bg-gray-50/50"
+                      />
+                      {customerSearchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl mt-2 z-[60] overflow-hidden animate-scaleIn">
+                          {customerSearchResults.map(c => (
+                            <button
+                              key={c.id}
+                              onClick={() => {
+                                setSelectedCustomer(c);
+                                setCustomerSearch('');
+                                setCustomerSearchResults([]);
+                                // Automatically apply loyalty discount if they have one
+                                if (Number(c.loyalty_discount) > 0) {
+                                  setDiscountType('loyalty');
+                                }
+                              }}
+                              className="w-full text-left px-4 py-3 hover:bg-cyan-50 transition-colors border-b border-gray-50 last:border-0 group"
+                            >
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-bold text-gray-800 text-sm group-hover:text-cyan-700">{c.name}</p>
+                                  <p className="text-xs text-gray-500">{c.phone}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{c.loyalty_tier}</p>
+                                  <p className="text-[10px] text-gray-400 font-bold">{c.loyalty_points} PTS</p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {customerSearch.length >= 2 && customerSearchResults.length === 0 && !isSearchingCustomer && (
+                        <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-2 z-[60] p-4 text-center animate-scaleIn">
+                           <p className="text-xs text-gray-500">No customers found for "{customerSearch}"</p>
+                           <button 
+                             onClick={() => setCurrentPage('customers')}
+                             className="mt-2 text-xs font-bold text-cyan-600 hover:text-cyan-700"
+                           >
+                             + Add New Customer
+                           </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Amount Input for Cash */}
                 {paymentMethod === 'cash' && (
@@ -5871,7 +5993,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                         }}
                         placeholder="0.00"
                         className="w-full bg-transparent border-none outline-none font-bold text-center text-cyan-600 appearance-none payment-amount-input"
-                        style={{ padding: '12px 8px', height: '64px', fontSize: '2rem' }}
+                        style={{ padding: '8px', height: '56px', fontSize: '1.75rem' }}
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -5906,17 +6028,17 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               </div>
 
               {/* Action Buttons - Fixed at bottom of modal */}
-              <div className="p-3 md:p-4 bg-white border-t border-gray-100 flex gap-3 flex-shrink-0">
+              <div className="p-3 bg-white border-t border-gray-100 flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => setShowPaymentModal(false)}
-                  className="px-4 md:px-6 py-3.5 md:py-4 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition-colors font-bold text-xs md:text-sm uppercase tracking-wide"
+                  className="px-4 py-3 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors font-bold text-xs uppercase tracking-wide"
                 >
                   Cancel
                 </button>
                 <button
                   id="complete-payment-btn"
                   onClick={processPayment}
-                  className="flex-1 py-3.5 md:py-4 bg-cyan-600 text-white rounded-xl font-black text-sm md:text-base hover:bg-cyan-700 transition-all shadow-lg active:scale-95 uppercase tracking-wider"
+                  className="flex-1 py-3 bg-cyan-600 text-white rounded-lg font-black text-sm hover:bg-cyan-700 transition-all shadow-lg active:scale-95 uppercase tracking-wider"
                 >
                   Process & Print Receipt
                 </button>
@@ -6351,7 +6473,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         {/* Success Overlay */}
         {showSuccessOverlay && (
           <div
-            className="fixed inset-0 flex items-center justify-center z-[60] bg-black/40"
+            className="fixed inset-0 flex items-center justify-center z-[60] bg-black/40 animate-fadeIn"
             onKeyDown={(e) => { if (e.key === 'Enter') setShowSuccessOverlay(false); }}
             tabIndex={0}
             ref={(el) => el && el.focus()}
@@ -6799,7 +6921,8 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       stock_quantity: product.stock_quantity || 0,
       low_stock_threshold: product.low_stock_threshold || 10,
       send_to_kitchen: product.send_to_kitchen !== false,
-      cost: product.cost || ''
+      cost: product.cost || '',
+      sizes: product.sizes ? product.sizes.map(s => ({ ...s, cost: s.cost || 0 })) : []
     });
     setHasSizes(product.sizes && product.sizes.length > 0);
     setProductModalPos(getDefaultProductModalPos());
@@ -6875,7 +6998,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   const addSize = () => {
     setFormData(prev => ({
       ...prev,
-      sizes: [...prev.sizes, { name: '', price: '' }]
+      sizes: [...prev.sizes, { name: '', price: '', cost: '' }]
     }));
   };
 
@@ -6883,7 +7006,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     setFormData(prev => ({
       ...prev,
       sizes: prev.sizes.map((size, i) =>
-        i === index ? { ...size, [field]: field === 'price' ? parseFloat(value) || '' : value } : size
+        i === index ? { ...size, [field]: (field === 'price' || field === 'cost') ? parseFloat(value) || '' : value } : size
       )
     }));
   };
@@ -7902,7 +8025,15 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                             placeholder="Price"
                             value={size.price}
                             onChange={(e) => updateSize(index, 'price', e.target.value)}
-                            className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Cost"
+                            value={size.cost}
+                            onChange={(e) => updateSize(index, 'cost', e.target.value)}
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
                           />
                           <button
                             type="button"
@@ -8373,6 +8504,9 @@ function CustomersPage({ setCurrentPage }) {
 
   useEffect(() => { loadCustomers(); }, []);
 
+  const totalLoyalty = customers.reduce((sum, c) => sum + (Number(c.loyalty_points) || 0), 0);
+  const totalCredit = customers.reduce((sum, c) => sum + (Number(c.credit_balance) || 0), 0);
+
   const saveCustomer = async () => {
     if (!form.name.trim() || !form.phone.trim() || !form.pin.trim()) {
       setError('Name, phone, and PIN are required'); return;
@@ -8398,55 +8532,132 @@ function CustomersPage({ setCurrentPage }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-20 pb-12">
-      <div className="max-w-6xl mx-auto px-4 space-y-4">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#F8FAFC] pt-20 pb-12 font-dashboard">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Customers</h1>
-            <p className="text-sm text-gray-500">Manage customer profiles for loyalty, discounts, and credit.</p>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Customer Intelligence</h1>
+            <p className="text-gray-500 font-medium">Lifecycle management for your most valuable assets.</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setCurrentPage('pos')} className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Back to POS</button>
-            <button onClick={() => setShowForm(true)} className="px-3 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">Add Customer</button>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setCurrentPage('pos')} 
+              className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+            >
+              EXIT TO POS
+            </button>
+            <button 
+              onClick={() => setShowForm(true)} 
+              className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg hover:shadow-cyan-200"
+            >
+              + NEW CUSTOMER
+            </button>
           </div>
         </div>
 
-        {error && <div className="bg-red-50 text-red-700 border border-red-200 rounded p-3 text-sm">{error}</div>}
+        {/* CRM Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 text-cyan-600 mb-2">
+              <User className="w-5 h-5"/>
+              <span className="text-xs font-black uppercase tracking-widest">Total Profiles</span>
+            </div>
+            <p className="text-3xl font-black text-gray-900">{customers.length}</p>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Registered Customers</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 text-purple-600 mb-2">
+              <TrendingUp className="w-5 h-5"/>
+              <span className="text-xs font-black uppercase tracking-widest">Loyalty Pool</span>
+            </div>
+            <p className="text-3xl font-black text-gray-900">{totalLoyalty.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Total Points Issued</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 text-orange-600 mb-2">
+              <AlertTriangle className="w-5 h-5"/>
+              <span className="text-xs font-black uppercase tracking-widest">Credit Exposure</span>
+            </div>
+            <p className="text-3xl font-black text-orange-600">₱{totalCredit.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Outstanding Balances</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 text-emerald-600 mb-2">
+              <PieChart className="w-5 h-5"/>
+              <span className="text-xs font-black uppercase tracking-widest">Avg Engagement</span>
+            </div>
+            <p className="text-3xl font-black text-gray-900">84%</p>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Retention Rate</p>
+          </div>
+        </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <span className="text-sm font-semibold text-gray-700">Customer List</span>
-            <button onClick={loadCustomers} className="text-xs px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">Refresh</button>
+        {error && <div className="bg-red-50 text-red-700 border border-red-100 rounded-xl p-4 text-xs font-bold animate-pulse">{error}</div>}
+
+        <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between px-8 py-6 border-b border-gray-50 bg-gray-50/50">
+            <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Customer Census</h3>
+            <button onClick={loadCustomers} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all flex items-center space-x-2">
+              <Activity className="w-3 h-3 text-cyan-600"/>
+              <span>SYNC DATA</span>
+            </button>
           </div>
           {loading ? (
-            <div className="p-6 text-sm text-gray-500">Loading customers...</div>
+            <div className="p-20 text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-cyan-600 mb-4"></div>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Accessing Database...</p>
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600 border-b">
+            <div className="overflow-x-auto h-[50vh] scrollbar-hide">
+              <table className="w-full text-sm font-data-table">
+                <thead className="bg-[#FBFCFE] text-gray-400 border-b border-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-4 py-2 text-left">Name</th>
-                    <th className="px-4 py-2 text-left">Phone</th>
-                    <th className="px-4 py-2 text-left">Email</th>
-                    <th className="px-4 py-2 text-left">Loyalty</th>
-                    <th className="px-4 py-2 text-left">Discount</th>
-                    <th className="px-4 py-2 text-left">Credit</th>
-                    <th className="px-4 py-2 text-left">Created</th>
+                    <th className="px-8 py-5 text-left font-black uppercase tracking-widest text-[10px]">Subscriber</th>
+                    <th className="px-8 py-5 text-left font-black uppercase tracking-widest text-[10px]">Contact Intel</th>
+                    <th className="px-8 py-5 text-left font-black uppercase tracking-widest text-[10px]">Loyalty Stats</th>
+                    <th className="px-8 py-5 text-left font-black uppercase tracking-widest text-[10px]">Ledger Status</th>
+                    <th className="px-8 py-5 text-left font-black uppercase tracking-widest text-[10px]">Onboarding</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-50">
                   {customers.length === 0 && (
-                    <tr><td className="px-4 py-4 text-center text-gray-400" colSpan={7}>No customers yet</td></tr>
+                    <tr><td className="px-8 py-20 text-center text-gray-400 italic" colSpan={5}>No customer profiles currently synchronized.</td></tr>
                   )}
                   {customers.map(c => (
-                    <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-medium text-gray-800">{c.name}</td>
-                      <td className="px-4 py-2 text-gray-700">{c.phone || '—'}</td>
-                      <td className="px-4 py-2 text-gray-700">{c.email || '—'}</td>
-                      <td className="px-4 py-2 text-gray-700">{(c.loyalty_points || 0)} pts · {c.loyalty_tier || 'basic'}</td>
-                      <td className="px-4 py-2 text-gray-700">{(Number(c.loyalty_discount) || 0).toFixed(1)}%</td>
-                      <td className="px-4 py-2 text-gray-700">Bal: {(Number(c.credit_balance) || 0).toFixed(2)}</td>
-                      <td className="px-4 py-2 text-gray-500 text-xs">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                    <tr key={c.id} className="hover:bg-cyan-50/30 transition-colors group">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-cyan-100 text-cyan-600 rounded-xl flex items-center justify-center font-black text-sm group-hover:scale-110 transition-transform">
+                            {c.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 leading-none mb-1">{c.name}</p>
+                            <p className="text-[10px] font-black text-gray-400 tracking-tighter uppercase">ID: LMN-{c.id.toString().padStart(4, '0')}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <p className="text-gray-600 font-bold text-xs">{c.phone || '—'}</p>
+                        <p className="text-[10px] text-gray-400 lowercase">{c.email || 'no-email-linked'}</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="w-2 h-2 rounded-full bg-cyan-500"></span>
+                          <p className="text-gray-800 font-bold text-xs">{(c.loyalty_points || 0)} <span className="text-gray-400 font-normal">pts</span></p>
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md">{c.loyalty_tier || 'standard'}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <p className={`font-black text-xs ${Number(c.credit_balance) > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                          ₱{(Number(c.credit_balance) || 0).toFixed(2)}
+                        </p>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">Current Balance</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center text-gray-500 text-xs font-bold space-x-2">
+                           <Clock className="w-3 h-3 opacity-40"/>
+                           <span>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : '—'}</span>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -8456,29 +8667,46 @@ function CustomersPage({ setCurrentPage }) {
         </div>
 
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <h3 className="text-lg font-bold text-gray-800">Add Customer</h3>
-                <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="w-5 h-5" />
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md z-[100] flex items-center justify-center px-4 animate-fadeIn" onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}>
+            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-gray-100">
+              <div className="bg-[#0A0F0D] py-8 px-10 border-b border-gray-800 flex justify-between items-center">
+                <div>
+                   <h3 className="text-xl font-black text-white uppercase tracking-tight">Onboard Subscriber</h3>
+                   <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1">Lumina Identity Protocol</p>
+                </div>
+                <button onClick={() => setShowForm(false)} className="w-10 h-10 bg-white/5 text-gray-400 hover:text-white rounded-full flex items-center justify-center transition-all">
+                  <X className="w-6 h-6" />
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-3">
-                <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-                <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-                <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Email (optional)" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-                <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="PIN (4-6 digits)" value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value })} />
-                <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="City" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
-                  <input className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Barangay" value={form.barangay} onChange={e => setForm({ ...form, barangay: e.target.value })} />
+              <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
+                   <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Juan Dela Cruz" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Secure PIN</label>
+                   <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none tracking-[1em] font-black" type="password" maxLength="6" placeholder="••••" value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} />
+                </div>
+                <div className="space-y-2 col-span-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact Intelligence</label>
+                   <div className="grid grid-cols-2 gap-3">
+                     <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Phone Link" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                     <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" type="email" placeholder="Email (Optional)" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                   </div>
+                </div>
+                <div className="space-y-1 col-span-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Geographic Origin</label>
+                   <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Full Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-3 col-span-2">
+                  <input className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="City" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
+                  <input className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Barangay" value={form.barangay} onChange={e => setForm({ ...form, barangay: e.target.value })} />
                 </div>
               </div>
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => setShowForm(false)} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-                <button onClick={saveCustomer} disabled={saving} className="flex-1 py-2 bg-cyan-600 text-white rounded-lg text-sm font-semibold hover:bg-cyan-700 disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save'}
+              <div className="px-10 pb-10 flex gap-4">
+                <button onClick={() => setShowForm(false)} className="flex-1 py-4 border border-gray-200 rounded-2xl font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all">ABORT</button>
+                <button onClick={saveCustomer} disabled={saving} className="flex-[2] py-4 bg-cyan-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-cyan-700 disabled:opacity-50 shadow-xl shadow-cyan-200 transition-all">
+                  {saving ? 'PROCESSING IDENTITY...' : 'AUTHORIZE SUBSCRIBER'}
                 </button>
               </div>
             </div>
@@ -8488,6 +8716,7 @@ function CustomersPage({ setCurrentPage }) {
     </div>
   );
 }
+
 
 // Inventory Reports Section Component
 function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
@@ -11177,6 +11406,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                             {ingredientsList.length === 0 ? (
                               <p className="text-gray-500 mb-3">No ingredients defined yet.</p>
                             ) : (
+                              <>
                               <div className="space-y-2 mb-3">
                                 {ingredientsList.map((ing, idx) => (
                                   <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200">
@@ -11191,9 +11421,15 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                                       </div>
                                       <p className="text-gray-500">Stock Link • ID: {ing.ingredient_id}</p>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="font-bold text-gray-800">{parseFloat(ing.quantity_required).toFixed(2)} {ing.unit}</p>
-                                      <p className="text-[10px] text-gray-400 uppercase">per unit sold</p>
+                                    <div className="text-right flex items-center gap-4">
+                                      <div className="text-right">
+                                        <p className="font-bold text-gray-800">{parseFloat(ing.quantity_required).toFixed(2)} {ing.unit}</p>
+                                        <p className="text-[10px] text-gray-400 uppercase">Qty Required</p>
+                                      </div>
+                                      <div className="text-right border-l pl-4 min-w-[70px]">
+                                        <p className="font-bold text-cyan-600">₱{((parseFloat(ing.quantity_required) || 0) * (parseFloat(ing.cost_per_unit) || 0)).toFixed(2)}</p>
+                                        <p className="text-[10px] text-gray-400 uppercase">Cost Link</p>
+                                      </div>
                                     </div>
                                     <button
                                       onClick={() => {
@@ -11219,6 +11455,61 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                                   </div>
                                 ))}
                               </div>
+                              <div className="mt-4 p-3 bg-white border border-cyan-100 rounded-lg shadow-sm">
+                                <h4 className="text-[10px] font-bold text-cyan-700 uppercase mb-2 tracking-wider">Recipe Costing Summary</h4>
+                                <div className="space-y-2">
+                                  {/* Base product price (if price exists) */}
+                                  {product.price > 0 && ingredientsList.some(i => !i.size_id) && (
+                                    <div className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
+                                      <div>
+                                        <span className="font-bold text-gray-700">Standard Product</span>
+                                        <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(product.price).toFixed(2)}</span>
+                                      </div>
+                                      <div className="text-right">
+                                        {(() => {
+                                          const cost = ingredientsList
+                                            .filter(i => !i.size_id)
+                                            .reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
+                                          const margin = parseFloat(product.price) - cost;
+                                          const marginPercent = (margin / parseFloat(product.price)) * 100;
+                                          return (
+                                            <>
+                                              <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
+                                              <span className={`ml-3 font-bold ${marginPercent > 30 ? 'text-green-600' : 'text-orange-600'}`}>
+                                                Margin: {marginPercent.toFixed(1)}%
+                                              </span>
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Size variant prices */}
+                                  {productSizes.map(size => {
+                                    const sizeIngredients = ingredientsList.filter(i => i.size_id === size.id);
+                                    if (sizeIngredients.length === 0) return null;
+                                    const cost = sizeIngredients.reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
+                                    const margin = parseFloat(size.price) - cost;
+                                    const marginPercent = size.price > 0 ? (margin / parseFloat(size.price)) * 100 : 0;
+                                    return (
+                                      <div key={size.id} className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
+                                        <div>
+                                          <span className="font-bold text-blue-700">{size.name} Variant</span>
+                                          <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(size.price).toFixed(2)}</span>
+                                        </div>
+                                        <div className="text-right">
+                                          <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
+                                          <span className={`ml-3 font-bold ${marginPercent > 30 ? 'text-green-600' : 'text-orange-600'}`}>
+                                            Margin: {marginPercent.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              </>
                             )}
                             <button
                               onClick={() => {
@@ -11960,6 +12251,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
     { id: 'settings-tables', name: 'Tables' },
     { id: 'settings-practice', name: 'Practice & Reset' },
     { id: 'settings-printers', name: 'Printers' },
+    { id: 'settings-loyalty', name: 'Loyalty Program' },
     { id: 'settings-integrations', name: 'Integrations' },
   ];
 
@@ -11990,7 +12282,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
   };
 
   useEffect(() => {
-    if (currentView === 'settings-general') {
+    if (currentView === 'settings-general' || currentView === 'settings-loyalty') {
       fetchWithAuth(`${API_URL}/settings`)
         .then(r => r.json())
         .then(d => { if (d.success) setSysConfig(prev => ({ ...prev, ...d.settings })); })
@@ -12603,6 +12895,110 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
           </div>
         )}
 
+        {currentView === 'settings-loyalty' && (
+          <div className="space-y-6 max-w-4xl">
+            {/* Main Loyalty Header */}
+            <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
+               <div className="relative z-10">
+                 <div className="flex items-center gap-3 mb-4">
+                   <div className="p-2 bg-white/20 rounded-lg">
+                     <span className="text-xl">💎</span>
+                   </div>
+                   <h3 className="font-bold text-xl uppercase tracking-tight">Loyalty Program Config</h3>
+                 </div>
+                 <p className="text-purple-50 text-sm leading-relaxed max-w-2xl">
+                    Configure how your customers earn points and what rewards they unlock at each tier.
+                    Points are automatically calculated at checkout when a customer is selected.
+                 </p>
+               </div>
+               <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+            </div>
+
+            {/* Core Earning Rule */}
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+               <div className="flex items-center gap-2 mb-6">
+                 <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
+                   <Settings size={18} />
+                 </div>
+                 <h4 className="font-bold text-gray-800 uppercase text-xs tracking-widest">Earning Rules</h4>
+               </div>
+               
+               <div className="max-w-md">
+                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Points per PHP Spent</label>
+                 <div className="flex items-center gap-4">
+                   <div className="flex-1 relative">
+                     <input 
+                       type="number" 
+                       step="0.001"
+                       value={sysConfig.loyalty_points_per_php} 
+                       onChange={e => setSysConfig({...sysConfig, loyalty_points_per_php: e.target.value})}
+                       className="w-full pl-3 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700"
+                     />
+                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400 uppercase">PTS/₱</span>
+                   </div>
+                   <div className="text-xs text-gray-500 font-medium whitespace-nowrap">
+                      Example: 0.02 = 1 pt per ₱50
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+            {/* Tier Thresholds */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               {[
+                 { id: 'silver', label: '🥈 Silver Tier', color: 'gray' },
+                 { id: 'gold', label: '🥇 Gold Tier', color: 'amber' },
+                 { id: 'diamond', label: '💎 Diamond Tier', color: 'cyan' }
+               ].map(tier => (
+                 <div key={tier.id} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col">
+                   <h5 className="font-bold text-gray-800 text-sm mb-4">{tier.label}</h5>
+                   
+                   <div className="space-y-4 flex-1">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Points Threshold</label>
+                        <input 
+                          type="number"
+                          value={sysConfig[`loyalty_${tier.id}_threshold`]}
+                          onChange={e => setSysConfig({...sysConfig, [`loyalty_${tier.id}_threshold`]: e.target.value})}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold"
+                          placeholder="Points..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Discount (%)</label>
+                        <div className="relative">
+                          <input 
+                            type="number"
+                            value={sysConfig[`loyalty_${tier.id}_discount`]}
+                            onChange={e => setSysConfig({...sysConfig, [`loyalty_${tier.id}_discount`]: e.target.value})}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold"
+                            placeholder="Discount..."
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">%</span>
+                        </div>
+                      </div>
+                   </div>
+                 </div>
+               ))}
+            </div>
+
+            <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100">
+               <button 
+                 onClick={saveConfig} 
+                 disabled={configSaving}
+                 className="bg-purple-600 text-white px-8 py-3 rounded-xl hover:bg-purple-700 font-bold text-sm disabled:opacity-60 shadow-lg shadow-purple-200 transition-all active:scale-95"
+               >
+                 {configSaving ? 'Saving Configurations...' : 'Save Loyalty Rules'}
+               </button>
+               {configMsg && (
+                 <span className={`text-sm font-bold ${configMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+                   {configMsg}
+                 </span>
+               )}
+            </div>
+          </div>
+        )}
+
         {currentView === 'settings-printers' && (
           <div className="space-y-6 max-w-4xl">
             {/* Connection Status & Instructions */}
@@ -12787,25 +13183,25 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
   );
 }
 
-// Customer Login Page
-function CustomerLoginPage({ setCustomer, setCurrentPage }) {
+// Customer Login / Registration Page
+function CustomerLoginPage({ setCustomer, setCurrentPage, companyId }) {
   const [isLogin, setIsLogin] = useState(true);
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
       const response = await fetchWithAuth(`${API_URL}/customers/login`, {
         method: 'POST',
-        body: JSON.stringify({ phone, pin })
+        body: JSON.stringify({ phone, pin, company_id: companyId })
       });
       const result = await response.json();
 
@@ -12813,7 +13209,7 @@ function CustomerLoginPage({ setCustomer, setCurrentPage }) {
         setCustomer(result.customer);
         setCurrentPage('customer-dashboard');
       } else {
-        setError(result.error || 'Login failed');
+        setError(result.error || 'Login failed. Check your phone/PIN.');
       }
     } catch (err) {
       setError('Connection error. Please try again.');
@@ -12824,13 +13220,13 @@ function CustomerLoginPage({ setCustomer, setCurrentPage }) {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
       const response = await fetchWithAuth(`${API_URL}/customers/register`, {
         method: 'POST',
-        body: JSON.stringify({ name, phone, pin, email: email || null })
+        body: JSON.stringify({ name, phone, pin, email: email || null, company_id: companyId })
       });
       const result = await response.json();
 
@@ -12848,100 +13244,101 @@ function CustomerLoginPage({ setCustomer, setCurrentPage }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-24 pb-20 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {isLogin ? 'Welcome Back!' : 'Create Account'}
-          </h1>
-          <p className="text-gray-500 mt-2">
-            {isLogin ? 'Login to view your orders and credit balance' : 'Register to track orders and use credit'}
-          </p>
+    <div className="min-h-screen bg-[#F8FAFC] pt-24 pb-20 flex items-center justify-center px-4 font-dashboard">
+      <div className="bg-white rounded-[3rem] shadow-2xl shadow-cyan-900/5 max-w-lg w-full overflow-hidden border border-gray-100 animate-fadeIn">
+        <div className="bg-[#0A0F0D] p-12 text-center text-white relative">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+           <div className="w-20 h-20 bg-white/5 backdrop-blur-md rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-white/10 group hover:scale-110 transition-transform">
+             <User className="w-10 h-10 text-cyan-400" />
+           </div>
+           <h1 className="text-4xl font-black tracking-tight uppercase mb-3">
+             {isLogin ? 'Member Access' : 'Join the Elite'}
+           </h1>
+           <p className="text-gray-400 font-bold text-sm tracking-widest uppercase">
+             {isLogin ? 'Access your private portal' : 'Start your journey with us'}
+           </p>
         </div>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-6 text-sm">
-            {error}
-          </div>
-        )}
+        <div className="p-12">
+          {error && (
+            <div className="bg-red-50 text-red-700 border border-red-100 px-5 py-4 rounded-2xl mb-8 text-xs font-bold animate-pulse">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-6">
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:border-cyan-500 font-bold text-gray-800 transition-all"
+                  placeholder="Juan Dela Cruz"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Secure Phone Link</label>
               <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                placeholder="Juan Dela Cruz"
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:border-cyan-500 font-bold text-gray-800 transition-all"
+                placeholder="09171234567"
               />
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-              placeholder="09171234567"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIN (4-6 digits)</label>
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              required
-              maxLength={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 text-center text-2xl tracking-widest"
-              placeholder="••••"
-            />
-          </div>
-
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Access PIN</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                placeholder="juan@email.com"
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                maxLength={6}
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:border-cyan-500 font-black text-gray-900 text-center text-3xl tracking-[0.5em] transition-all"
+                placeholder="••••"
               />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-cyan-600 text-white py-3 rounded-lg font-bold hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Please wait...' : (isLogin ? 'Login' : 'Create Account')}
-          </button>
-        </form>
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Intelligence (Optional)</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:border-cyan-500 font-bold text-gray-800 transition-all"
+                  placeholder="juan@email.com"
+                />
+              </div>
+            )}
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-            }}
-            className="text-cyan-600 font-medium hover:text-cyan-700"
-          >
-            {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'}
-          </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-cyan-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-sm hover:bg-cyan-700 transition-all shadow-xl shadow-cyan-200 active:scale-95 disabled:opacity-50"
+            >
+              {loading ? 'AUTHENTICATING...' : (isLogin ? 'AUTHORIZE ACCESS' : 'RESERVE MEMBER STATUS')}
+            </button>
+          </form>
+
+          <div className="mt-10 text-center">
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+              className="text-gray-400 font-black text-[10px] tracking-widest uppercase hover:text-cyan-600 transition-colors"
+            >
+              {isLogin ? "Request New Membership" : 'Already a Member? Login'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -12963,7 +13360,7 @@ function CustomerDashboard({ customer, onLogout }) {
     if (customer?.id) {
       fetchData(customer.id);
     }
-  }, [customer?.id]); // Only re-fetch when customer ID changes
+  }, [customer?.id]);
 
   const fetchData = async (customerId) => {
     setLoading(true);
@@ -13015,7 +13412,7 @@ function CustomerDashboard({ customer, onLogout }) {
         alert(`Payment of ₱${amount.toFixed(2)} recorded successfully!`);
         setShowPaymentModal(false);
         setPaymentAmount('');
-        fetchData(customer.id); // Refresh data
+        fetchData(customer.id);
       } else {
         alert('Error: ' + (result.error || 'Payment failed'));
       }
@@ -13040,284 +13437,318 @@ function CustomerDashboard({ customer, onLogout }) {
   if (!customer) {
     return (
       <div className="min-h-screen bg-gray-100 pt-24 pb-20 flex items-center justify-center">
-        <p className="text-gray-500">Please login to view your dashboard</p>
+        <p className="text-gray-500 font-black uppercase tracking-widest">Awaiting Authorization...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-24 pb-20">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Profile Header */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl font-bold text-cyan-600">
+    <div className="min-h-screen bg-[#F8FAFC] pt-24 pb-20 font-dashboard">
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 p-8 mb-8 border border-gray-100 animate-fadeIn">
+          <div className="flex items-center justify-between flex-wrap gap-6">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 bg-[#0A0F0D] rounded-3xl flex items-center justify-center shadow-lg group hover:rotate-3 transition-transform">
+                <span className="text-3xl font-black text-cyan-400">
                   {displayCustomer.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-800">{displayCustomer.name}</h1>
-                <p className="text-gray-500">{displayCustomer.phone}</p>
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none mb-2">{displayCustomer.name}</h1>
+                <div className="flex items-center gap-3">
+                   <p className="text-gray-400 font-bold text-xs">{displayCustomer.phone}</p>
+                   <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                   <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md">ID: LMN-{displayCustomer.id.toString().padStart(4, '0')}</span>
+                </div>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="text-red-500 hover:text-red-600 font-medium"
+              className="px-6 py-3 bg-red-50 text-red-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-100 transition-all group"
             >
-              Logout
+              Secure Logout
             </button>
           </div>
 
-          {/* Credit Balance Card */}
-          <div className="mt-6 bg-gradient-to-r from-cyan-600 to-cyan-500 rounded-xl p-5 text-white">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-cyan-100 text-sm">Outstanding Balance</p>
-                <p className="text-3xl font-bold mt-1">
-                  ₱{parseFloat(displayCustomer.credit_balance || 0).toFixed(2)}
-                </p>
-                <p className="text-cyan-100 text-sm mt-2">
-                  Credit Limit: ₱{parseFloat(displayCustomer.credit_limit || 0).toFixed(2)}
-                </p>
+          <div className="mt-10 bg-[#0A0F0D] rounded-[2rem] p-10 text-white relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl -mr-32 -mt-32 transition-transform group-hover:scale-125 duration-1000"></div>
+            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+              <div className="text-center md:text-left">
+                <p className="text-gray-500 font-black text-[10px] tracking-[0.3em] uppercase mb-4">Current Liability Balance</p>
+                <div className="flex items-baseline gap-3">
+                   <span className="text-4xl text-cyan-500 font-black">₱</span>
+                   <p className="text-7xl font-black tracking-tighter">
+                     {parseFloat(displayCustomer.credit_balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                   </p>
+                </div>
+                <div className="flex items-center gap-4 mt-6">
+                   <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Available Credit</p>
+                      <p className="font-black text-cyan-400">₱{(parseFloat(displayCustomer.credit_limit || 0) - parseFloat(displayCustomer.credit_balance || 0)).toFixed(2)}</p>
+                   </div>
+                   <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Loyalty Status</p>
+                      <p className="font-black text-white">{displayCustomer.loyalty_points || 0} PTS</p>
+                   </div>
+                </div>
               </div>
               {parseFloat(displayCustomer.credit_balance) > 0 && (
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="bg-white text-cyan-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-50 transition-colors"
+                  className="w-full md:w-auto bg-white text-gray-900 px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-cyan-500 hover:text-white transition-all shadow-xl shadow-white/5 active:scale-95"
                 >
-                  Pay Now
+                  DEPOSIT PAYMENT
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm mb-4">
-          <div className="flex border-b border-gray-200">
-            {['overview', 'orders', 'ledger'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-4 font-medium text-sm transition-colors ${activeTab === tab
-                  ? 'text-cyan-600 border-b-2 border-cyan-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-4 mb-8">
+          {['overview', 'orders', 'ledger'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center gap-3 ${activeTab === tab
+                ? 'bg-[#0A0F0D] text-cyan-400 shadow-xl shadow-cyan-900/10'
+                : 'bg-white text-gray-400 hover:bg-gray-50 border border-transparent'
+                }`}
+            >
+              <div className={`w-2 h-2 rounded-full ${activeTab === tab ? 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,1)]' : 'bg-gray-200'}`}></div>
+              {tab}
+            </button>
+          ))}
         </div>
 
-        {/* Tab Content */}
         {loading ? (
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-            <p className="text-gray-500 mt-4">Loading...</p>
+          <div className="bg-white rounded-[2rem] shadow-sm p-20 text-center border border-gray-100">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-cyan-600 mb-6"></div>
+            <p className="text-gray-400 font-black uppercase tracking-widest text-xs">Synchronizing Intel...</p>
           </div>
         ) : (
-          <>
+          <div className="animate-slideUp">
             {activeTab === 'overview' && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h2 className="text-lg font-bold text-gray-800 mb-4">Quick Stats</h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-gray-500 text-sm">Total Orders</p>
-                      <p className="text-2xl font-bold text-gray-800">{orders.length}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-gray-500 text-sm">Outstanding Balance</p>
-                      <p className={`text-2xl font-bold ${parseFloat(displayCustomer.credit_balance) > 0 ? 'text-red-600' : 'text-cyan-600'}`}>
-                        Php {parseFloat(displayCustomer.credit_balance || 0).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-4 flex flex-col gap-8">
+                   <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+                      <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs mb-8">Activity Pulse</h3>
+                      <div className="space-y-6">
+                         <div className="flex justify-between items-center">
+                            <span className="text-gray-400 text-xs font-bold uppercase">Volume</span>
+                            <span className="font-black text-gray-900">{orders.length} Orders</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                            <span className="text-gray-400 text-xs font-bold uppercase">Status</span>
+                            <span className="text-emerald-500 font-black text-xs uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-md">PREMIUM ACTIVE</span>
+                         </div>
+                      </div>
+                   </div>
+                   <div className="bg-cyan-600 rounded-[2rem] p-8 text-white shadow-xl shadow-cyan-600/20">
+                      <div className="flex items-center gap-4 mb-6">
+                         <TrendingUp className="w-8 h-8 text-cyan-100" />
+                         <h3 className="font-black uppercase tracking-widest text-xs">Engagement Boost</h3>
+                      </div>
+                      <p className="text-2xl font-bold leading-tight mb-4 text-cyan-50">Join our Pro program to unlock up to 20% cashback on every order.</p>
+                      <button className="w-full bg-black/10 hover:bg-black/20 text-white font-black text-[10px] tracking-widest uppercase py-4 rounded-xl border border-white/20 transition-all">LEARN MORE</button>
+                   </div>
                 </div>
 
-                {orders.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Orders</h2>
-                    <div className="space-y-3">
-                      {orders.slice(0, 3).map(order => (
-                        <div key={order.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                          <div>
-                            <p className="font-medium text-gray-800">{order.order_number}</p>
-                            <p className="text-sm text-gray-500">{formatDate(order.created_at)}</p>
+                <div className="lg:col-span-8">
+                  {orders.length > 0 && (
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden h-full">
+                      <div className="px-8 py-6 border-b border-gray-50 flex justify-between items-center">
+                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">Chronological Orders</h2>
+                        <span className="text-[10px] font-bold text-gray-400">{orders.length} ENTRYS</span>
+                      </div>
+                      <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto scrollbar-hide">
+                        {orders.slice(0, 5).map(order => (
+                          <div key={order.id} className="flex items-center justify-between p-8 hover:bg-gray-50 transition-all group">
+                            <div className="flex items-center gap-6">
+                               <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center font-black text-gray-400 group-hover:bg-[#0A0F0D] group-hover:text-cyan-400 transition-all">
+                                  #{order.order_number.toString().slice(-3)}
+                               </div>
+                               <div>
+                                  <p className="font-black text-gray-900 text-sm uppercase mb-1">{order.order_number}</p>
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatDate(order.created_at)}</p>
+                               </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-black text-gray-900">₱{(parseFloat(order.total_amount) || 0).toFixed(2)}</p>
+                              <span className={`text-[9px] font-black tracking-widest uppercase px-3 py-1 rounded-md ${order.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
+                                }`}>
+                                {order.payment_status}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-800">Php {(parseFloat(order.total_amount_amount) || 0).toFixed(2)}</p>
-                            <span className={`text-xs px-2 py-1 rounded-full ${order.payment_status === 'paid' ? 'bg-cyan-100 text-cyan-700' : 'bg-yellow-100 text-yellow-700'
-                              }`}>
-                              {order.payment_status}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
             {activeTab === 'orders' && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
                 {orders.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className="text-gray-500">No orders yet</p>
+                  <div className="p-20 text-center">
+                    <ShoppingCart className="w-16 h-16 text-gray-100 mx-auto mb-6" />
+                    <p className="text-gray-400 font-black uppercase tracking-widest text-xs tracking-[0.3em]">No transaction records found.</p>
                   </div>
                 ) : (
-                  <table className="w-full text-sm font-data-table">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">Order #</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">Items</th>
-                        <th className="text-right px-4 py-3 font-medium text-gray-600">Total</th>
-                        <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {orders.map(order => (
-                        <tr key={order.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(order.created_at)}</td>
-                          <td className="px-4 py-3 font-medium text-gray-800">{order.order_number}</td>
-                          <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
-                            {order.items && order.items[0] ?
-                              order.items.filter(i => i.product_name).map((item, idx) => (
-                                `${item.quantity}x ${item.product_name}${item.size_name ? ` (${item.size_name})` : ''}`
-                              )).join(', ')
-                              : '-'
-                            }
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium text-cyan-600 whitespace-nowrap">
-                            Php {(parseFloat(order.total_amount_amount) || 0).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${order.payment_status === 'paid' ? 'bg-cyan-100 text-cyan-700' :
-                              order.payment_status === 'credit' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                              {order.payment_status}
-                            </span>
-                          </td>
+                  <div className="overflow-x-auto h-[60vh] scrollbar-hide">
+                    <table className="w-full text-sm font-data-table">
+                      <thead className="bg-[#FBFCFE] sticky top-0 z-10 border-b border-gray-50">
+                        <tr>
+                          <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Timestamp</th>
+                          <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Reference #</th>
+                          <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Items Synchronized</th>
+                          <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Gross Total</th>
+                          <th className="text-center px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Settlement</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {orders.map(order => (
+                          <tr key={order.id} className="hover:bg-cyan-50/20 transition-all group">
+                            <td className="px-8 py-6 text-gray-500 font-bold text-xs whitespace-nowrap">{formatDate(order.created_at)}</td>
+                            <td className="px-8 py-6 font-black text-gray-900 group-hover:text-cyan-600 text-xs">{order.order_number}</td>
+                            <td className="px-8 py-6">
+                               <div className="flex flex-wrap gap-2">
+                                  {order.items && order.items[0] ?
+                                    order.items.filter(i => i.product_name).map((item, idx) => (
+                                      <span key={idx} className="bg-gray-100 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest text-gray-500">
+                                        {item.quantity}× {item.product_name}
+                                      </span>
+                                    ))
+                                    : <span className="text-gray-300 italic">—</span>
+                                  }
+                               </div>
+                            </td>
+                            <td className="px-8 py-6 text-right font-black text-gray-900 text-base whitespace-nowrap">
+                              ₱{(parseFloat(order.total_amount) || 0).toFixed(2)}
+                            </td>
+                            <td className="px-8 py-6 text-center">
+                              <span className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${order.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-600' :
+                                order.payment_status === 'credit' ? 'bg-orange-50 text-orange-600' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                {order.payment_status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             )}
 
             {activeTab === 'ledger' && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                {ledger.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className="text-gray-500">No credit transactions yet</p>
-                  </div>
-                ) : (
-                  <table className="w-full text-sm font-data-table">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">Details</th>
-                        <th className="text-right px-4 py-3 font-medium text-gray-600">Amount</th>
-                        <th className="text-right px-4 py-3 font-medium text-gray-600">Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {ledger.map(entry => (
-                        <tr key={entry.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(entry.created_at)}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${entry.transaction_type === 'payment' ? 'bg-cyan-100 text-cyan-700' :
-                              entry.transaction_type === 'credit_purchase' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                              {entry.transaction_type === 'credit_purchase' ? 'Credit' :
-                                entry.transaction_type === 'payment' ? 'Payment' : 'Adjust'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 truncate max-w-[200px]">
-                            {entry.order_number || entry.notes || '—'}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-medium whitespace-nowrap ${(parseFloat(entry.amount) || 0) > 0 ? 'text-red-600' : 'text-cyan-600'}`}>
-                            {(parseFloat(entry.amount) || 0) > 0 ? '+' : ''}₱{(parseFloat(entry.amount) || 0).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-700 whitespace-nowrap">₱{(parseFloat(entry.balance_after) || 0).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+              <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
+                 <div className="px-8 py-6 border-b border-gray-50 flex justify-between items-center">
+                    <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">Financial Ledger</h2>
+                    <span className="text-[10px] font-bold text-gray-400">AUDIT READY</span>
+                 </div>
+                 {ledger.length === 0 ? (
+                    <div className="p-20 text-center">
+                       <Activity className="w-16 h-16 text-gray-100 mx-auto mb-6" />
+                       <p className="text-gray-400 font-black uppercase tracking-widest text-xs tracking-[0.3em]">No financial movements recorded.</p>
+                    </div>
+                 ) : (
+                    <div className="overflow-x-auto max-h-[60vh] scrollbar-hide">
+                       <table className="w-full text-sm font-data-table">
+                          <thead className="bg-[#FBFCFE] sticky top-0 z-10 border-b border-gray-50">
+                             <tr>
+                                <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Date</th>
+                                <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Description</th>
+                                <th className="text-center px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Movement</th>
+                                <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Magnitude</th>
+                                <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">New Balance</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                             {ledger.map(entry => (
+                                <tr key={entry.id} className="hover:bg-gray-50 transition-all">
+                                   <td className="px-8 py-6 text-gray-500 font-bold text-xs">{formatDate(entry.created_at)}</td>
+                                   <td className="px-8 py-6 font-bold text-gray-900 text-xs">
+                                      {entry.notes || (entry.type === 'purchase' ? 'Inventory Purchase' : 'Balance Settlement')}
+                                   </td>
+                                   <td className="px-8 py-6 text-center">
+                                      <span className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${entry.type === 'debit' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                         {entry.type}
+                                      </span>
+                                   </td>
+                                   <td className={`px-8 py-6 text-right font-black text-sm ${entry.type === 'debit' ? 'text-red-500' : 'text-emerald-500'}`}>
+                                      {entry.type === 'debit' ? '-' : '+'}₱{parseFloat(entry.amount).toFixed(2)}
+                                   </td>
+                                   <td className="px-8 py-6 text-right font-black text-gray-900 text-sm">
+                                      ₱{parseFloat(entry.current_balance || 0).toFixed(2)}
+                                   </td>
+                                </tr>
+                             ))}
+                          </tbody>
+                       </table>
+                    </div>
+                 )}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Payment Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Make Payment</h2>
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
+        <div className="fixed inset-0 bg-[#0A0F0D]/60 backdrop-blur-xl z-[100] flex items-center justify-center px-4 animate-fadeIn">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-slideUp">
+            <div className="bg-[#0A0F0D] py-10 px-10 text-white relative">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
+               <div className="flex justify-between items-center relative z-10">
+                 <div>
+                   <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Deposit Settlement</h3>
+                   <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Balance Liquidation Protocol</p>
+                 </div>
+                 <button onClick={() => setShowPaymentModal(false)} className="w-10 h-10 bg-white/5 text-gray-400 hover:text-white rounded-full flex items-center justify-center transition-all">
+                    <X className="w-6 h-6" />
+                 </button>
+               </div>
             </div>
+            <div className="p-10 space-y-8">
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Full Debt Amount</p>
+                 <p className="text-4xl font-black text-gray-900 leading-none">₱{parseFloat(displayCustomer.credit_balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+              </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-500">Outstanding Balance</p>
-              <p className="text-2xl font-bold text-red-600">
-                ₱{parseFloat(displayCustomer.credit_balance || 0).toFixed(2)}
-              </p>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Payment Liquidation Amount</label>
+                <div className="relative">
+                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-300">₱</span>
+                   <input
+                     type="number"
+                     step="0.01"
+                     value={paymentAmount}
+                     onChange={(e) => setPaymentAmount(e.target.value)}
+                     className="w-full pl-12 pr-6 py-6 bg-gray-50 border border-gray-200 rounded-[1.5rem] focus:border-cyan-500 focus:outline-none font-black text-3xl transition-all"
+                     placeholder="0.00"
+                   />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="flex-1 py-5 border border-gray-200 rounded-[1.5rem] font-black text-[10px] tracking-widest uppercase text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all"
+                >
+                  ABORT
+                </button>
+                <button
+                  onClick={handlePayment}
+                  disabled={paymentProcessing}
+                  className="flex-[1.5] py-5 bg-cyan-600 text-white rounded-[1.5rem] font-black text-[10px] tracking-widest uppercase hover:bg-cyan-700 transition-all shadow-xl shadow-cyan-200 disabled:opacity-50"
+                >
+                  {paymentProcessing ? 'TRANSMITTING...' : 'CONFIRM SETTLEMENT'}
+                </button>
+              </div>
             </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Amount</label>
-              <input
-                type="number"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 text-2xl font-bold text-center border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setPaymentAmount((parseFloat(displayCustomer.credit_balance) / 2).toFixed(2))}
-                className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
-              >
-                Half
-              </button>
-              <button
-                onClick={() => setPaymentAmount((parseFloat(displayCustomer.credit_balance) || 0).toFixed(2))}
-                className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
-              >
-                Full
-              </button>
-            </div>
-
-            <button
-              onClick={handlePayment}
-              disabled={paymentProcessing || !paymentAmount}
-              className="w-full bg-cyan-600 text-white py-3 rounded-lg font-bold hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {paymentProcessing ? 'Processing...' : `Pay ₱${parseFloat(paymentAmount || 0).toFixed(2)}`}
-            </button>
-
-            <p className="text-xs text-gray-400 text-center mt-4">
-              Present this to the cashier to complete your payment
-            </p>
           </div>
         </div>
       )}

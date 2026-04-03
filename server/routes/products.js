@@ -30,7 +30,8 @@ router.get('/', async (req, res) => {
         .map(size => ({
           id: size.id,
           name: size.size_name,
-          price: parseFloat(size.price)
+          price: parseFloat(size.price),
+          cost: parseFloat(size.cost || 0)
         }));
 
       return {
@@ -83,7 +84,8 @@ router.get('/barcode/:barcode', async (req, res) => {
 
     const sizes = sizesResult.rows.map(size => ({
       name: size.size_name,
-      price: parseFloat(size.price)
+      price: parseFloat(size.price),
+      cost: parseFloat(size.cost || 0)
     }));
 
     res.json({
@@ -130,7 +132,8 @@ router.get('/:id', async (req, res) => {
     const product = productResult.rows[0];
     const sizes = sizesResult.rows.map(size => ({
       name: size.size_name,
-      price: parseFloat(size.price)
+      price: parseFloat(size.price),
+      cost: parseFloat(size.cost || 0)
     }));
 
     res.json({
@@ -173,8 +176,8 @@ router.post('/', async (req, res) => {
     if (sizes && sizes.length > 0) {
       for (const size of sizes) {
         await client.query(
-          'INSERT INTO product_sizes (product_id, size_name, price, company_id) VALUES ($1, $2, $3, $4)',
-          [product.id, size.name, size.price, req.company_id]
+          'INSERT INTO product_sizes (product_id, size_name, price, cost, company_id) VALUES ($1, $2, $3, $4, $5)',
+          [product.id, size.name, size.price, size.cost || 0, req.company_id]
         );
       }
     }
@@ -218,8 +221,8 @@ router.put('/:id', async (req, res) => {
     if (sizes && sizes.length > 0) {
       for (const size of sizes) {
         await client.query(
-          'INSERT INTO product_sizes (product_id, size_name, price, company_id) VALUES ($1, $2, $3, $4)',
-          [id, size.name, size.price, req.company_id]
+          'INSERT INTO product_sizes (product_id, size_name, price, cost, company_id) VALUES ($1, $2, $3, $4, $5)',
+          [id, size.name, size.price, size.cost || 0, req.company_id]
         );
       }
     }

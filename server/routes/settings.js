@@ -18,6 +18,30 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET public settings (No token required)
+router.get('/public', async (req, res) => {
+  try {
+    // For now, return settings for the Initial Shop (Default)
+    // In a multi-tenant production system, this would use a subdomain or shop identifier
+    const defaultCompanyId = '00000000-0000-0000-0000-000000000000';
+    const result = await pool.query('SELECT key, value FROM system_settings WHERE company_id = $1', [defaultCompanyId]);
+    const settings = {};
+    result.rows.forEach(r => { settings[r.key] = r.value; });
+    
+    // Add additional company info
+    const compRes = await pool.query('SELECT name, address, phone FROM companies WHERE id = $1', [defaultCompanyId]);
+    if (compRes.rows[0]) {
+      settings.business_name = compRes.rows[0].name;
+      settings.business_address = compRes.rows[0].address;
+    }
+    
+    res.json({ success: true, settings, company_id: defaultCompanyId });
+  } catch (e) {
+    console.error('Error fetching public settings:', e);
+    res.status(500).json({ success: false, error: 'Failed to fetch public settings' });
+  }
+});
+
 // PUT update settings
 router.put('/', async (req, res) => {
   const { settings } = req.body;
