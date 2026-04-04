@@ -14,20 +14,21 @@ import pool from '../config/database.js';
  * @param {string} companyId - Company ID for tenant isolation
  * @returns {Object} { success: boolean, error?: string, deducted: Array }
  */
-export const deductInventoryForOrder = async (client, items, orderId, companyId) => {
+export const deductInventoryForOrder = async (client, items, orderId, companyId, orderNumber = 'Unknown') => {
   try {
     const deductedItems = [];
     const insufficientStockItems = [];
 
     for (const item of items) {
-      const isCombo = item.isCombo || (typeof item.id === 'string' && item.id.startsWith('combo-'));
       let productCompositions = [];
       const productId = item.product_id || item.id;
+      const isCombo = item.isCombo || (typeof productId === 'string' && productId.startsWith('combo-'));
+      let orderedSizeId = null; 
 
       if (isCombo) {
-        const comboId = typeof item.id === 'string' && item.id.startsWith('combo-')
-          ? parseInt(item.id.replace('combo-', ''))
-          : item.id;
+        const comboId = typeof productId === 'string' && productId.startsWith('combo-')
+          ? parseInt(productId.replace('combo-', ''), 10)
+          : parseInt(productId, 10);
 
         const comboItemsResult = await client.query(
           'SELECT product_id, quantity FROM combo_items WHERE combo_id = $1 AND company_id = $2',
@@ -42,13 +43,14 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
           for (const comp of compositionResult.rows) {
             productCompositions.push({
               ingredient_id: comp.ingredient_id,
-              quantity: comp.quantity_required * comboItem.quantity * item.quantity
+              quantity: comp.quantity_required * comboItem.quantity * item.quantity,
+              source_product_id: comboItem.product_id
             });
           }
         }
       } else {
         // Find composition - prioritize size-specific recipe, fallback to global product recipe
-        const orderedSizeId = item.size_id || item.product_size_id || null;
+        orderedSizeId = item.size_id || item.product_size_id || null;
         
         let compositionResult;
         if (orderedSizeId) {
@@ -134,11 +136,15 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
         );
 
         if (updateResult.rows.length > 0) {
+          // Use the ordered size ID for the transaction record if the recipe was generic
+          const txSizeId = comp.size_id || orderedSizeId || null;
+          const actualProductId = comp.source_product_id || (!isCombo ? productId : null);
+          
           await client.query(
             `INSERT INTO inventory_transactions 
-             (ingredient_id, product_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, created_by, company_id, size_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [comp.ingredient_id, productId, 'order_deduction', -comp.quantity, updateResult.rows[0].current_stock, orderId, 'order', 'system', companyId, comp.size_id]
+             (ingredient_id, product_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, notes, created_by, company_id, size_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [comp.ingredient_id, actualProductId, 'order_deduction', -comp.quantity, updateResult.rows[0].current_stock, orderId, 'order', `Order #${orderNumber}`, 'system', companyId, txSizeId]
           );
 
           deductedItems.push({
@@ -163,16 +169,17 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId)
           // Record in central inventory ledger using the new product_id column
           await client.query(
             `INSERT INTO inventory_transactions 
-             (product_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, notes, created_by, company_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+             (product_id, size_id, transaction_type, quantity_change, quantity_after, reference_id, reference_type, notes, created_by, company_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
               productId, 
+              orderedSizeId,
               'product_deduction', 
-              -item.quantity, 
+              -Number(item.quantity || 0), 
               updateResult.rows[0].stock_quantity, 
               orderId, 
               'order', 
-              'Direct product sale (No recipe)', 
+              `Order #${orderNumber} (No recipe)`, 
               'system', 
               companyId
             ]

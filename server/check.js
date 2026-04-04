@@ -1,0 +1,1 @@
+import dotenv from 'dotenv'; dotenv.config(); import pg from 'pg'; const { Pool } = pg; const pool = new Pool(); pool.query(\SELECT data_type, character_maximum_length FROM information_schema.columns WHERE table_name = 'combos' AND column_name = 'image'\).then(res => { console.log(res.rows); process.exit(0); }).catch(console.error);

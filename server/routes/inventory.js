@@ -121,6 +121,29 @@ router.post('/packaged', async (req, res) => {
   }
 });
 
+// DELETE ingredient
+router.delete('/ingredients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'DELETE FROM ingredients WHERE id = $1 AND company_id = $2 RETURNING id',
+      [id, req.company_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Ingredient not found' });
+    }
+
+    res.json({ success: true, message: 'Ingredient deleted successfully' });
+  } catch (error) {
+    if (error.code === '23503') { 
+      return res.status(400).json({ success: false, error: 'Cannot delete: this ingredient is used in recipes or transactions.' });
+    }
+    console.error('Error deleting ingredient:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete ingredient' });
+  }
+});
+
 // GET CSV template for bulk ingredients
 router.get('/ingredients/template', (req, res) => {
   const template = 'name,unit,current_stock,reorder_level,cost_per_unit,supplier\nSample Ingredient,pc,0,0,0,Supplier Name\n';
@@ -226,7 +249,7 @@ router.put('/ingredients/:id', async (req, res) => {
 router.post('/adjust', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { ingredient_id, quantity_change, notes, created_by = 'manual' } = req.body;
+    const { ingredient_id, quantity_change, notes, created_by = 'manual', invoice_cost } = req.body;
 
     if (!ingredient_id || quantity_change === undefined) {
       return res.status(400).json({ success: false, error: 'Ingredient ID and quantity change are required' });
@@ -234,9 +257,9 @@ router.post('/adjust', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Get current stock
+    // Get current stock and current cost
     const ingredientResult = await client.query(
-      'SELECT current_stock FROM ingredients WHERE id = $1 AND company_id = $2',
+      'SELECT current_stock, cost_per_unit FROM ingredients WHERE id = $1 AND company_id = $2',
       [ingredient_id, req.company_id]
     );
 
@@ -245,17 +268,38 @@ router.post('/adjust', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Ingredient not found' });
     }
 
-    const newStock = Math.round((parseFloat(ingredientResult.rows[0].current_stock) + parseFloat(quantity_change)) * 100) / 100;
+    const currentStock = parseFloat(ingredientResult.rows[0].current_stock || 0);
+    const currentCost = parseFloat(ingredientResult.rows[0].cost_per_unit || 0);
+    const qtyChange = parseFloat(quantity_change);
+    
+    // Calculate new stock
+    const newStock = Math.round((currentStock + qtyChange) * 100) / 100;
 
     if (newStock < 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'Insufficient stock' });
     }
 
-    // Update ingredient stock
+    // Apply Weighted Average Cost (WAC) logic only if adding stock and an invoice cost is provided
+    let newCostPerUnit = currentCost;
+    if (qtyChange > 0 && invoice_cost !== undefined && invoice_cost !== null) {
+      const invCost = parseFloat(invoice_cost);
+      if (invCost >= 0) {
+        // Blended value = (Old Stock * Old Cost) + (Received Stock * New Cost)
+        const currentTotalValue = currentStock * currentCost;
+        const newReceivedValue = qtyChange * invCost;
+        if (newStock > 0) {
+          newCostPerUnit = Math.round(((currentTotalValue + newReceivedValue) / newStock) * 100) / 100;
+        } else {
+          newCostPerUnit = invCost; // Fallback entirely to new cost if net stock somehow lands exactly at 0
+        }
+      }
+    }
+
+    // Update ingredient stock and blended cost
     await client.query(
-      'UPDATE ingredients SET current_stock = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND company_id = $3',
-      [newStock, ingredient_id, req.company_id]
+      'UPDATE ingredients SET current_stock = $1, cost_per_unit = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND company_id = $4',
+      [newStock, newCostPerUnit, ingredient_id, req.company_id]
     );
 
     // Record transaction
@@ -282,17 +326,17 @@ router.get('/transactions/:id', async (req, res) => {
     const { id } = req.params;
     const { type = 'ingredient', limit = 100, offset = 0 } = req.query;
     const column = type === 'product' ? 'product_id' : 'ingredient_id';
-
+    
     const result = await pool.query(
       `SELECT 
         it.*, 
         p.name as product_name, 
-        ps.name as size_name
+        ps.size_name as size_name
        FROM inventory_transactions it
        LEFT JOIN products p ON it.product_id = p.id AND it.company_id = p.company_id
        LEFT JOIN product_sizes ps ON it.size_id = ps.id AND it.company_id = ps.company_id
        WHERE it.${column} = $1 AND it.company_id = $2
-       ORDER BY it.created_at DESC
+       ORDER BY it.created_at DESC, it.id DESC
        LIMIT $3 OFFSET $4`,
       [id, req.company_id, parseInt(limit), parseInt(offset)]
     );
@@ -302,6 +346,8 @@ router.get('/transactions/:id', async (req, res) => {
       [id, req.company_id]
     );
 
+
+    
     res.json({
       success: true,
       transactions: result.rows,

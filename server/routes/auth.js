@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
 
     // Find employee by PIN - Scoped by company_id if provided
     let query = `
-      SELECT e.id, e.username, e.name, e.role, e.active, e.company_id, c.name as company_name 
+      SELECT e.id, e.username, e.name, e.role, e.active, e.company_id, e.permissions, c.name as company_name 
       FROM employees e
       LEFT JOIN companies c ON e.company_id = c.id
       WHERE e."PIN"::text = $1 AND e.active = true
@@ -78,7 +78,8 @@ router.post('/login', async (req, res) => {
         id: employee.id, 
         username: employee.username, 
         role: employee.role,
-        company_id: employee.company_id // CRITICAL for multi-tenancy
+        company_id: employee.company_id, // CRITICAL for multi-tenancy
+        permissions: employee.permissions
       },
       process.env.JWT_SECRET || 'your-secret-key-change-in-production',
       { expiresIn: '8h' }
@@ -90,7 +91,8 @@ router.post('/login', async (req, res) => {
       username: employee.username,
       name: employee.name,
       role: employee.role,
-      company_id: employee.company_id
+      company_id: employee.company_id,
+      permissions: employee.permissions
     };
 
     console.log('Login successful for:', employee.name);
@@ -201,7 +203,7 @@ router.post('/admin-login', async (req, res) => {
     // Find admin by email and password
     // Join with companies to get the company name for the device context
     const result = await pool.query(
-      `SELECT e.id, e.username, e.name, e.role, e.company_id, c.name as company_name 
+      `SELECT e.id, e.username, e.name, e.role, e.company_id, e.permissions, c.name as company_name 
        FROM employees e 
        LEFT JOIN companies c ON e.company_id = c.id
        WHERE (e.username = $1 OR e.email = $1) AND e.password_hash = $2 AND e.role = $3 AND e.active = true`,
@@ -223,7 +225,8 @@ router.post('/admin-login', async (req, res) => {
         id: employee.id, 
         username: employee.username, 
         role: employee.role,
-        company_id: employee.company_id 
+        company_id: employee.company_id,
+        permissions: employee.permissions
       },
       process.env.JWT_SECRET || 'your-secret-key-change-in-production',
       { expiresIn: '8h' }
@@ -339,7 +342,7 @@ router.get('/employees', verifyToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, username, name, role, active, created_at FROM employees WHERE company_id = $1 ORDER BY name',
+      'SELECT id, username, name, role, active, permissions, created_at FROM employees WHERE company_id = $1 ORDER BY name',
       [req.company_id]
     );
 
@@ -453,6 +456,36 @@ router.put('/employees/:id', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error updating employee:', error);
     res.status(500).json({ success: false, error: 'Failed to update employee' });
+  }
+});
+
+// PUT /api/auth/employees/:id/permissions - Update employee permissions (admin only)
+router.put('/employees/:id/permissions', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const { permissions } = req.body;
+
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ success: false, error: 'Permissions must be an array' });
+    }
+
+    const result = await pool.query(
+      'UPDATE employees SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND company_id = $3 RETURNING id, permissions',
+      [JSON.stringify(permissions), id, req.company_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Employee not found' });
+    }
+
+    res.json({ success: true, permissions: result.rows[0].permissions });
+  } catch (error) {
+    console.error('Error updating employee permissions:', error);
+    res.status(500).json({ success: false, error: 'Failed to update permissions' });
   }
 });
 

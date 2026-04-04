@@ -85,7 +85,7 @@ router.get('/', async (req, res) => {
       const itemsResult = await pool.query(
         `SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.size_name, oi.quantity, 
                 oi.unit_price, oi.subtotal, oi.combo_id, oi.is_combo, oi.notes, oi.status,
-                p.category
+                p.category, p.cost
          FROM order_items oi
          LEFT JOIN products p ON oi.product_id = p.id
          WHERE oi.order_id = ANY($1) AND oi.company_id = $2 ORDER BY oi.id`,
@@ -509,7 +509,7 @@ router.post('/', async (req, res) => {
     const order = orderResult.rows[0];
 
     // Deduct ingredients from inventory based on product composition
-    const inventoryDeductionResult = await deductInventoryForOrder(client, items, order.id, req.company_id);
+    const inventoryDeductionResult = await deductInventoryForOrder(client, items, order.id, req.company_id, order.order_number);
     
     if (!inventoryDeductionResult.success) {
       await client.query('ROLLBACK');
@@ -638,6 +638,11 @@ router.put('/:id/status', async (req, res) => {
     if (order_status) {
       params.push(order_status);
       updates.push(`order_status = $${params.length}`);
+      
+      // Automatically set served_at when status becomes 'completed' or 'served'
+      if (order_status === 'completed' || order_status === 'served') {
+        updates.push(`served_at = COALESCE(served_at, CURRENT_TIMESTAMP)`);
+      }
     }
 
     if (payment_status) {

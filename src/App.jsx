@@ -171,6 +171,20 @@ export default function App() {
   const currencySymbol = getCurrencySymbol(sysConfig.currency || 'PHP');
   const formatMoney = React.useCallback((value) => formatCurrency(value, sysConfig.currency || 'PHP'), [sysConfig.currency]);
 
+  // Unified permission checker
+  const hasPermission = React.useCallback((id) => {
+    if (!employee) return false;
+    // 1. Check for specific permissions (overrides roles)
+    if (employee.permissions && Array.isArray(employee.permissions) && employee.permissions.length > 0) {
+      return employee.permissions.includes(id);
+    }
+    // 2. Fallback to role-based access from navItems definition
+    const item = navItems.find(i => i.id === id);
+    if (!item) return true; // If not in navItems, assume accessible or handled elsewhere
+    if (!item.roles) return true; // Everyone can access if no roles specified
+    return item.roles.includes(employee.role);
+  }, [employee]);
+
   // Track the last order for receipt printing
   const [lastOrderData, setLastOrderData] = useState(null);
   const [printMode, setPrintMode] = useState('receipt'); // 'receipt' or 'kitchen'
@@ -227,14 +241,14 @@ export default function App() {
         if (settingsData.success) {
           setSysConfig(prev => ({ ...prev, ...settingsData.settings }));
           if (settingsData.company_id) {
-             setPublicCompanyId(settingsData.company_id);
+            setPublicCompanyId(settingsData.company_id);
           }
         }
 
         if (employee) {
           // Give a small delay to ensure localStorage is updated
           await new Promise(r => setTimeout(r, 100));
-          
+
           // Fetch current shift
           const shiftRes = await fetchWithAuth(`${API_URL}/shifts/current`);
           const shiftData = await shiftRes.json();
@@ -464,7 +478,13 @@ export default function App() {
 
     // Create cart item with size info if applicable
     const cartItem = selectedSize
-      ? { ...item, selectedSize: selectedSize.name, price: selectedSize.price, displayName: `${item.name} (${selectedSize.name})` }
+      ? {
+        ...item,
+        selectedSize: selectedSize.name,
+        size_id: selectedSize.id, // STORE THE SIZE ID
+        price: selectedSize.price,
+        displayName: `${item.name} (${selectedSize.name})`
+      }
       : item;
 
     // Find existing item by id AND size (if applicable)
@@ -635,7 +655,7 @@ export default function App() {
       />
 
       {currentPage !== 'home' && (
-        <Sidebar 
+        <Sidebar
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           employee={employee}
@@ -661,7 +681,7 @@ export default function App() {
         )}
         {(currentPage.startsWith('menu-') || currentPage === 'products') && (
           employee ? (
-            ['admin', 'manager'].includes(employee.role) ? (
+            hasPermission('products') ? (
               <ProductManagementPage
                 menuData={menuData}
                 refreshProducts={fetchProducts}
@@ -669,7 +689,7 @@ export default function App() {
                 categories={categories}
               />
             ) : (
-              <AccessDeniedPage message="Only managers and administrators can access Menu setup." onBack={() => setCurrentPage('dashboard')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Menu setup." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
@@ -681,60 +701,64 @@ export default function App() {
         {currentPage === 'payment-failed' && <PaymentFailedPage setCurrentPage={setCurrentPage} orderNumber={pendingOrderNumber} />}
         {currentPage === 'pos' && (
           employee ? (
-            <>
-              <POSPage
-                menuData={menuData}
-                categories={categories}
-                isLoading={isLoadingProducts}
-                currentShift={currentShift}
-                employee={employee}
-                taxRate={sysConfig.tax_rate}
-                onEndShift={() => setShowShiftEndModal(true)}
-                onStartShift={() => setShowShiftStartModal(true)}
-                onRefreshShift={async () => {
-                  try {
-                    const token = localStorage.getItem('auth_token');
-                    if (!token) {
-                      console.warn('No auth token, cannot refresh shift');
-                      return;
-                    }
-                    const res = await fetchWithAuth(`${API_URL}/shifts/current`);
-                    const data = await res.json();
-                    if (data.success && data.data?.shift) {
-                      setCurrentShift(data.data.shift);
-                    } else {
+            hasPermission('pos') ? (
+              <>
+                <POSPage
+                  menuData={menuData}
+                  categories={categories}
+                  isLoading={isLoadingProducts}
+                  currentShift={currentShift}
+                  employee={employee}
+                  taxRate={sysConfig.tax_rate}
+                  onEndShift={() => setShowShiftEndModal(true)}
+                  onStartShift={() => setShowShiftStartModal(true)}
+                  onRefreshShift={async () => {
+                    try {
+                      const token = localStorage.getItem('auth_token');
+                      if (!token) {
+                        console.warn('No auth token, cannot refresh shift');
+                        return;
+                      }
+                      const res = await fetchWithAuth(`${API_URL}/shifts/current`);
+                      const data = await res.json();
+                      if (data.success && data.data?.shift) {
+                        setCurrentShift(data.data.shift);
+                      } else {
+                        setCurrentShift(null);
+                      }
+                    } catch (e) {
+                      console.error('Error refreshing shift:', e);
                       setCurrentShift(null);
                     }
-                  } catch (e) {
-                    console.error('Error refreshing shift:', e);
-                    setCurrentShift(null);
-                  }
-                }}
-                currencySymbol={currencySymbol}
-                formatMoney={formatMoney}
-                lastOrderData={lastOrderData}
-                setLastOrderData={setLastOrderData}
-              />
-              {showShiftStartModal && (
-                <ShiftStartModal
-                  onShiftStarted={(shift) => setCurrentShift(shift)}
-                  onClose={() => setShowShiftStartModal(false)}
+                  }}
+                  currencySymbol={currencySymbol}
+                  formatMoney={formatMoney}
+                  lastOrderData={lastOrderData}
+                  setLastOrderData={setLastOrderData}
                 />
-              )}
-              {showShiftEndModal && (
-                <ShiftEndModal
-                  shift={currentShift}
-                  onEnd={handleEndShift}
-                  onCancel={() => setShowShiftEndModal(false)}
-                />
-              )}
-              {shiftReport && (
-                <ShiftReportModal
-                  report={shiftReport}
-                  onClose={() => setShiftReport(null)}
-                />
-              )}
-            </>
+                {showShiftStartModal && (
+                  <ShiftStartModal
+                    onShiftStarted={(shift) => setCurrentShift(shift)}
+                    onClose={() => setShowShiftStartModal(false)}
+                  />
+                )}
+                {showShiftEndModal && (
+                  <ShiftEndModal
+                    shift={currentShift}
+                    onEnd={handleEndShift}
+                    onCancel={() => setShowShiftEndModal(false)}
+                  />
+                )}
+                {shiftReport && (
+                  <ShiftReportModal
+                    report={shiftReport}
+                    onClose={() => setShiftReport(null)}
+                  />
+                )}
+              </>
+            ) : (
+              <AccessDeniedPage message="Access Denied. You do not have permission to access the Terminal." onBack={() => setCurrentPage('dashboard')} />
+            )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
@@ -742,7 +766,7 @@ export default function App() {
 
         {currentPage.startsWith('reports') && (
           employee ? (
-            ['admin', 'manager'].includes(employee.role) ? (
+            hasPermission('reports') ? (
               <ReportsPage
                 currentReport={currentPage}
                 setCurrentPage={setCurrentPage}
@@ -750,7 +774,7 @@ export default function App() {
                 currencySymbol={currencySymbol}
               />
             ) : (
-              <AccessDeniedPage message="Only managers and administrators can access Reports." onBack={() => setCurrentPage('dashboard')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Reports." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
@@ -758,10 +782,10 @@ export default function App() {
         )}
         {currentPage === 'customers' && (
           employee ? (
-            ['admin', 'manager'].includes(employee.role) ? (
+            hasPermission('customers') ? (
               <CustomersPage setCurrentPage={setCurrentPage} />
             ) : (
-              <AccessDeniedPage message="Only managers and administrators can access Customers." onBack={() => setCurrentPage('dashboard')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Customers." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
@@ -770,7 +794,11 @@ export default function App() {
         {/* Dashboard - Redirect to POS or Login */}
         {currentPage === 'dashboard' && (
           employee ? (
-            <DashboardPage setCurrentPage={setCurrentPage} employee={employee} />
+            hasPermission('dashboard') ? (
+              <DashboardPage setCurrentPage={setCurrentPage} employee={employee} />
+            ) : (
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Analytics Dashboard." onBack={() => setCurrentPage('pos')} />
+            )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
@@ -778,7 +806,11 @@ export default function App() {
         {/* Orders Pages */}
         {currentPage.startsWith('orders') && (
           employee ? (
-            <OrdersPage currentView={currentPage} setCurrentPage={setCurrentPage} />
+            hasPermission('orders') ? (
+              <OrdersPage currentView={currentPage} setCurrentPage={setCurrentPage} />
+            ) : (
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Orders." onBack={() => setCurrentPage('dashboard')} />
+            )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
@@ -786,7 +818,11 @@ export default function App() {
         {/* Kitchen Display */}
         {currentPage === 'kitchen' && (
           employee ? (
-            <KitchenDisplayPage />
+            hasPermission('kitchen') ? (
+              <KitchenDisplayPage />
+            ) : (
+              <AccessDeniedPage message="Access Denied. You do not have permission to access the Kitchen." onBack={() => setCurrentPage('dashboard')} />
+            )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
@@ -802,31 +838,31 @@ export default function App() {
         {/* Inventory Pages */}
         {currentPage.startsWith('inventory') && (
           employee ? (
-            ['admin', 'manager'].includes(employee.role) ? (
+            hasPermission('inventory') ? (
               <InventoryPage currentView={currentPage} setCurrentPage={setCurrentPage} menuData={menuData} refreshProducts={fetchProducts} />
             ) : (
-              <AccessDeniedPage message="Only managers and administrators can access Inventory." onBack={() => setCurrentPage('dashboard')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Inventory." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
         )}
         {/* Staff Pages */}
-        {currentPage.startsWith('staff') && (
+        {(currentPage === 'staff' || currentPage.startsWith('staff-')) && (
           employee ? (
-            employee.role === 'admin' ? (
+            hasPermission('staff-employees') ? (
               <StaffPage currentView={currentPage} setCurrentPage={setCurrentPage} />
             ) : (
-              <AccessDeniedPage message="Only administrators can access Staff Management." onBack={() => setCurrentPage('dashboard')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Staff Management." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
         )}
         {/* Settings Pages */}
-        {currentPage.startsWith('settings') && (
+        {currentPage.startsWith('settings-') && (
           employee ? (
-            employee.role === 'admin' ? (
+            hasPermission('settings-general') ? (
               <SettingsPage
                 currentView={currentPage}
                 setCurrentPage={setCurrentPage}
@@ -836,7 +872,7 @@ export default function App() {
                 setSysConfig={setSysConfig}
               />
             ) : (
-              <AccessDeniedPage message="Only administrators can access Settings." onBack={() => setCurrentPage('pos')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Settings." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
@@ -1022,7 +1058,7 @@ export default function App() {
                 </div>
 
                 {/* Drawer Menu */}
-                <div 
+                <div
                   className={`fixed left-0 right-0 bottom-14 bg-gray-50 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] rounded-t-3xl transition-transform duration-300 ease-in-out z-40 ${isNavDrawerOpen ? 'translate-y-0' : 'translate-y-full'}`}
                   style={{ height: '40vh' }}
                 >
@@ -1035,41 +1071,41 @@ export default function App() {
                     </div>
                     {/* Grid of 3 columns */}
                     <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
-                      <button onClick={() => {setCurrentPage('kitchen'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                      <button onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                         <ClipboardList className="w-7 h-7 mb-2" />
                         <span className="text-[11px] font-bold">Kitchen</span>
                       </button>
 
                       {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => {setCurrentPage('products'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                        <button onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                           <UtensilsCrossed className="w-7 h-7 mb-2" />
                           <span className="text-[11px] font-bold">Menu</span>
                         </button>
                       )}
 
                       {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => {setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                        <button onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                           <Package className="w-7 h-7 mb-2" />
                           <span className="text-[11px] font-bold">Inventory</span>
                         </button>
                       )}
 
                       {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => {setCurrentPage('customers'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'customers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                        <button onClick={() => { setCurrentPage('customers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'customers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                           <User className="w-7 h-7 mb-2" />
                           <span className="text-[11px] font-bold">Clients</span>
                         </button>
                       )}
 
                       {employee.role === 'admin' && (
-                        <button onClick={() => {setCurrentPage('staff-employees'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                        <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                           <User className="w-7 h-7 mb-2 opacity-70" />
                           <span className="text-[11px] font-bold">Staff</span>
                         </button>
                       )}
 
                       {employee.role === 'admin' && (
-                        <button onClick={() => {setCurrentPage('settings-general'); setIsNavDrawerOpen(false);}} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                        <button onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                           <Settings className="w-7 h-7 mb-2" />
                           <span className="text-[11px] font-bold">System</span>
                         </button>
@@ -1080,7 +1116,7 @@ export default function App() {
 
                 {/* Overlay for clicking outside */}
                 {isNavDrawerOpen && (
-                  <div 
+                  <div
                     className="fixed inset-0 bg-black/40 z-30 transition-opacity backdrop-blur-sm"
                     onClick={() => setIsNavDrawerOpen(false)}
                   />
@@ -1345,56 +1381,80 @@ function NavDropdown({ name, label, active, alignRight, openMenu, onToggle, chil
   );
 }
 
+
+// System Navigation Structure
+const navItems = [
+  { id: 'pos', icon: ShoppingCart, label: 'Terminal', desc: 'Main Checkout Engine' },
+  { id: 'dashboard', icon: BarChart2, label: 'Analytics', desc: 'Business Intelligence' },
+  { id: 'kitchen', icon: ClipboardList, label: 'Kitchen', desc: 'Active KDS Views' },
+  {
+    id: 'orders', icon: ShoppingBag, label: 'Orders', roles: ['admin', 'manager'], sub: [
+      { id: 'orders-active', label: 'In Progress' },
+      { id: 'orders-history', label: 'History' }
+    ]
+  },
+  {
+    id: 'products', icon: UtensilsCrossed, label: 'Menu & Products', roles: ['admin', 'manager'], sub: [
+      { id: 'products', label: 'Product Matrix' },
+      { id: 'menu-categories', label: 'Category Logic' }
+    ]
+  },
+  {
+    id: 'inventory', icon: Package, label: 'Inventory Control', roles: ['admin', 'manager'], sub: [
+      { id: 'inventory-stock', label: 'Stock Pulse' },
+      { id: 'inventory-ingredients', label: 'Raw Materials' },
+      { id: 'inventory-recipes', label: 'Composite Recipes' }
+    ]
+  },
+  {
+    id: 'reports', icon: FileText, label: 'Reports', roles: ['admin', 'manager'], sub: [
+      { id: 'reports-sales', label: 'Sales Reports' },
+      { id: 'reports-inventory', label: 'Inventory Audit' },
+      { id: 'reports-logs', label: 'Activity Logs' }
+    ]
+  },
+  { id: 'customers', icon: User, label: 'Clients', roles: ['admin', 'manager'] },
+  { id: 'staff-employees', icon: LayoutGrid, label: 'Team', roles: ['admin'] },
+  { id: 'settings-general', icon: Settings, label: 'Config', roles: ['admin'] },
+];
+
 // Global Sidebar Component
 function Sidebar({ currentPage, setCurrentPage, employee }) {
   const [expandedItems, setExpandedItems] = useState([]);
-  
+
   const toggleMenu = (id) => {
     setExpandedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const navItems = [
-    { id: 'pos', icon: ShoppingCart, label: 'Terminal', desc: 'Main Checkout Engine' },
-    { id: 'dashboard', icon: BarChart2, label: 'Analytics', desc: 'Business Intelligence' },
-    { id: 'kitchen', icon: ClipboardList, label: 'Kitchen', desc: 'Active KDS Views' },
-    { id: 'orders', icon: ShoppingBag, label: 'Orders', roles: ['admin', 'manager'], sub: [
-      { id: 'orders-active', label: 'In Progress' },
-      { id: 'orders-history', label: 'History' }
-    ]},
-    { id: 'products', icon: UtensilsCrossed, label: 'Menu & Products', roles: ['admin', 'manager'], sub: [
-      { id: 'products', label: 'Product Matrix' },
-      { id: 'inventory-stock', label: 'Stock Pulse' },
-      { id: 'menu-categories', label: 'Category Logic' }
-    ]},
-    { id: 'reports', icon: FileText, label: 'Reports', roles: ['admin', 'manager'], sub: [
-      { id: 'reports-sales', label: 'Sales Reports' },
-      { id: 'reports-inventory', label: 'Inventory Audit' },
-      { id: 'reports-logs', label: 'Activity Logs' }
-    ]},
-    { id: 'customers', icon: User, label: 'Clients', roles: ['admin', 'manager'] },
-    { id: 'staff-employees', icon: LayoutGrid, label: 'Team', roles: ['admin'] },
-    { id: 'settings-general', icon: Settings, label: 'Config', roles: ['admin'] },
-  ];
 
   return (
     <aside className="hidden md:flex fixed top-14 md:top-16 left-0 bottom-0 w-[50px] hover:w-64 bg-white/95 backdrop-blur-md border-r border-gray-100 z-[60] flex-col transition-all duration-300 group overflow-hidden">
       <div className="flex-1 px-1.5 group-hover:px-4 space-y-2 overflow-y-auto pt-6 scrollbar-hide">
         {navItems.map((item) => {
-          if (item.roles && employee && !item.roles.includes(employee.role)) return null;
-          if (item.roles && !employee) return null;
-          
+          // Permission logic:
+          // 1. If employee has specific permissions set, use those
+          // 2. Fallback to role-based access if no specific permissions
+          if (employee) {
+            if (employee.permissions && Array.isArray(employee.permissions) && employee.permissions.length > 0) {
+              if (!employee.permissions.includes(item.id)) return null;
+            } else if (item.roles && !item.roles.includes(employee.role)) {
+              return null;
+            }
+          } else if (item.roles) {
+            return null;
+          }
+
           const isActive = currentPage === item.id || (item.sub && item.sub.some(s => s.id === currentPage)) || (item.id === 'pos' && currentPage === 'pos') || (item.id.includes('settings') && currentPage.includes('settings'));
           const isExpanded = expandedItems.includes(item.id);
-          
+
           return (
             <div key={item.id} className="relative">
               <button
                 onClick={() => item.sub ? toggleMenu(item.id) : setCurrentPage(item.id)}
-                className={`w-full flex items-center justify-center group-hover:justify-start gap-4 h-10 group-hover:h-12 rounded-xl transition-all ${
-                  isActive 
-                    ? 'bg-cyan-600 text-white shadow-lg' 
-                    : 'text-gray-500 hover:bg-cyan-50 hover:text-cyan-600'
-                }`}
+                className={`w-full flex items-center justify-center group-hover:justify-start gap-4 h-10 group-hover:h-12 rounded-xl transition-all ${isActive
+                  ? 'bg-cyan-600 text-white shadow-lg'
+                  : 'text-gray-500 hover:bg-cyan-50 hover:text-cyan-600'
+                  }`}
               >
                 <item.icon className="w-5 h-5 shrink-0 ml-0 group-hover:ml-1" />
                 <span className="hidden group-hover:block font-bold text-xs tracking-tight whitespace-nowrap">{item.label}</span>
@@ -1404,7 +1464,7 @@ function Sidebar({ currentPage, setCurrentPage, employee }) {
                   </div>
                 )}
               </button>
-              
+
               {/* Nested Sub-menu - Only when expanded AND in wide mode */}
               {item.sub && isExpanded && (
                 <div className="hidden group-hover:block ml-9 mt-1 space-y-1">
@@ -1423,7 +1483,7 @@ function Sidebar({ currentPage, setCurrentPage, employee }) {
           );
         })}
       </div>
-      
+
       <div className="p-1 group-hover:p-4 mt-auto border-t border-gray-50 bg-gray-50/50">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 group-hover:w-10 group-hover:h-10 rounded-xl bg-cyan-600 flex flex-shrink-0 items-center justify-center text-white font-black text-xs shadow-inner">
@@ -1639,7 +1699,12 @@ function DashboardPage({ setCurrentPage, employee }) {
   const [salesData, setSalesData] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
+  const [lowProducts, setLowProducts] = useState([]);
   const [revenueByCategory, setRevenueByCategory] = useState(null);
+  const [serviceTimeData, setServiceTimeData] = useState(null);
+  const [peakTimeData, setPeakTimeData] = useState(null);
+  const [profitData, setProfitData] = useState(null);
+  const [customerMetrics, setCustomerMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('today'); // Default to Today
   const [currency, setCurrency] = useState('PHP'); // Default: PHP (all data stored in PHP)
@@ -1681,14 +1746,20 @@ function DashboardPage({ setCurrentPage, employee }) {
           startDate.setFullYear(today.getFullYear() - 1);
         }
 
-        // Fetch sales data from API
-        const salesResponse = await fetchWithAuth(`${API_URL}/orders?include_items=true`);
+        // Fetch orders and customers for deep analytics
+        const [salesResponse, customersResponse] = await Promise.all([
+          fetchWithAuth(`${API_URL}/orders?include_items=true`),
+          fetchWithAuth(`${API_URL}/customers`)
+        ]);
+
         const salesResult = await salesResponse.json();
+        const customersResult = await customersResponse.json();
 
         if (salesResult.success && salesResult.orders) {
           const orders = Array.isArray(salesResult.orders) ? salesResult.orders : [];
+          const allCustomers = customersResult.success ? (customersResult.customers || []) : [];
 
-          // Filter by timeframe
+          // Filter by timeframe for metric calculation
           const filteredOrders = orders.filter(order => {
             const orderDate = new Date(order.created_at);
             return orderDate >= startDate && orderDate <= today;
@@ -1701,11 +1772,62 @@ function DashboardPage({ setCurrentPage, employee }) {
           const totalItems = filteredOrders.reduce((sum, o) => sum + (o.items?.length || 1), 0);
           const avgOrderSize = filteredOrders.length > 0 ? totalItems / filteredOrders.length : 0;
 
+          // Calculate total discounts and identify active customers in this period
+          let totalDiscounts = 0;
+          const activeCustomerIds = new Set();
+
+          filteredOrders.forEach(o => {
+            totalDiscounts += parseFloat(o.discount_amount || 0);
+            if (o.customer_id) activeCustomerIds.add(o.customer_id);
+          });
+
+          // Accurate New vs Returning Logic
+          // NEW: Registered within timeframe
+          // RETURNING: Registered before timeframe AND ordered within timeframe
+          let newCustomersCount = 0;
+          let returningCustomersCount = 0;
+
+          activeCustomerIds.forEach(cid => {
+            const cust = allCustomers.find(c => c.id === cid);
+            // If we find the customer and they registered AFTER startDate, they are truly NEW
+            if (cust && new Date(cust.created_at) >= startDate) {
+              newCustomersCount++;
+            } else {
+              // If they registered before OR we don't have record (legacy), they are RETURNING
+              returningCustomersCount++;
+            }
+          });
+
+          const uniqueCustomersInTimeframe = activeCustomerIds.size;
+          const ltvValue = uniqueCustomersInTimeframe > 0 ? totalRevenue / uniqueCustomersInTimeframe : 0;
+          const cacValue = newCustomersCount > 0 ? totalDiscounts / newCustomersCount : 0;
+          const retentionRate = uniqueCustomersInTimeframe > 0 ? (returningCustomersCount / uniqueCustomersInTimeframe) * 100 : 0;
+
+          setCustomerMetrics({
+            newCustomers: newCustomersCount,
+            returningCustomers: returningCustomersCount,
+            ltv: convertAmount(ltvValue),
+            cac: convertAmount(cacValue),
+            retention: retentionRate.toFixed(1)
+          });
+
+          // Calculate average service time (in minutes)
+          const servedOrders = filteredOrders.filter(o => o.served_at && o.created_at);
+          let avgServiceTime = 0;
+          if (servedOrders.length > 0) {
+            const totalMinutes = servedOrders.reduce((sum, o) => {
+              const diff = new Date(o.served_at) - new Date(o.created_at);
+              return sum + (diff / 1000 / 60);
+            }, 0);
+            avgServiceTime = (totalMinutes / servedOrders.length).toFixed(1);
+          }
+
           setMetrics({
             totalRevenue,
             avgOrderValue,
             totalOrders,
-            avgOrderSize: avgOrderSize.toFixed(1)
+            avgOrderSize: avgOrderSize.toFixed(1),
+            avgServiceTime
           });
 
           // Group sales by date for chart (last 7 days or based on timeframe)
@@ -1791,14 +1913,112 @@ function DashboardPage({ setCurrentPage, employee }) {
             }
           });
 
-          const topProds = Object.values(productMap)
-            .sort((a, b) => b.revenue - a.revenue)
-            .slice(0, 5)
-            .map(p => ({
-              ...p,
-              revenue: convertAmount(p.revenue)
-            }));
-          setTopProducts(topProds);
+          const sortedProds = Object.values(productMap).sort((a, b) => b.revenue - a.revenue);
+
+          setTopProducts(sortedProds.slice(0, 5).map(p => ({
+            ...p,
+            revenue: convertAmount(p.revenue)
+          })));
+
+          setLowProducts(sortedProds.slice(-5).reverse().map(p => ({
+            ...p,
+            revenue: convertAmount(p.revenue)
+          })));
+
+          // Service Speed Trend (Last 7 days or based on timeframe)
+          const serviceTimeMap = {};
+          servedOrders.forEach(order => {
+            const date = new Date(order.created_at);
+            const dateKey = timeframe === 'year'
+              ? date.toLocaleString('en-US', { month: 'short', year: '2-digit' })
+              : date.toLocaleDateString();
+
+            const diff = new Date(order.served_at) - new Date(order.created_at);
+            const minutes = diff / 1000 / 60;
+
+            if (!serviceTimeMap[dateKey]) {
+              serviceTimeMap[dateKey] = { totalMinutes: 0, count: 0 };
+            }
+            serviceTimeMap[dateKey].totalMinutes += minutes;
+            serviceTimeMap[dateKey].count += 1;
+          });
+
+          const sortedServiceDates = Object.keys(serviceTimeMap).sort();
+          const serviceChartData = sortedServiceDates.slice(-daysToShow).map(d =>
+            (serviceTimeMap[d].totalMinutes / serviceTimeMap[d].count).toFixed(1)
+          );
+
+          setServiceTimeData({
+            labels: sortedServiceDates.slice(-daysToShow),
+            datasets: [{
+              label: 'Avg Service Time (mins)',
+              data: serviceChartData,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4,
+              pointButtonStyle: 'circle'
+            }]
+          });
+
+          // Order Peak Times (Hourly distribution 0-23)
+          const hourMap = new Array(24).fill(0);
+          filteredOrders.forEach(order => {
+            const hour = new Date(order.created_at).getHours();
+            hourMap[hour]++;
+          });
+
+          setPeakTimeData({
+            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+            datasets: [{
+              label: 'Orders',
+              data: hourMap,
+              backgroundColor: '#0ea5e9',
+              borderRadius: 4,
+              hoverBackgroundColor: '#0284c7'
+            }]
+          });
+
+          // Profit & Margin Analysis (Cost vs Revenue)
+          const profitMap = {};
+          filteredOrders.forEach(order => {
+            const date = new Date(order.created_at);
+            const dateKey = timeframe === 'year'
+              ? date.toLocaleString('en-US', { month: 'short', year: '2-digit' })
+              : date.toLocaleDateString();
+
+            if (!profitMap[dateKey]) {
+              profitMap[dateKey] = { revenue: 0, cost: 0 };
+            }
+            profitMap[dateKey].revenue += (parseFloat(order.total_amount) || 0);
+
+            if (order.items && Array.isArray(order.items)) {
+              order.items.forEach(item => {
+                const itemCost = (parseFloat(item.cost) || 0) * (item.quantity || 1);
+                profitMap[dateKey].cost += itemCost;
+              });
+            }
+          });
+
+          const sortedProfitDates = Object.keys(profitMap).sort();
+          setProfitData({
+            labels: sortedProfitDates.slice(-daysToShow),
+            datasets: [
+              {
+                label: `Revenue (${currency})`,
+                data: sortedProfitDates.slice(-daysToShow).map(d => convertAmount(profitMap[d].revenue)),
+                backgroundColor: 'rgba(8, 145, 178, 0.7)',
+                borderRadius: 4,
+              },
+              {
+                label: `Cost (${currency})`,
+                data: sortedProfitDates.slice(-daysToShow).map(d => convertAmount(profitMap[d].cost)),
+                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                borderRadius: 4,
+              }
+            ]
+          });
         }
         setLoading(false);
       } catch (error) {
@@ -1823,28 +2043,28 @@ function DashboardPage({ setCurrentPage, employee }) {
         ) : (
           <>
             {/* Header with Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">📊 Business Dashboard</h1>
-            <p className="text-gray-600">Real-time sales metrics, analytics & business intelligence</p>
-          </div>
-        </div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">📊 Business Dashboard</h1>
+                <p className="text-gray-600">Real-time sales metrics, analytics & business intelligence</p>
+              </div>
+            </div>
 
-        {/* Timeframe Selector */}
-        <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap">
-          {['today', 'week', 'month', 'year'].map(tf => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              className={`px-4 py-2.5 rounded-lg font-semibold transition-all inline-block ${timeframe === tf
-                ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg transform scale-105'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-cyan-600 hover:text-cyan-600'
-                }`}
-            >
-              {tf === 'today' ? '🕒 Today' : tf === 'week' ? '📅 Week' : tf === 'month' ? '📆 Month' : '📊 Year'}
-            </button>
-          ))}
-        </div>
+            {/* Timeframe Selector */}
+            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap">
+              {['today', 'week', 'month', 'year'].map(tf => (
+                <button
+                  key={tf}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-4 py-2.5 rounded-lg font-semibold transition-all inline-block ${timeframe === tf
+                    ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg transform scale-105'
+                    : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-cyan-600 hover:text-cyan-600'
+                    }`}
+                >
+                  {tf === 'today' ? '🕒 Today' : tf === 'week' ? '📅 Week' : tf === 'month' ? '📆 Month' : '📊 Year'}
+                </button>
+              ))}
+            </div>
             {/* Key Metrics - Professional Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
               <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-6 border-t-4 border-t-cyan-600 hover:shadow-xl transition-shadow">
@@ -1888,8 +2108,9 @@ function DashboardPage({ setCurrentPage, employee }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Sales Trend Chart */}
               <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">📈 Sales Trend</h3>
-                <p className="text-gray-600 text-sm mb-6">Daily revenue analysis ({currency})</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">📈 Sales Trend</h3>
+                <p className="text-cyan-600 text-sm font-bold mb-1">🚀 Are we growing?</p>
+                <p className="text-gray-500 text-xs mb-6">Daily revenue analysis over time ({currency})</p>
                 {salesData && <Line data={salesData} options={{
                   responsive: true,
                   maintainAspectRatio: true,
@@ -1931,8 +2152,9 @@ function DashboardPage({ setCurrentPage, employee }) {
 
               {/* Revenue by Category Doughnut */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🎯 Revenue by Category</h3>
-                <p className="text-gray-600 text-sm mb-6">Category breakdown ({currency})</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">🎯 Revenue by Category</h3>
+                <p className="text-blue-600 text-sm font-bold mb-1">📊 What's driving sales?</p>
+                <p className="text-gray-500 text-xs mb-6">Category breakdown of total revenue</p>
                 {revenueByCategory && <Doughnut data={revenueByCategory} options={{
                   responsive: true,
                   maintainAspectRatio: true,
@@ -1960,12 +2182,169 @@ function DashboardPage({ setCurrentPage, employee }) {
               </div>
             </div>
 
-            {/* Top Products & Recommendations */}
+            {/* Profit Analysis Chart */}
+            <div className="mt-8 bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900 mb-1">📑 Profit & Margin Analysis</h3>
+              <p className="text-emerald-600 text-sm font-bold mb-1">💰 Are we making money?</p>
+              <p className="text-gray-500 text-xs mb-6">Comparative Revenue vs Cost Analysis ({currency})</p>
+              <div className="h-80">
+                {profitData && <Bar data={profitData} options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, font: { weight: 'bold' } } },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: ${currency === 'PHP' ? '₱' : '$'}${ctx.parsed.y.toLocaleString()}`
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: { callback: v => (currency === 'PHP' ? '₱' : '$') + v.toLocaleString() }
+                    },
+                    x: { grid: { display: false } }
+                  }
+                }} />}
+              </div>
+            </div>
+
+            {/* Charts Row 2: Service Speed & Peak Times */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+              {/* Service Speed Chart */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">⏱️ Service Speed Trend</h3>
+                    <p className="text-orange-600 text-sm font-bold mb-1">⚡ How fast are we?</p>
+                    <p className="text-gray-500 text-xs">Average minutes from order to served</p>
+                  </div>
+                  <div className={`px-4 py-1 rounded-full text-xs font-bold ${metrics?.avgServiceTime > 15 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                    AVG: {metrics?.avgServiceTime || 0}m
+                  </div>
+                </div>
+                <div className="h-64 mt-4">
+                  {serviceTimeData && <Line data={serviceTimeData} options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => `Avg Time: ${ctx.parsed.y} mins`
+                        }
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Minutes' }
+                      },
+                      x: { grid: { display: false } }
+                    }
+                  }} />}
+                </div>
+              </div>
+
+              {/* Peak Times Bar Chart */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900 mb-1">🔥 Order Peak Times</h3>
+                <p className="text-blue-600 text-sm font-bold mb-1">🕒 When is the rush?</p>
+                <p className="text-gray-500 text-xs mb-6">Hourly order distribution (24h period)</p>
+                <div className="h-64">
+                  {peakTimeData && <Bar data={peakTimeData} options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => `Orders: ${ctx.parsed.y}`
+                        }
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        title: { display: true, text: 'Total Orders' }
+                      },
+                      x: { grid: { display: false } }
+                    }
+                  }} />}
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Insights Row */}
+            <div className="mt-8 bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-1">👥 Customer Insights</h3>
+                <p className="text-purple-600 text-sm font-bold mb-1">🔍 Who are we serving?</p>
+                <p className="text-gray-500 text-xs text-xs mb-6">Audience acquisition & loyalty metrics</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Acquisition Card */}
+                <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-white border border-purple-100">
+                  <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-4">Acquisition</p>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-3xl font-black text-gray-900">{customerMetrics?.newCustomers || 0}</p>
+                      <p className="text-xs text-gray-500 font-bold">New Customers</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-purple-600">{customerMetrics?.returningCustomers || 0}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase">Returning</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 w-full bg-gray-200 rounded-full h-1.5 flex overflow-hidden">
+                    <div className="bg-purple-600 h-full" style={{ width: `${(customerMetrics?.newCustomers / ((customerMetrics?.newCustomers + customerMetrics?.returningCustomers) || 1)) * 100}%` }}></div>
+                    <div className="bg-purple-300 h-full flex-1"></div>
+                  </div>
+                </div>
+
+                {/* CAC Card */}
+                <div className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-4">Unit Acquisition Proxy (CAC)</p>
+                  <p className="text-3xl font-black text-gray-900">{formatCurrency(customerMetrics?.cac || 0)}</p>
+                  <p className="text-xs text-gray-500 font-bold mt-1">Discount cost per new user</p>
+                  <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-blue-600">
+                    <span>🎯 Target: {currency === 'PHP' ? '₱' : '$'}0.00</span>
+                  </div>
+                </div>
+
+                {/* LTV Card */}
+                <div className="p-6 rounded-xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100">
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-4">Lifetime Value (LTV)</p>
+                  <p className="text-3xl font-black text-gray-900">{formatCurrency(customerMetrics?.ltv || 0)}</p>
+                  <p className="text-xs text-gray-500 font-bold mt-1">Avg. spend per customer</p>
+                  <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-600">
+                    <span className="animate-pulse">💎 High Value Audience</span>
+                  </div>
+                </div>
+
+                {/* Retention Card */}
+                <div className="p-6 rounded-xl bg-gradient-to-br from-orange-50 to-white border border-orange-100">
+                  <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mb-4">Retention Rate</p>
+                  <p className="text-3xl font-black text-gray-900">{customerMetrics?.retention || 0}%</p>
+                  <p className="text-xs text-gray-500 font-bold mt-1">Returning base percentage</p>
+                  <div className="mt-4 w-full bg-orange-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-orange-500 h-full" style={{ width: `${customerMetrics?.retention || 0}%` }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Product Performance Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top Products */}
               <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🏆 Top Performing Products</h3>
-                <p className="text-gray-600 text-sm mb-6">Revenue leaders ({currency})</p>
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">🏆 Top Performing Products</h3>
+                  <p className="text-cyan-600 text-sm font-bold">🌟 Our Best Sellers</p>
+                </div>
                 {topProducts.length > 0 ? (
                   <div className="space-y-4">
                     {topProducts.map((prod, idx) => (
@@ -1996,30 +2375,67 @@ function DashboardPage({ setCurrentPage, employee }) {
                 )}
               </div>
 
-              {/* Smart Recommendations */}
-              <div className="bg-gradient-to-br from-blue-50 via-green-50 to-emerald-50 rounded-xl shadow-lg p-8 border-2 border-cyan-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">💡 Smart Recommendations</h3>
-                <p className="text-gray-600 text-sm mb-6">AI-powered business insights</p>
-                <div className="space-y-4">
-                  <div className="p-4 bg-white rounded-lg border-l-4 border-l-cyan-600 shadowhover:shadow-md transition-all">
-                    <p className="font-bold text-gray-900">✅ Tracks all sales & operations data</p>
-                    <p className="text-sm text-gray-600 mt-1">Every transaction is automatically recorded and analyzed real-time</p>
+              {/* Low Performing Products */}
+              <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">⚠️ Low Performing Products</h3>
+                  <p className="text-orange-600 text-sm font-bold">📉 Items needing attention</p>
+                </div>
+                {lowProducts.length > 0 ? (
+                  <div className="space-y-4">
+                    {lowProducts.map((prod, idx) => (
+                      <div key={idx} className="p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 hover:border-orange-600 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="text-sm font-bold text-gray-600 text-orange-600">Bottom #{lowProducts.length - idx}</div>
+                            <p className="font-bold text-gray-900 text-lg">{prod.name}</p>
+                            <p className="text-sm text-gray-600">{prod.quantity} units sold</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-400">{formatCurrency(prod.revenue)}</p>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-orange-400 to-orange-500 h-2.5 rounded-full"
+                            style={{
+                              width: `${(prod.revenue / (topProducts[0]?.revenue || 1)) * 100}%`
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="p-4 bg-white rounded-lg border-l-4 border-l-blue-600 hover:shadow-md transition-all">
-                    <p className="font-bold text-gray-900">✅ Shows real-time metrics & trends</p>
-                    <p className="text-sm text-gray-600 mt-1">{topProducts.length > 0 ? `📍 Top product: "${topProducts[0].name}" - ${formatCurrency(topProducts[0].revenue)} revenue` : '📊 Data updates every 30 seconds'}</p>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border-l-4 border-l-purple-600 hover:shadow-md transition-all">
-                    <p className="font-bold text-gray-900">✅ Makes smart recommendations</p>
-                    <p className="text-sm text-gray-600 mt-1">{metrics?.avgOrderValue > 50 ? '🚀 High AOV - Premium upsell strategy' : '📈 Increase transaction frequency'}</p>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border-l-4 border-l-orange-600 hover:shadow-md transition-all">
-                    <p className="font-bold text-gray-900">✅ Predicts future needs</p>
-                    <p className="text-sm text-gray-600 mt-1">{metrics?.totalOrders > 50 ? '📦 Stock inventory for high demand' : '📍 Monitor popular items'}</p>
-                  </div>
+                ) : (
+                  <p className="text-gray-600 text-center py-8 bg-gray-50 rounded-lg">✅ All items performing well or no data</p>
+                )}
+              </div>
+            </div>
+
+            {/* Smart Recommendations - Moved to full width */}
+            <div className="mt-8 bg-gradient-to-br from-blue-50 via-green-50 to-emerald-50 rounded-xl shadow-lg p-8 border-2 border-cyan-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">💡 Smart Recommendations</h3>
+              <p className="text-gray-600 text-sm mb-6">AI-powered business insights</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white rounded-lg border-l-4 border-l-cyan-600 shadow-sm hover:shadow-md transition-all">
+                  <p className="font-bold text-gray-900">✅ Inventory Alert</p>
+                  <p className="text-sm text-gray-600 mt-1">{lowProducts.length > 0 ? `⚠️ Consider reviewing "${lowProducts[0].name}" menu placement.` : '📊 All items healthy.'}</p>
+                </div>
+                <div className="p-4 bg-white rounded-lg border-l-4 border-l-blue-600 shadow-sm hover:shadow-md transition-all">
+                  <p className="font-bold text-gray-900">✅ Best Seller Insight</p>
+                  <p className="text-sm text-gray-600 mt-1">{topProducts.length > 0 ? `📍 "${topProducts[0].name}" is your primary engine.` : '📊 Data updates real-time.'}</p>
+                </div>
+                <div className="p-4 bg-white rounded-lg border-l-4 border-l-purple-600 shadow-sm hover:shadow-md transition-all">
+                  <p className="font-bold text-gray-900">✅ Premium Upsell</p>
+                  <p className="text-sm text-gray-600 mt-1">{metrics?.avgOrderValue > 50 ? '🚀 High AOV - Introduce premium bundles' : '📈 Focus on add-on suggestions'}</p>
+                </div>
+                <div className="p-4 bg-white rounded-lg border-l-4 border-l-orange-600 shadow-sm hover:shadow-md transition-all">
+                  <p className="font-bold text-gray-900">✅ Operation Speed</p>
+                  <p className="text-sm text-gray-600 mt-1">{metrics?.avgServiceTime < 15 ? '✨ Excellent service speed!' : '⚠️ Kitchen prep optimization recommended'}</p>
                 </div>
               </div>
             </div>
+
 
             {/* Business Intelligence Insights */}
             <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-600 rounded-xl p-8 shadow-lg">
@@ -2043,6 +2459,10 @@ function DashboardPage({ setCurrentPage, employee }) {
                     <li className="flex items-center gap-2">
                       <span className="text-cyan-600 font-bold">•</span>
                       <span>Total Sales: <strong>{formatCurrency(metrics?.totalRevenue || 0)}</strong></span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-cyan-600 font-bold">•</span>
+                      <span>Avg Service Time: <strong className={metrics?.avgServiceTime > 15 ? 'text-orange-500' : 'text-green-600'}>{metrics?.avgServiceTime || '0'} mins</strong></span>
                     </li>
                   </ul>
                 </div>
@@ -2118,7 +2538,7 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
                 <span>CREATE YOUR STORE</span>
                 <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentPage('dashboard')}
                 className="w-full sm:w-auto bg-white/5 backdrop-blur-md border-2 border-white/10 text-white px-10 py-6 rounded-2xl font-black text-xl hover:bg-white/10 transition-all flex items-center justify-center space-x-3 group active:scale-95"
               >
@@ -2148,11 +2568,11 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
         <div className="w-full px-6">
           <p className="text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] mb-10">POWERING THE NEXT GENERATION OF COMMERCE</p>
           <div className="flex flex-wrap justify-center items-center gap-10 md:gap-20 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-700">
-             <div className="flex items-center space-x-2"><Layout className="w-5 h-5 text-gray-900"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">RETRO-FIT</span></div>
-             <div className="flex items-center space-x-2"><Zap className="w-5 h-5 text-cyan-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">NEO-CAFE</span></div>
-             <div className="flex items-center space-x-2"><Shield className="w-5 h-5 text-emerald-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">SAFE-STORE</span></div>
-             <div className="flex items-center space-x-2"><Box className="w-5 h-5 text-blue-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">ULTRA-RETAIL</span></div>
-             <div className="flex items-center space-x-2"><Activity className="w-5 h-5 text-purple-600"/><span className="font-black text-lg tracking-tighter uppercase text-gray-900">CORE-HUB</span></div>
+            <div className="flex items-center space-x-2"><Layout className="w-5 h-5 text-gray-900" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">RETRO-FIT</span></div>
+            <div className="flex items-center space-x-2"><Zap className="w-5 h-5 text-cyan-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">NEO-CAFE</span></div>
+            <div className="flex items-center space-x-2"><Shield className="w-5 h-5 text-emerald-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">SAFE-STORE</span></div>
+            <div className="flex items-center space-x-2"><Box className="w-5 h-5 text-blue-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">ULTRA-RETAIL</span></div>
+            <div className="flex items-center space-x-2"><Activity className="w-5 h-5 text-purple-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">CORE-HUB</span></div>
           </div>
         </div>
       </section>
@@ -2185,7 +2605,7 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
                     </li>
                   ))}
                 </ul>
-                <button 
+                <button
                   onClick={() => setCurrentPage('company-register')}
                   className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black hover:bg-cyan-600 transition-all uppercase tracking-widest text-sm"
                 >
@@ -2211,7 +2631,7 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
                     </li>
                   ))}
                 </ul>
-                <button 
+                <button
                   onClick={() => setCurrentPage('company-register')}
                   className="w-full bg-white text-cyan-600 py-5 rounded-2xl font-black hover:bg-gray-100 transition-all uppercase tracking-widest text-sm shadow-xl"
                 >
@@ -2237,7 +2657,7 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
                     </li>
                   ))}
                 </ul>
-                <button 
+                <button
                   onClick={() => setCurrentPage('company-register')}
                   className="w-full bg-cyan-600 text-white py-5 rounded-2xl font-black hover:bg-cyan-500 transition-all uppercase tracking-widest text-sm"
                 >
@@ -2280,12 +2700,12 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
             { name: "Elena Chen", role: "Bakery Chain CEO", quote: "Finally, a POS that understands the complexity of multiple SKUs and wholesale ordering. Worth every penny.", img: "👩‍🍳", tags: ["F&B", "Scale"] }
           ].map((t, i) => (
             <div key={i} className="group relative">
-               <div className="absolute inset-0 bg-cyan-600 rounded-[3rem] translate-x-3 translate-y-3 opacity-0 group-hover:opacity-10 transition-all"></div>
-               <div className="bg-gray-50 p-12 rounded-[3rem] border border-gray-100 relative z-10 hover:bg-white hover:shadow-2xl transition-all duration-500 flex flex-col h-full">
+              <div className="absolute inset-0 bg-cyan-600 rounded-[3rem] translate-x-3 translate-y-3 opacity-0 group-hover:opacity-10 transition-all"></div>
+              <div className="bg-gray-50 p-12 rounded-[3rem] border border-gray-100 relative z-10 hover:bg-white hover:shadow-2xl transition-all duration-500 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-8">
                   <div className="text-5xl grayscale group-hover:grayscale-0 transition-all duration-500">{t.img}</div>
                   <div className="flex gap-1">
-                    {[1,2,3,4,5].map(s => <Plus key={s} className="w-3 h-3 text-cyan-500"/>)}
+                    {[1, 2, 3, 4, 5].map(s => <Plus key={s} className="w-3 h-3 text-cyan-500" />)}
                   </div>
                 </div>
                 <p className="text-2xl text-gray-800 italic font-medium leading-relaxed mb-10 flex-1">"{t.quote}"</p>
@@ -2328,19 +2748,19 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
               <div>
                 <h5 className="font-black uppercase tracking-widest text-xs text-gray-500 mb-8">Solution</h5>
                 <ul className="space-y-4 text-gray-400 font-bold">
-                   <li className="hover:text-white transition-all cursor-pointer">Retail Engine</li>
-                   <li className="hover:text-white transition-all cursor-pointer">Restaurant Suite</li>
-                   <li className="hover:text-white transition-all cursor-pointer">Service Management</li>
-                   <li className="hover:text-white transition-all cursor-pointer">Inventory AI</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Retail Engine</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Restaurant Suite</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Service Management</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Inventory AI</li>
                 </ul>
               </div>
               <div>
                 <h5 className="font-black uppercase tracking-widest text-xs text-gray-500 mb-8">Company</h5>
                 <ul className="space-y-4 text-gray-400 font-bold">
-                   <li className="hover:text-white transition-all cursor-pointer">About Us</li>
-                   <li className="hover:text-white transition-all cursor-pointer">Careers</li>
-                   <li className="hover:text-white transition-all cursor-pointer">Legal</li>
-                   <li className="hover:text-white transition-all cursor-pointer">Contact</li>
+                  <li className="hover:text-white transition-all cursor-pointer">About Us</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Careers</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Legal</li>
+                  <li className="hover:text-white transition-all cursor-pointer">Contact</li>
                 </ul>
               </div>
               <div className="col-span-2 md:col-span-1">
@@ -2355,16 +2775,16 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
 
           <div className="border-t border-white/5 pt-12 flex flex-col md:row justify-between items-center gap-6">
             <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.3em]">
-              © 2026 LUMINA COMMERCE ENGINE. ALL RIGHTS RESERVED.
+              © 2026 LUMINA COMMERCE ENGINE. SENIOR DEVELOPER-ROGER TONACAO.ALL RIGHTS RESERVED.
             </p>
             <div className="flex space-x-8">
-              <button 
+              <button
                 onClick={() => setCurrentPage('dashboard')}
                 className="text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 Staff Portal
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentPage('company-register')}
                 className="text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
               >
@@ -3607,7 +4027,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
   return (
     <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn p-4 md:p-8 font-dashboard">
       <div className="bg-white w-full max-w-sm md:max-w-lg min-h-[400px] md:min-h-[440px] rounded-[2.5rem] shadow-[0_30px_70px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row border border-gray-100">
-        
+
         {/* ── Keypad Section ── */}
         <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 relative">
           <div className="text-center w-full mb-4">
@@ -3618,7 +4038,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] opacity-80">
               {loginStep === 'company' ? 'Enter 6-digit access code' : 'Enter 4-digit PIN'}
             </p>
-            
+
             {loginStep === 'employee' && localStorage.getItem('active_company_name') && (
               <div className="mt-2 flex flex-col items-center animate-fadeIn">
                 <p className="text-gray-900 text-xs font-black tracking-tight">{localStorage.getItem('active_company_name')}</p>
@@ -3634,11 +4054,10 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
             {pinDots.map(i => (
               <div
                 key={i}
-                className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
-                  i < pin.length
-                    ? 'bg-cyan-600 border-cyan-600 scale-110 shadow-lg shadow-cyan-100'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
+                className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${i < pin.length
+                  ? 'bg-cyan-600 border-cyan-600 scale-110 shadow-lg shadow-cyan-100'
+                  : 'bg-gray-50 border-gray-200'
+                  }`}
               />
             ))}
           </div>
@@ -3690,8 +4109,8 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
 
           <div className="mt-6 flex flex-col items-center gap-3">
             <button
-               onClick={() => onAction('company-register')}
-               className="text-[9px] font-black text-cyan-600 uppercase tracking-widest hover:text-cyan-700 transition-all bg-green-50/50 px-4 py-1.5 rounded-full border border-cyan-100/50 shadow-sm active:scale-95"
+              onClick={() => onAction('company-register')}
+              className="text-[9px] font-black text-cyan-600 uppercase tracking-widest hover:text-cyan-700 transition-all bg-green-50/50 px-4 py-1.5 rounded-full border border-cyan-100/50 shadow-sm active:scale-95"
             >
               Create store
             </button>
@@ -3718,7 +4137,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
           {/* Decorative background elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24" />
-          
+
           <div className="relative z-10">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-2xl rotate-3 mb-4">
               <span className="text-xl font-black text-cyan-700">L</span>
@@ -3737,7 +4156,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
               <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-1 italic">V1.0 - Stable</p>
               <p className="text-[8px] text-white/30 leading-tight mb-3">Terminal ID: {Math.random().toString(36).substring(7).toUpperCase()}</p>
-              
+
               <div className="pt-3 border-t border-white/10">
                 <p className="text-white text-[8px] font-black mb-1.5 uppercase tracking-widest opacity-60">System Status</p>
                 <div className="flex items-center gap-2">
@@ -3803,13 +4222,13 @@ function CompanyRegistrationPage({ onSuccess, onBack }) {
         </div>
         <form onSubmit={handleSubmit} className="px-8 md:px-12 pb-12 space-y-6">
           <div className="space-y-4">
-            <input required type="text" placeholder="Company Name" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({...formData, companyName: e.target.value})} />
+            <input required type="text" placeholder="Company Name" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input required type="text" placeholder="Owner Name" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({...formData, ownerName: e.target.value})} />
-              <input required type="text" maxLength={4} placeholder="Store PIN (4-digit)" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-center font-black focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({...formData, pin: e.target.value})} />
+              <input required type="text" placeholder="Owner Name" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({ ...formData, ownerName: e.target.value })} />
+              <input required type="text" maxLength={4} placeholder="Store PIN (4-digit)" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-center font-black focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({ ...formData, pin: e.target.value })} />
             </div>
-            <input required type="email" placeholder="Management Email" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({...formData, email: e.target.value})} />
-            <input required type="password" placeholder="Portal Password" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({...formData, password: e.target.value})} />
+            <input required type="email" placeholder="Management Email" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({ ...formData, email: e.target.value })} />
+            <input required type="password" placeholder="Portal Password" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" onChange={e => setFormData({ ...formData, password: e.target.value })} />
           </div>
           {error && <div className="bg-red-50 text-red-500 text-[10px] font-black uppercase p-4 rounded-2xl text-center border border-red-100">{error}</div>}
           <div className="pt-4 flex flex-col gap-4">
@@ -5143,6 +5562,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
           items: cartItems.map(item => ({
             id: item.id,
             product_id: item.isCombo ? null : item.id,
+            size_id: item.size_id || null, // PASS THE SIZE ID
             isCombo: item.isCombo || false,
             name: item.name,
             selectedSize: item.selectedSize,
@@ -5873,12 +6293,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                     <label className="block text-xs font-medium text-gray-500">Customer (Points / Credit)</label>
                     {selectedCustomer && (
                       <div className="flex items-center gap-1">
-                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
-                          selectedCustomer.loyalty_tier === 'Diamond' ? 'bg-cyan-100 text-cyan-700' :
+                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${selectedCustomer.loyalty_tier === 'Diamond' ? 'bg-cyan-100 text-cyan-700' :
                           selectedCustomer.loyalty_tier === 'Gold' ? 'bg-amber-100 text-amber-700' :
-                          selectedCustomer.loyalty_tier === 'Silver' ? 'bg-gray-100 text-gray-700' :
-                          'bg-orange-100 text-orange-700'
-                        }`}>
+                            selectedCustomer.loyalty_tier === 'Silver' ? 'bg-gray-100 text-gray-700' :
+                              'bg-orange-100 text-orange-700'
+                          }`}>
                           {selectedCustomer.loyalty_tier}
                         </span>
                         <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 font-bold">
@@ -5887,30 +6306,30 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                       </div>
                     )}
                   </div>
-                  
+
                   {selectedCustomer ? (
                     <div className={`${paymentMethod === 'credit' ? 'bg-orange-50 border-orange-200' : 'bg-cyan-50 border-cyan-100'} border p-3 rounded-xl transition-colors`}>
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${paymentMethod === 'credit' ? 'bg-orange-200 text-orange-700' : 'bg-cyan-200 text-cyan-700'}`}>
-                            {selectedCustomer.name.substring(0,2).toUpperCase()}
+                            {selectedCustomer.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <p className="font-bold text-gray-800 text-sm">{selectedCustomer.name}</p>
                             <p className="text-[10px] text-gray-500 font-medium">{selectedCustomer.phone}</p>
                             {paymentMethod === 'credit' && (
                               <p className="text-[10px] font-bold text-orange-600 mt-0.5 uppercase tracking-tight">
-                                Credit Bal: ₱{(parseFloat(selectedCustomer.credit_balance) || 0).toFixed(0)} / 
+                                Credit Bal: ₱{(parseFloat(selectedCustomer.credit_balance) || 0).toFixed(0)} /
                                 Lmt: ₱{(parseFloat(selectedCustomer.credit_limit) || 0).toFixed(0)}
                               </p>
                             )}
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedCustomer(null);
                             if (discountType === 'loyalty') setDiscountType(null);
-                          }} 
+                          }}
                           className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
                         >
                           <X className="w-4 h-4" />
@@ -5965,13 +6384,13 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                       )}
                       {customerSearch.length >= 2 && customerSearchResults.length === 0 && !isSearchingCustomer && (
                         <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-2 z-[60] p-4 text-center animate-scaleIn">
-                           <p className="text-xs text-gray-500">No customers found for "{customerSearch}"</p>
-                           <button 
-                             onClick={() => setCurrentPage('customers')}
-                             className="mt-2 text-xs font-bold text-cyan-600 hover:text-cyan-700"
-                           >
-                             + Add New Customer
-                           </button>
+                          <p className="text-xs text-gray-500">No customers found for "{customerSearch}"</p>
+                          <button
+                            onClick={() => setCurrentPage('customers')}
+                            className="mt-2 text-xs font-bold text-cyan-600 hover:text-cyan-700"
+                          >
+                            + Add New Customer
+                          </button>
                         </div>
                       )}
                     </div>
@@ -6512,7 +6931,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
         {/* Ready Order Alert Toast */}
         {showReadyAlert && latestReadyOrder && (
-          <div className="fixed top-20 left-4 z-[70] animate-bounce-in">
+          <div className="fixed bottom-6 left-6 z-[70] animate-bounce-in">
             <div className="bg-white border-l-4 border-cyan-500 rounded-lg shadow-2xl p-4 max-w-sm" onClick={() => setShowReadyAlert(false)}>
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -7381,7 +7800,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen pt-24 pb-20 md:pb-8">
+    <div className="bg-gray-100 min-h-screen pt-10 pb-20 md:pb-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header with Tabs */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
@@ -7545,13 +7964,19 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${product.stock_quantity <= product.low_stock_threshold
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-gray-100 text-gray-700'
-                            }`}>
-                            {product.stock_quantity}
-                            {product.stock_quantity <= product.low_stock_threshold && ' ⚠️'}
-                          </span>
+                          {product.ingredient_count > 0 ? (
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                              Composite
+                            </span>
+                          ) : (
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${product.stock_quantity <= product.low_stock_threshold
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-700'
+                              }`}>
+                              {product.stock_quantity}
+                              {product.stock_quantity <= product.low_stock_threshold && ' ⚠️'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className={`text-xs px-2 py-1 rounded-full ${product.active !== false ? 'bg-cyan-100 text-cyan-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -8102,14 +8527,23 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
 
                 <div className="grid grid-cols-2 gap-4 col-span-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                      Stock Quantity
+                      {editingProduct && editingProduct.ingredient_count > 0 && (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded tracking-wider uppercase font-bold">Menu Composite</span>
+                      )}
+                    </label>
                     <input
                       type="number"
                       min="0"
                       value={formData.stock_quantity}
+                      disabled={editingProduct && editingProduct.ingredient_count > 0}
                       onChange={(e) => setFormData(prev => ({ ...prev, stock_quantity: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 disabled:bg-gray-100 disabled:text-gray-400"
                     />
+                    {editingProduct && editingProduct.ingredient_count > 0 && (
+                      <p className="text-[11px] text-gray-500 mt-1 italic">Calculated automatically via recipes. Check Raw Materials.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert</label>
@@ -8117,8 +8551,9 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                       type="number"
                       min="0"
                       value={formData.low_stock_threshold}
+                      disabled={editingProduct && editingProduct.ingredient_count > 0}
                       onChange={(e) => setFormData(prev => ({ ...prev, low_stock_threshold: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 disabled:bg-gray-100 disabled:text-gray-400"
                     />
                   </div>
                 </div>
@@ -8532,22 +8967,22 @@ function CustomersPage({ setCurrentPage }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pt-20 pb-12 font-dashboard">
+    <div className="min-h-screen bg-[#F8FAFC] pt-0 pb-12 font-dashboard">
       <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Customer Intelligence</h1>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight ">Customer Intelligence</h1>
             <p className="text-gray-500 font-medium">Lifecycle management for your most valuable assets.</p>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={() => setCurrentPage('pos')} 
+            <button
+              onClick={() => setCurrentPage('pos')}
               className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
             >
               EXIT TO POS
             </button>
-            <button 
-              onClick={() => setShowForm(true)} 
+            <button
+              onClick={() => setShowForm(true)}
               className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg hover:shadow-cyan-200"
             >
               + NEW CUSTOMER
@@ -8559,7 +8994,7 @@ function CustomersPage({ setCurrentPage }) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center space-x-3 text-cyan-600 mb-2">
-              <User className="w-5 h-5"/>
+              <User className="w-5 h-5" />
               <span className="text-xs font-black uppercase tracking-widest">Total Profiles</span>
             </div>
             <p className="text-3xl font-black text-gray-900">{customers.length}</p>
@@ -8567,7 +9002,7 @@ function CustomersPage({ setCurrentPage }) {
           </div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center space-x-3 text-purple-600 mb-2">
-              <TrendingUp className="w-5 h-5"/>
+              <TrendingUp className="w-5 h-5" />
               <span className="text-xs font-black uppercase tracking-widest">Loyalty Pool</span>
             </div>
             <p className="text-3xl font-black text-gray-900">{totalLoyalty.toLocaleString()}</p>
@@ -8575,15 +9010,15 @@ function CustomersPage({ setCurrentPage }) {
           </div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center space-x-3 text-orange-600 mb-2">
-              <AlertTriangle className="w-5 h-5"/>
+              <AlertTriangle className="w-5 h-5" />
               <span className="text-xs font-black uppercase tracking-widest">Credit Exposure</span>
             </div>
-            <p className="text-3xl font-black text-orange-600">₱{totalCredit.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            <p className="text-3xl font-black text-orange-600">₱{totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
             <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Outstanding Balances</p>
           </div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center space-x-3 text-emerald-600 mb-2">
-              <PieChart className="w-5 h-5"/>
+              <PieChart className="w-5 h-5" />
               <span className="text-xs font-black uppercase tracking-widest">Avg Engagement</span>
             </div>
             <p className="text-3xl font-black text-gray-900">84%</p>
@@ -8597,7 +9032,7 @@ function CustomersPage({ setCurrentPage }) {
           <div className="flex items-center justify-between px-8 py-6 border-b border-gray-50 bg-gray-50/50">
             <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Customer Census</h3>
             <button onClick={loadCustomers} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all flex items-center space-x-2">
-              <Activity className="w-3 h-3 text-cyan-600"/>
+              <Activity className="w-3 h-3 text-cyan-600" />
               <span>SYNC DATA</span>
             </button>
           </div>
@@ -8654,8 +9089,8 @@ function CustomersPage({ setCurrentPage }) {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center text-gray-500 text-xs font-bold space-x-2">
-                           <Clock className="w-3 h-3 opacity-40"/>
-                           <span>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : '—'}</span>
+                          <Clock className="w-3 h-3 opacity-40" />
+                          <span>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
                         </div>
                       </td>
                     </tr>
@@ -8671,8 +9106,8 @@ function CustomersPage({ setCurrentPage }) {
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-gray-100">
               <div className="bg-[#0A0F0D] py-8 px-10 border-b border-gray-800 flex justify-between items-center">
                 <div>
-                   <h3 className="text-xl font-black text-white uppercase tracking-tight">Onboard Subscriber</h3>
-                   <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1">Lumina Identity Protocol</p>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Onboard Subscriber</h3>
+                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1">Lumina Identity Protocol</p>
                 </div>
                 <button onClick={() => setShowForm(false)} className="w-10 h-10 bg-white/5 text-gray-400 hover:text-white rounded-full flex items-center justify-center transition-all">
                   <X className="w-6 h-6" />
@@ -8680,23 +9115,23 @@ function CustomersPage({ setCurrentPage }) {
               </div>
               <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
-                   <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Juan Dela Cruz" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
+                  <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Juan Dela Cruz" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Secure PIN</label>
-                   <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none tracking-[1em] font-black" type="password" maxLength="6" placeholder="••••" value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} />
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Secure PIN</label>
+                  <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none tracking-[1em] font-black" type="password" maxLength="6" placeholder="••••" value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} />
                 </div>
                 <div className="space-y-2 col-span-2">
-                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact Intelligence</label>
-                   <div className="grid grid-cols-2 gap-3">
-                     <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Phone Link" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-                     <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" type="email" placeholder="Email (Optional)" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-                   </div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact Intelligence</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Phone Link" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                    <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" type="email" placeholder="Email (Optional)" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                  </div>
                 </div>
                 <div className="space-y-1 col-span-2">
-                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Geographic Origin</label>
-                   <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Full Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Geographic Origin</label>
+                  <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="Full Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
                 </div>
                 <div className="grid grid-cols-2 gap-3 col-span-2">
                   <input className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none transition-all" placeholder="City" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
@@ -8916,7 +9351,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
       : 'ok';
 
   return (
-    <div className="reports-lineitems min-h-screen bg-gray-100 pt-20">
+    <div className="reports-lineitems min-h-screen bg-gray-100 pt-0">
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
         <div className="flex flex-wrap justify-between gap-2 items-center">
           <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
@@ -9218,11 +9653,11 @@ function InventoryReportsSection({ dateRange, setDateRange, startDate, setStartD
     try {
       const days = getDaysParam();
       const needsDays = new Set(['movement', 'waste-shrinkage', 'turnover']).has(activeInventoryReport);
-      
+
       const params = new URLSearchParams();
       params.append('type', inventoryType);
       if (needsDays) params.append('days', days);
-      
+
       const response = await fetchWithAuth(`${API_URL}/inventory/reports/${activeInventoryReport}?${params.toString()}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) {
@@ -9335,13 +9770,13 @@ function InventoryReportsSection({ dateRange, setDateRange, startDate, setStartD
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-bold text-gray-800">Inventory Analysis</h3>
             <div className="flex bg-gray-100 p-1 rounded-lg">
-              <button 
+              <button
                 onClick={() => setInventoryType('ingredient')}
                 className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${inventoryType === 'ingredient' ? 'bg-white shadow-sm text-cyan-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Ingredients
               </button>
-              <button 
+              <button
                 onClick={() => setInventoryType('product')}
                 className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${inventoryType === 'product' ? 'bg-white shadow-sm text-cyan-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
@@ -9368,9 +9803,9 @@ function InventoryReportsSection({ dateRange, setDateRange, startDate, setStartD
             key={tab.id}
             type="button"
             onClick={() => setActiveInventoryReport(tab.id)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all border shadow-sm ${activeInventoryReport === tab.id 
-                ? 'bg-cyan-600 text-white border-cyan-600' 
-                : 'bg-white text-gray-600 border-gray-200 hover:border-cyan-300 hover:text-cyan-600'
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all border shadow-sm ${activeInventoryReport === tab.id
+              ? 'bg-cyan-600 text-white border-cyan-600'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-cyan-300 hover:text-cyan-600'
               }`}
           >
             <span className="mr-2 text-base">{tab.icon}</span>
@@ -9633,7 +10068,7 @@ function KitchenDisplayPage() {
   const avgSecs = avgPrepTime % 60;
 
   return (
-    <div className="min-h-screen bg-gray-950 pt-20 flex flex-col" onClick={() => { if (!audioEnabled) enableAudio(); }}>
+    <div className="min-h-screen bg-gray-950 pt-0 flex flex-col" onClick={() => { if (!audioEnabled) enableAudio(); }}>
       {!audioEnabled && (
         <div className="bg-yellow-500 px-4 py-2 text-center cursor-pointer" onClick={enableAudio}>
           <span className="text-black text-sm font-bold">Click anywhere to enable notification sounds</span>
@@ -9903,7 +10338,7 @@ function OrdersPage({ currentView, setCurrentPage }) {
       : 'ok';
 
   return (
-    <div className="orders-lineitems min-h-screen bg-gray-100 pt-20">
+    <div className="orders-lineitems min-h-screen bg-gray-100 pt-0">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Orders</h1>
@@ -10567,6 +11002,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [trackingFilter, setTrackingFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
   const [showAddIngredientModal, setShowAddIngredientModal] = useState(false);
@@ -10899,7 +11335,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     } else {
       setExpandedProductId(product.id);
       fetchProductIngredients(product.id);
-      
+
       // Fetch sizes for modal and display
       try {
         const res = await fetchWithAuth(`${API_URL}/products/${product.id}`);
@@ -10988,9 +11424,9 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     try {
       const res = await fetchWithAuth(`${API_URL}/inventory/recipes/${productId}/ingredients/${ingredientId}`, {
         method: 'PUT',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           quantity_required: parseFloat(quantity_required),
-          size_id: sizeId 
+          size_id: sizeId
         })
       });
       const data = await res.json();
@@ -11008,6 +11444,79 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     } catch (error) {
       console.error('Error updating recipe ingredient:', error);
       setEditMessage({ type: 'error', text: `✗ Error: ${error.message}` });
+    }
+  };
+
+  const updateIngredient = async (id, { name, unit, reorder_level, cost_per_unit }) => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/inventory/ingredients/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name,
+          unit,
+          reorder_level: reorder_level === '' ? null : reorder_level,
+          cost_per_unit: cost_per_unit === '' ? null : cost_per_unit
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowEditIngredientModal(false);
+        setEditingIngredient(null);
+        fetchIngredients();
+        alert('Ingredient updated.');
+      } else {
+        alert(data.error || 'Failed to update ingredient');
+      }
+    } catch (error) {
+      console.error('Error updating ingredient:', error);
+      alert('Error updating ingredient');
+    }
+  };
+
+  const createPackagedItem = async ({ product_id, name, unit = 'pc', stock = 0, reorder = 0, cost = 0, quantity_required = 1 }) => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/inventory/packaged`, {
+        method: 'POST',
+        body: JSON.stringify({
+          product_id,
+          name,
+          unit,
+          current_stock: stock,
+          reorder_level: reorder,
+          cost_per_unit: cost,
+          quantity_required
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchIngredients();
+        if (typeof fetchRecipes === 'function') fetchRecipes();
+        alert('Packaged item created and linked.');
+      } else {
+        alert(data.error || 'Failed to create packaged item');
+      }
+    } catch (error) {
+      console.error('Error creating packaged item:', error);
+      alert('Error creating packaged item');
+    }
+  };
+
+  const deleteIngredient = async (id, name) => {
+    if (!confirm(`Are you sure you want to completely delete "${name}"? This action cannot be undone.`)) return;
+    try {
+      const res = await fetchWithAuth(`${API_URL}/inventory/ingredients/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchIngredients();
+        if (typeof fetchRecipes === 'function') fetchRecipes();
+      } else {
+        alert(data.error || 'Failed to delete ingredient');
+      }
+    } catch (error) {
+      console.error('Error deleting ingredient:', error);
+      alert('Error deleting ingredient');
     }
   };
 
@@ -11060,6 +11569,12 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
 
   const filteredProducts = products
     .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(p => {
+      const hasRecipe = p.ingredient_count > 0;
+      if (trackingFilter === 'Standalone') return !hasRecipe;
+      if (trackingFilter === 'Composite') return hasRecipe;
+      return true;
+    })
     .sort((a, b) => {
       let aVal = sortBy === 'stock' ? (a.stock_quantity || 0) : a[sortBy];
       let bVal = sortBy === 'stock' ? (b.stock_quantity || 0) : b[sortBy];
@@ -11070,7 +11585,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     });
 
   return (
-    <div className="inventory-lineitems min-h-screen bg-gray-50 pt-16">
+    <div className="inventory-lineitems min-h-screen bg-gray-50 pt-0">
       <div className="w-full px-2 py-2">
         {/* Compact Header */}
         <div className="flex items-center justify-between mb-2 bg-white px-3 py-2 border-b">
@@ -11115,8 +11630,19 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-2 py-1 text-[10px] border border-gray-300 w-40 focus:outline-none focus:border-cyan-500"
+              className="px-2 py-1 text-[10px] border border-gray-300 w-40 focus:outline-none focus:border-cyan-500 rounded"
             />
+            {currentView === 'inventory-stock' && (
+              <select
+                value={trackingFilter}
+                onChange={(e) => setTrackingFilter(e.target.value)}
+                className="px-2 py-1 text-[10px] border border-gray-300 rounded focus:outline-none focus:border-cyan-500 bg-white"
+              >
+                <option value="All">All Tracking Types</option>
+                <option value="Standalone">Standalone Only (Retail)</option>
+                <option value="Composite">Composite Only (Recipe)</option>
+              </select>
+            )}
           </div>
         </div>
 
@@ -11152,7 +11678,8 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               </thead>
               <tbody>
                 {filteredProducts.map((product, idx) => {
-                  const isLow = (product.stock_quantity || 0) <= (product.low_stock_threshold || 10);
+                  const hasRecipe = product.ingredient_count > 0;
+                  const isLow = !hasRecipe && (product.stock_quantity || 0) <= (product.low_stock_threshold || 10);
                   const isExpanded = expandedLedgerId?.id === product.id && expandedLedgerId?.type === 'product';
                   return (
                     <React.Fragment key={product.id}>
@@ -11167,27 +11694,35 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                         <td className="px-2 py-1 text-gray-600 font-mono text-xs">{product.sku || '-'}</td>
                         <td className="px-2 py-1 text-gray-500">{product.category}</td>
                         <td className="px-2 py-1 text-right text-gray-600">₱{(product.price || 0).toFixed(2)}</td>
-                        <td className={`px-2 py-1 text-center font-medium ${isLow ? 'text-red-600' : 'text-gray-800'}`}>
-                          {product.stock_quantity || 0}
+                        <td className={`px-2 py-1 text-center font-medium ${hasRecipe ? 'text-[10px] text-gray-400 italic' : (isLow ? 'text-red-600' : 'text-gray-800')}`}>
+                          {hasRecipe ? 'Made to Order' : (product.stock_quantity || 0)}
                         </td>
-                        <td className="px-2 py-1 text-center text-gray-500">{product.low_stock_threshold || 10}</td>
+                        <td className="px-2 py-1 text-center text-gray-500">
+                          {hasRecipe ? '—' : (product.low_stock_threshold || 10)}
+                        </td>
                         <td className="px-2 py-1 text-center">
-                          <span className={`text-xs px-1.5 py-0.5 ${isLow ? 'bg-red-100 text-red-600' : 'bg-cyan-100 text-cyan-600'}`}>
-                            {isLow ? 'LOW' : 'OK'}
-                          </span>
+                          {hasRecipe ? (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-wider font-bold rounded">
+                              Composite
+                            </span>
+                          ) : (
+                            <span className={`text-xs px-1.5 py-0.5 ${isLow ? 'bg-red-100 text-red-600' : 'bg-cyan-100 text-cyan-600'}`}>
+                              {isLow ? 'LOW' : 'OK'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-1 text-center">
                           <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => adjustStock(product.id, -1)}
-                              disabled={!!adjustingStock[product.id]}
+                              disabled={hasRecipe || !!adjustingStock[product.id]}
                               className="w-5 h-5 bg-red-500 text-white text-xs hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                             >-</button>
                             <button
                               type="button"
                               onClick={() => adjustStock(product.id, 1)}
-                              disabled={!!adjustingStock[product.id]}
+                              disabled={hasRecipe || !!adjustingStock[product.id]}
                               className="w-5 h-5 bg-cyan-500 text-white text-xs hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {adjustingStock[product.id] ? '…' : '+'}
@@ -11335,18 +11870,13 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                                 }}
                                 className="text-xs px-2 py-0.5 bg-gray-600 text-white hover:bg-gray-700 ml-1"
                               >
-                                Edit
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan="7" className="p-0 border-b">
-                              <InventoryLedger transactions={ledgerTransactions} loading={loadingLedger} unit={ing.unit} />
-                            </td>
-                          </tr>
-                        )}
+                                Edit</button><button onClick={() => deleteIngredient(ing.id, ing.name)} className="text-xs px-2 py-0.5 bg-red-500 text-white hover:bg-red-600 ml-1">Delete</button></div></td></tr>{isExpanded && (
+                                  <tr>
+                                    <td colSpan="7" className="p-0 border-b">
+                                      <InventoryLedger transactions={ledgerTransactions} loading={loadingLedger} unit={ing.unit} />
+                                    </td>
+                                  </tr>
+                                )}
                       </React.Fragment>
                     );
                   })}
@@ -11407,108 +11937,108 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                               <p className="text-gray-500 mb-3">No ingredients defined yet.</p>
                             ) : (
                               <>
-                              <div className="space-y-2 mb-3">
-                                {ingredientsList.map((ing, idx) => (
-                                  <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <p className="font-medium text-gray-700">{ing.ingredient_name}</p>
-                                        {ing.size_name && (
-                                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold border border-blue-100 italic uppercase">
-                                            Variant: {ing.size_name}
-                                          </span>
-                                        )}
+                                <div className="space-y-2 mb-3">
+                                  {ingredientsList.map((ing, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-gray-700">{ing.ingredient_name}</p>
+                                          {ing.size_name && (
+                                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold border border-blue-100 italic uppercase">
+                                              Variant: {ing.size_name}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-gray-500">Stock Link • ID: {ing.ingredient_id}</p>
                                       </div>
-                                      <p className="text-gray-500">Stock Link • ID: {ing.ingredient_id}</p>
+                                      <div className="text-right flex items-center gap-4">
+                                        <div className="text-right">
+                                          <p className="font-bold text-gray-800">{parseFloat(ing.quantity_required).toFixed(2)} {ing.unit}</p>
+                                          <p className="text-[10px] text-gray-400 uppercase">Qty Required</p>
+                                        </div>
+                                        <div className="text-right border-l pl-4 min-w-[70px]">
+                                          <p className="font-bold text-cyan-600">₱{((parseFloat(ing.quantity_required) || 0) * (parseFloat(ing.cost_per_unit) || 0)).toFixed(2)}</p>
+                                          <p className="text-[10px] text-gray-400 uppercase">Cost Link</p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          setEditingRecipeIngredient({
+                                            productId: product.id,
+                                            ingredientId: ing.ingredient_id,
+                                            ingredientName: ing.ingredient_name,
+                                            unit: ing.unit,
+                                            size_id: ing.size_id
+                                          });
+                                          setEditQuantity(ing.quantity_required);
+                                        }}
+                                        className="ml-2 px-2 py-1 text-xs bg-blue-500 text-white hover:bg-blue-600 rounded"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => removeRecipeIngredient(product.id, ing.ingredient_id, ing.size_id)}
+                                        className="ml-2 px-2 py-1 text-xs bg-red-500 text-white hover:bg-red-600"
+                                      >
+                                        Remove
+                                      </button>
                                     </div>
-                                    <div className="text-right flex items-center gap-4">
-                                      <div className="text-right">
-                                        <p className="font-bold text-gray-800">{parseFloat(ing.quantity_required).toFixed(2)} {ing.unit}</p>
-                                        <p className="text-[10px] text-gray-400 uppercase">Qty Required</p>
-                                      </div>
-                                      <div className="text-right border-l pl-4 min-w-[70px]">
-                                        <p className="font-bold text-cyan-600">₱{((parseFloat(ing.quantity_required) || 0) * (parseFloat(ing.cost_per_unit) || 0)).toFixed(2)}</p>
-                                        <p className="text-[10px] text-gray-400 uppercase">Cost Link</p>
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        setEditingRecipeIngredient({ 
-                                          productId: product.id, 
-                                          ingredientId: ing.ingredient_id, 
-                                          ingredientName: ing.ingredient_name, 
-                                          unit: ing.unit,
-                                          size_id: ing.size_id 
-                                        });
-                                        setEditQuantity(ing.quantity_required);
-                                      }}
-                                      className="ml-2 px-2 py-1 text-xs bg-blue-500 text-white hover:bg-blue-600 rounded"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => removeRecipeIngredient(product.id, ing.ingredient_id, ing.size_id)}
-                                      className="ml-2 px-2 py-1 text-xs bg-red-500 text-white hover:bg-red-600"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="mt-4 p-3 bg-white border border-cyan-100 rounded-lg shadow-sm">
-                                <h4 className="text-[10px] font-bold text-cyan-700 uppercase mb-2 tracking-wider">Recipe Costing Summary</h4>
-                                <div className="space-y-2">
-                                  {/* Base product price (if price exists) */}
-                                  {product.price > 0 && ingredientsList.some(i => !i.size_id) && (
-                                    <div className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
-                                      <div>
-                                        <span className="font-bold text-gray-700">Standard Product</span>
-                                        <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(product.price).toFixed(2)}</span>
-                                      </div>
-                                      <div className="text-right">
-                                        {(() => {
-                                          const cost = ingredientsList
-                                            .filter(i => !i.size_id)
-                                            .reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
-                                          const margin = parseFloat(product.price) - cost;
-                                          const marginPercent = (margin / parseFloat(product.price)) * 100;
-                                          return (
-                                            <>
-                                              <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
-                                              <span className={`ml-3 font-bold ${marginPercent > 30 ? 'text-green-600' : 'text-orange-600'}`}>
-                                                Margin: {marginPercent.toFixed(1)}%
-                                              </span>
-                                            </>
-                                          );
-                                        })()}
-                                      </div>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Size variant prices */}
-                                  {productSizes.map(size => {
-                                    const sizeIngredients = ingredientsList.filter(i => i.size_id === size.id);
-                                    if (sizeIngredients.length === 0) return null;
-                                    const cost = sizeIngredients.reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
-                                    const margin = parseFloat(size.price) - cost;
-                                    const marginPercent = size.price > 0 ? (margin / parseFloat(size.price)) * 100 : 0;
-                                    return (
-                                      <div key={size.id} className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
+                                  ))}
+                                </div>
+                                <div className="mt-4 p-3 bg-white border border-cyan-100 rounded-lg shadow-sm">
+                                  <h4 className="text-[10px] font-bold text-cyan-700 uppercase mb-2 tracking-wider">Recipe Costing Summary</h4>
+                                  <div className="space-y-2">
+                                    {/* Base product price (if price exists) */}
+                                    {product.price > 0 && ingredientsList.some(i => !i.size_id) && (
+                                      <div className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
                                         <div>
-                                          <span className="font-bold text-blue-700">{size.name} Variant</span>
-                                          <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(size.price).toFixed(2)}</span>
+                                          <span className="font-bold text-gray-700">Standard Product</span>
+                                          <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(product.price).toFixed(2)}</span>
                                         </div>
                                         <div className="text-right">
-                                          <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
-                                          <span className={`ml-3 font-bold ${marginPercent > 30 ? 'text-green-600' : 'text-orange-600'}`}>
-                                            Margin: {marginPercent.toFixed(1)}%
-                                          </span>
+                                          {(() => {
+                                            const cost = ingredientsList
+                                              .filter(i => !i.size_id)
+                                              .reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
+                                            const margin = parseFloat(product.price) - cost;
+                                            const marginPercent = (margin / parseFloat(product.price)) * 100;
+                                            return (
+                                              <>
+                                                <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
+                                                <span className={`ml-3 font-bold ${marginPercent > 30 ? 'text-green-600' : 'text-orange-600'}`}>
+                                                  Margin: {marginPercent.toFixed(1)}%
+                                                </span>
+                                              </>
+                                            );
+                                          })()}
                                         </div>
                                       </div>
-                                    );
-                                  })}
+                                    )}
+
+                                    {/* Size variant prices */}
+                                    {productSizes.map(size => {
+                                      const sizeIngredients = ingredientsList.filter(i => i.size_id === size.id);
+                                      if (sizeIngredients.length === 0) return null;
+                                      const cost = sizeIngredients.reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
+                                      const margin = parseFloat(size.price) - cost;
+                                      const marginPercent = size.price > 0 ? (margin / parseFloat(size.price)) * 100 : 0;
+                                      return (
+                                        <div key={size.id} className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
+                                          <div>
+                                            <span className="font-bold text-blue-700">{size.name} Variant</span>
+                                            <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(size.price).toFixed(2)}</span>
+                                          </div>
+                                          <div className="text-right">
+                                            <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
+                                            <span className={`ml-3 font-bold ${marginPercent > 30 ? 'text-green-600' : 'text-orange-600'}`}>
+                                              Margin: {marginPercent.toFixed(1)}%
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
                               </>
                             )}
                             <button
@@ -11931,8 +12461,8 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                       return;
                     }
                     updateRecipeIngredient(
-                      editingRecipeIngredient.productId, 
-                      editingRecipeIngredient.ingredientId, 
+                      editingRecipeIngredient.productId,
+                      editingRecipeIngredient.ingredientId,
                       editQuantity,
                       editingRecipeIngredient.size_id
                     );
@@ -12062,6 +12592,12 @@ function StaffPage({ currentView, setCurrentPage }) {
   const [formData, setFormData] = useState({ username: '', password: '', name: '', role: 'cashier' });
   const [formError, setFormError] = useState('');
 
+  // Permissions related state
+  const [selectedEmpForPerms, setSelectedEmpForPerms] = useState(null);
+  const [empPermissions, setEmpPermissions] = useState([]);
+  const [permSaving, setPermSaving] = useState(false);
+  const [permMsg, setPermMsg] = useState({ type: '', text: '' });
+
   const views = [
     { id: 'staff-employees', name: 'Employees' },
     { id: 'staff-schedules', name: 'Schedules' },
@@ -12069,9 +12605,30 @@ function StaffPage({ currentView, setCurrentPage }) {
     { id: 'staff-permissions', name: 'Permissions' },
   ];
 
+  const allPossiblePermissions = [
+    { id: 'pos', label: 'Terminal / Checkout', group: 'Operations' },
+    { id: 'dashboard', label: 'Sales Analytics', group: 'Management' },
+    { id: 'kitchen', label: 'Kitchen Display (KDS)', group: 'Operations' },
+    { id: 'orders', label: 'Order Management', group: 'Operations' },
+    { id: 'products', label: 'Product Matrix', group: 'Management' },
+    { id: 'inventory', label: 'Inventory Control', group: 'Management' },
+    { id: 'reports', label: 'Detailed Reports', group: 'Management' },
+    { id: 'customers', label: 'Customer Directory', group: 'CRM' },
+    { id: 'staff-employees', label: 'Staff Management', group: 'Admin' },
+    { id: 'settings-general', label: 'System Configuration', group: 'Admin' },
+  ];
+
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    if (selectedEmpForPerms) {
+      setEmpPermissions(selectedEmpForPerms.permissions || []);
+    } else {
+      setEmpPermissions([]);
+    }
+  }, [selectedEmpForPerms]);
 
   const fetchEmployees = async () => {
     try {
@@ -12079,12 +12636,46 @@ function StaffPage({ currentView, setCurrentPage }) {
       const data = await response.json();
       if (data.success) {
         setEmployees(data.employees);
+        if (selectedEmpForPerms) {
+          const updated = data.employees.find(e => e.id === selectedEmpForPerms.id);
+          if (updated) setSelectedEmpForPerms(updated);
+        }
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedEmpForPerms) return;
+    setPermSaving(true);
+    setPermMsg({ type: '', text: '' });
+    try {
+      const res = await fetchWithAuth(`${API_URL}/auth/employees/${selectedEmpForPerms.id}/permissions`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions: empPermissions })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPermMsg({ type: 'success', text: '✓ Permissions updated successfully!' });
+        fetchEmployees();
+      } else {
+        setPermMsg({ type: 'error', text: '✗ ' + (data.error || 'Failed to save.') });
+      }
+    } catch (e) {
+      setPermMsg({ type: 'error', text: '✗ Connection error.' });
+    } finally {
+      setPermSaving(false);
+      setTimeout(() => setPermMsg({ type: '', text: '' }), 5000);
+    }
+  };
+
+  const togglePermission = (id) => {
+    setEmpPermissions(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -12110,25 +12701,26 @@ function StaffPage({ currentView, setCurrentPage }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-20">
+    <div className="min-h-screen bg-gray-100 pt-0">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Staff Management</h1>
           <button
             onClick={() => setShowModal(true)}
-            className="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700"
+            className="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 font-medium shadow-sm transition-all flex items-center gap-2"
           >
-            + Add Employee
+            <Plus className="w-4 h-4" />
+            Add Employee
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
           {views.map(view => (
             <button
               key={view.id}
               onClick={() => setCurrentPage(view.id)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${currentView === view.id ? 'bg-cyan-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${currentView === view.id ? 'bg-cyan-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent hover:border-gray-200'
                 }`}
             >
               {view.name}
@@ -12137,34 +12729,43 @@ function StaffPage({ currentView, setCurrentPage }) {
         </div>
 
         {currentView === 'staff-employees' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full font-data-table">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50/80">
                 <tr>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Username</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
-                  <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="text-left px-6 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Name / ID</th>
+                  <th className="text-left px-6 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Username</th>
+                  <th className="text-left px-6 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Role</th>
+                  <th className="text-center px-6 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-6 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100">
                 {employees.map(emp => (
-                  <tr key={emp.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{emp.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{emp.username}</td>
+                  <tr key={emp.id} className="hover:bg-cyan-50/30 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                      <div className="font-bold text-gray-800">{emp.name}</div>
+                      <div className="text-[10px] text-gray-400 font-mono">ID: #{emp.id}</div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">{emp.username}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' :
                         emp.role === 'manager' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
+                          'bg-gray-100 text-gray-600'
                         }`}>{emp.role}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${emp.active ? 'bg-cyan-100 text-cyan-700' : 'bg-red-100 text-red-700'
-                        }`}>{emp.active ? 'Active' : 'Inactive'}</span>
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${emp.active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                        <div className={`w-1 h-1 rounded-full ${emp.active ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        {emp.active ? 'Active' : 'Inactive'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
+                      <button className="text-cyan-600 hover:text-cyan-700 text-xs font-bold uppercase tracking-wider hover:underline" onClick={() => {
+                        setSelectedEmpForPerms(emp);
+                        setCurrentPage('staff-permissions');
+                      }}>Permissions</button>
                     </td>
                   </tr>
                 ))}
@@ -12173,66 +12774,198 @@ function StaffPage({ currentView, setCurrentPage }) {
           </div>
         )}
 
-        {currentView !== 'staff-employees' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">{views.find(v => v.id === currentView)?.name}</h3>
-            <p className="text-gray-500">This feature is coming soon.</p>
+        {currentView === 'staff-permissions' && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Employee Selector */}
+            <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <h3 className="font-black text-xs text-gray-400 uppercase tracking-widest mb-4">Select Team Member</h3>
+              <div className="space-y-1">
+                {employees.map(emp => (
+                  <button
+                    key={emp.id}
+                    onClick={() => setSelectedEmpForPerms(emp)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group ${selectedEmpForPerms?.id === emp.id ? 'bg-cyan-600 text-white shadow-md' : 'hover:bg-gray-50 text-gray-700'}`}
+                  >
+                    <div className="font-bold text-sm leading-tight">{emp.name}</div>
+                    <div className={`text-[10px] font-medium uppercase tracking-tighter ${selectedEmpForPerms?.id === emp.id ? 'text-cyan-100' : 'text-gray-400 group-hover:text-cyan-600'}`}>{emp.role}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Permission Matrix */}
+            <div className="lg:col-span-3 space-y-6">
+              {selectedEmpForPerms ? (
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                  <div className="bg-cyan-600 px-6 py-4 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-white font-black text-lg">Functional Capabilities</h2>
+                      <p className="text-cyan-100 text-xs font-medium">Managing access for <span className="underline decoration-white/30">{selectedEmpForPerms.name}</span></p>
+                    </div>
+                    {permMsg.text && (
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold animate-pulse ${permMsg.type === 'success' ? 'bg-white text-emerald-600' : 'bg-red-500 text-white'}`}>
+                        {permMsg.text}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                      {['Operations', 'Management', 'CRM', 'Admin'].map(group => (
+                        <div key={group} className="space-y-3">
+                          <h4 className="font-black text-[10px] text-gray-400 uppercase tracking-[0.2em] border-b border-gray-100 pb-1">{group} Module</h4>
+                          <div className="space-y-2">
+                            {allPossiblePermissions.filter(p => p.group === group).map(perm => {
+                              const isChecked = empPermissions.includes(perm.id);
+                              return (
+                                <div
+                                  key={perm.id}
+                                  onClick={() => togglePermission(perm.id)}
+                                  className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer group ${isChecked ? 'bg-cyan-50 border-cyan-100 shadow-sm' : 'border-gray-50 hover:border-gray-200'}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isChecked ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-400 group-hover:text-cyan-600 group-hover:bg-cyan-50'}`}>
+                                      {isChecked ? <Check className="w-4 h-4" /> : <div className="w-1.5 h-1.5 rounded-full bg-current" />}
+                                    </div>
+                                    <span className={`font-bold text-sm ${isChecked ? 'text-cyan-900' : 'text-gray-600'}`}>{perm.label}</span>
+                                  </div>
+                                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-cyan-600 border-cyan-600' : 'border-gray-200 group-hover:border-cyan-300'}`}>
+                                    {isChecked && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-10 pt-6 border-t border-gray-100 flex items-center justify-end gap-3">
+                      <p className="text-xs text-gray-400 font-medium italic mr-auto max-w-sm">
+                        * Note: Disabling permissions for an active user will take effect on their next dashboard refresh.
+                      </p>
+                      <button
+                        onClick={() => setSelectedEmpForPerms(null)}
+                        className="px-6 py-2.5 rounded-xl font-bold text-xs text-gray-500 hover:bg-gray-50 uppercase tracking-widest"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSavePermissions}
+                        disabled={permSaving}
+                        className="px-8 py-2.5 rounded-xl bg-cyan-600 text-white font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-cyan-100 hover:shadow-cyan-200 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0"
+                      >
+                        {permSaving ? 'Saving...' : 'Apply Changes'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-20 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                    <Shield className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <h3 className="font-black text-gray-800 text-lg mb-2">Access Control Center</h3>
+                  <p className="text-gray-400 text-sm max-w-xs leading-relaxed">Select a member from the left panel to modify their functional access permissions across the platform.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(currentView === 'staff-schedules' || currentView === 'staff-timesheet') && (
+          <div className="bg-white rounded-xl shadow-sm p-20 text-center border border-gray-100">
+            <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-6 h-6 text-amber-500" />
+            </div>
+            <h3 className="font-bold text-gray-800 text-base mb-1">{views.find(v => v.id === currentView)?.name}</h3>
+            <p className="text-gray-500 text-sm">Deployment scheduled for next iteration (V3.2).</p>
           </div>
         )}
 
         {/* Add Employee Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Add New Employee</h2>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-cyan-600" />
+              <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-black text-gray-800 mb-1">New Team Member</h2>
+              <p className="text-gray-400 text-xs font-medium mb-6 uppercase tracking-wider">Registration Profile</p>
+
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium text-sm"
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Username</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.username}
+                      onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium text-sm text-gray-600"
+                      placeholder="johndoe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Login PIN</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={4}
+                      value={formData.PIN || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, PIN: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium text-sm tracking-[.5em]"
+                      placeholder="0000"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Role Grade</label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-bold text-sm text-gray-700"
+                    >
+                      <option value="waiter">WAITER (L1)</option>
+                      <option value="cashier">CASHIER (L2)</option>
+                      <option value="manager">MANAGER (L3)</option>
+                      <option value="admin">ADMINISTRATOR (ROOT)</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.username}
-                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+
+                {formError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                    <p className="text-red-600 text-[11px] font-bold">{formError}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => { setShowModal(false); setFormError(''); }}
+                    className="flex-1 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    <option value="waiter">Waiter</option>
-                    <option value="cashier">Cashier</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                {formError && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{formError}</p>}
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => { setShowModal(false); setFormError(''); }} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancel</button>
-                  <button type="submit" className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">Add Employee</button>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 bg-cyan-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-cyan-100 hover:shadow-cyan-200 hover:-translate-y-0.5 transition-all"
+                  >
+                    Create Account
+                  </button>
                 </div>
               </form>
             </div>
@@ -12301,60 +13034,6 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
       setConfigMsg(d.success ? '✓ Settings saved.' : (d.error || 'Failed to save.'));
     } catch { setConfigMsg('Failed to save.'); }
     finally { setConfigSaving(false); setTimeout(() => setConfigMsg(''), 3000); }
-  };
-
-  const updateIngredient = async (id, { name, unit, reorder_level, cost_per_unit }) => {
-    try {
-      const res = await fetchWithAuth(`${API_URL}/inventory/ingredients/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          name,
-          unit,
-          reorder_level: reorder_level === '' ? null : reorder_level,
-          cost_per_unit: cost_per_unit === '' ? null : cost_per_unit
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowEditIngredientModal(false);
-        setEditingIngredient(null);
-        fetchIngredients();
-        alert('Ingredient updated.');
-      } else {
-        alert(data.error || 'Failed to update ingredient');
-      }
-    } catch (error) {
-      console.error('Error updating ingredient:', error);
-      alert('Error updating ingredient');
-    }
-  };
-
-  const createPackagedItem = async ({ product_id, name, unit = 'pc', stock = 0, reorder = 0, cost = 0, quantity_required = 1 }) => {
-    try {
-      const res = await fetchWithAuth(`${API_URL}/inventory/packaged`, {
-        method: 'POST',
-        body: JSON.stringify({
-          product_id,
-          name,
-          unit,
-          current_stock: stock,
-          reorder_level: reorder,
-          cost_per_unit: cost,
-          quantity_required
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchIngredients();
-        fetchRecipes();
-        alert('Packaged item created and linked.');
-      } else {
-        alert(data.error || 'Failed to create packaged item');
-      }
-    } catch (error) {
-      console.error('Error creating packaged item:', error);
-      alert('Error creating packaged item');
-    }
   };
 
   const downloadKioskLauncher = () => {
@@ -12464,7 +13143,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-20">
+    <div className="min-h-screen bg-gray-100 pt-0">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
@@ -12899,102 +13578,102 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
           <div className="space-y-6 max-w-4xl">
             {/* Main Loyalty Header */}
             <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
-               <div className="relative z-10">
-                 <div className="flex items-center gap-3 mb-4">
-                   <div className="p-2 bg-white/20 rounded-lg">
-                     <span className="text-xl">💎</span>
-                   </div>
-                   <h3 className="font-bold text-xl uppercase tracking-tight">Loyalty Program Config</h3>
-                 </div>
-                 <p className="text-purple-50 text-sm leading-relaxed max-w-2xl">
-                    Configure how your customers earn points and what rewards they unlock at each tier.
-                    Points are automatically calculated at checkout when a customer is selected.
-                 </p>
-               </div>
-               <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <span className="text-xl">💎</span>
+                  </div>
+                  <h3 className="font-bold text-xl uppercase tracking-tight">Loyalty Program Config</h3>
+                </div>
+                <p className="text-purple-50 text-sm leading-relaxed max-w-2xl">
+                  Configure how your customers earn points and what rewards they unlock at each tier.
+                  Points are automatically calculated at checkout when a customer is selected.
+                </p>
+              </div>
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
             </div>
 
             {/* Core Earning Rule */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-               <div className="flex items-center gap-2 mb-6">
-                 <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
-                   <Settings size={18} />
-                 </div>
-                 <h4 className="font-bold text-gray-800 uppercase text-xs tracking-widest">Earning Rules</h4>
-               </div>
-               
-               <div className="max-w-md">
-                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Points per PHP Spent</label>
-                 <div className="flex items-center gap-4">
-                   <div className="flex-1 relative">
-                     <input 
-                       type="number" 
-                       step="0.001"
-                       value={sysConfig.loyalty_points_per_php} 
-                       onChange={e => setSysConfig({...sysConfig, loyalty_points_per_php: e.target.value})}
-                       className="w-full pl-3 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700"
-                     />
-                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400 uppercase">PTS/₱</span>
-                   </div>
-                   <div className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                      Example: 0.02 = 1 pt per ₱50
-                   </div>
-                 </div>
-               </div>
+              <div className="flex items-center gap-2 mb-6">
+                <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
+                  <Settings size={18} />
+                </div>
+                <h4 className="font-bold text-gray-800 uppercase text-xs tracking-widest">Earning Rules</h4>
+              </div>
+
+              <div className="max-w-md">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Points per PHP Spent</label>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 relative">
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={sysConfig.loyalty_points_per_php}
+                      onChange={e => setSysConfig({ ...sysConfig, loyalty_points_per_php: e.target.value })}
+                      className="w-full pl-3 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400 uppercase">PTS/₱</span>
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium whitespace-nowrap">
+                    Example: 0.02 = 1 pt per ₱50
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Tier Thresholds */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               {[
-                 { id: 'silver', label: '🥈 Silver Tier', color: 'gray' },
-                 { id: 'gold', label: '🥇 Gold Tier', color: 'amber' },
-                 { id: 'diamond', label: '💎 Diamond Tier', color: 'cyan' }
-               ].map(tier => (
-                 <div key={tier.id} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col">
-                   <h5 className="font-bold text-gray-800 text-sm mb-4">{tier.label}</h5>
-                   
-                   <div className="space-y-4 flex-1">
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Points Threshold</label>
-                        <input 
+              {[
+                { id: 'silver', label: '🥈 Silver Tier', color: 'gray' },
+                { id: 'gold', label: '🥇 Gold Tier', color: 'amber' },
+                { id: 'diamond', label: '💎 Diamond Tier', color: 'cyan' }
+              ].map(tier => (
+                <div key={tier.id} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col">
+                  <h5 className="font-bold text-gray-800 text-sm mb-4">{tier.label}</h5>
+
+                  <div className="space-y-4 flex-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Points Threshold</label>
+                      <input
+                        type="number"
+                        value={sysConfig[`loyalty_${tier.id}_threshold`]}
+                        onChange={e => setSysConfig({ ...sysConfig, [`loyalty_${tier.id}_threshold`]: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold"
+                        placeholder="Points..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Discount (%)</label>
+                      <div className="relative">
+                        <input
                           type="number"
-                          value={sysConfig[`loyalty_${tier.id}_threshold`]}
-                          onChange={e => setSysConfig({...sysConfig, [`loyalty_${tier.id}_threshold`]: e.target.value})}
+                          value={sysConfig[`loyalty_${tier.id}_discount`]}
+                          onChange={e => setSysConfig({ ...sysConfig, [`loyalty_${tier.id}_discount`]: e.target.value })}
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold"
-                          placeholder="Points..."
+                          placeholder="Discount..."
                         />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">%</span>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Discount (%)</label>
-                        <div className="relative">
-                          <input 
-                            type="number"
-                            value={sysConfig[`loyalty_${tier.id}_discount`]}
-                            onChange={e => setSysConfig({...sysConfig, [`loyalty_${tier.id}_discount`]: e.target.value})}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold"
-                            placeholder="Discount..."
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">%</span>
-                        </div>
-                      </div>
-                   </div>
-                 </div>
-               ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100">
-               <button 
-                 onClick={saveConfig} 
-                 disabled={configSaving}
-                 className="bg-purple-600 text-white px-8 py-3 rounded-xl hover:bg-purple-700 font-bold text-sm disabled:opacity-60 shadow-lg shadow-purple-200 transition-all active:scale-95"
-               >
-                 {configSaving ? 'Saving Configurations...' : 'Save Loyalty Rules'}
-               </button>
-               {configMsg && (
-                 <span className={`text-sm font-bold ${configMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
-                   {configMsg}
-                 </span>
-               )}
+              <button
+                onClick={saveConfig}
+                disabled={configSaving}
+                className="bg-purple-600 text-white px-8 py-3 rounded-xl hover:bg-purple-700 font-bold text-sm disabled:opacity-60 shadow-lg shadow-purple-200 transition-all active:scale-95"
+              >
+                {configSaving ? 'Saving Configurations...' : 'Save Loyalty Rules'}
+              </button>
+              {configMsg && (
+                <span className={`text-sm font-bold ${configMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+                  {configMsg}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -13247,16 +13926,16 @@ function CustomerLoginPage({ setCustomer, setCurrentPage, companyId }) {
     <div className="min-h-screen bg-[#F8FAFC] pt-24 pb-20 flex items-center justify-center px-4 font-dashboard">
       <div className="bg-white rounded-[3rem] shadow-2xl shadow-cyan-900/5 max-w-lg w-full overflow-hidden border border-gray-100 animate-fadeIn">
         <div className="bg-[#0A0F0D] p-12 text-center text-white relative">
-           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-           <div className="w-20 h-20 bg-white/5 backdrop-blur-md rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-white/10 group hover:scale-110 transition-transform">
-             <User className="w-10 h-10 text-cyan-400" />
-           </div>
-           <h1 className="text-4xl font-black tracking-tight uppercase mb-3">
-             {isLogin ? 'Member Access' : 'Join the Elite'}
-           </h1>
-           <p className="text-gray-400 font-bold text-sm tracking-widest uppercase">
-             {isLogin ? 'Access your private portal' : 'Start your journey with us'}
-           </p>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+          <div className="w-20 h-20 bg-white/5 backdrop-blur-md rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-white/10 group hover:scale-110 transition-transform">
+            <User className="w-10 h-10 text-cyan-400" />
+          </div>
+          <h1 className="text-4xl font-black tracking-tight uppercase mb-3">
+            {isLogin ? 'Member Access' : 'Join the Elite'}
+          </h1>
+          <p className="text-gray-400 font-bold text-sm tracking-widest uppercase">
+            {isLogin ? 'Access your private portal' : 'Start your journey with us'}
+          </p>
         </div>
 
         <div className="p-12">
@@ -13456,9 +14135,9 @@ function CustomerDashboard({ customer, onLogout }) {
               <div>
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none mb-2">{displayCustomer.name}</h1>
                 <div className="flex items-center gap-3">
-                   <p className="text-gray-400 font-bold text-xs">{displayCustomer.phone}</p>
-                   <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                   <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md">ID: LMN-{displayCustomer.id.toString().padStart(4, '0')}</span>
+                  <p className="text-gray-400 font-bold text-xs">{displayCustomer.phone}</p>
+                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md">ID: LMN-{displayCustomer.id.toString().padStart(4, '0')}</span>
                 </div>
               </div>
             </div>
@@ -13476,20 +14155,20 @@ function CustomerDashboard({ customer, onLogout }) {
               <div className="text-center md:text-left">
                 <p className="text-gray-500 font-black text-[10px] tracking-[0.3em] uppercase mb-4">Current Liability Balance</p>
                 <div className="flex items-baseline gap-3">
-                   <span className="text-4xl text-cyan-500 font-black">₱</span>
-                   <p className="text-7xl font-black tracking-tighter">
-                     {parseFloat(displayCustomer.credit_balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                   </p>
+                  <span className="text-4xl text-cyan-500 font-black">₱</span>
+                  <p className="text-7xl font-black tracking-tighter">
+                    {parseFloat(displayCustomer.credit_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4 mt-6">
-                   <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
-                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Available Credit</p>
-                      <p className="font-black text-cyan-400">₱{(parseFloat(displayCustomer.credit_limit || 0) - parseFloat(displayCustomer.credit_balance || 0)).toFixed(2)}</p>
-                   </div>
-                   <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
-                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Loyalty Status</p>
-                      <p className="font-black text-white">{displayCustomer.loyalty_points || 0} PTS</p>
-                   </div>
+                  <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Available Credit</p>
+                    <p className="font-black text-cyan-400">₱{(parseFloat(displayCustomer.credit_limit || 0) - parseFloat(displayCustomer.credit_balance || 0)).toFixed(2)}</p>
+                  </div>
+                  <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Loyalty Status</p>
+                    <p className="font-black text-white">{displayCustomer.loyalty_points || 0} PTS</p>
+                  </div>
                 </div>
               </div>
               {parseFloat(displayCustomer.credit_balance) > 0 && (
@@ -13530,27 +14209,27 @@ function CustomerDashboard({ customer, onLogout }) {
             {activeTab === 'overview' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-4 flex flex-col gap-8">
-                   <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
-                      <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs mb-8">Activity Pulse</h3>
-                      <div className="space-y-6">
-                         <div className="flex justify-between items-center">
-                            <span className="text-gray-400 text-xs font-bold uppercase">Volume</span>
-                            <span className="font-black text-gray-900">{orders.length} Orders</span>
-                         </div>
-                         <div className="flex justify-between items-center">
-                            <span className="text-gray-400 text-xs font-bold uppercase">Status</span>
-                            <span className="text-emerald-500 font-black text-xs uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-md">PREMIUM ACTIVE</span>
-                         </div>
+                  <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+                    <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs mb-8">Activity Pulse</h3>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400 text-xs font-bold uppercase">Volume</span>
+                        <span className="font-black text-gray-900">{orders.length} Orders</span>
                       </div>
-                   </div>
-                   <div className="bg-cyan-600 rounded-[2rem] p-8 text-white shadow-xl shadow-cyan-600/20">
-                      <div className="flex items-center gap-4 mb-6">
-                         <TrendingUp className="w-8 h-8 text-cyan-100" />
-                         <h3 className="font-black uppercase tracking-widest text-xs">Engagement Boost</h3>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400 text-xs font-bold uppercase">Status</span>
+                        <span className="text-emerald-500 font-black text-xs uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-md">PREMIUM ACTIVE</span>
                       </div>
-                      <p className="text-2xl font-bold leading-tight mb-4 text-cyan-50">Join our Pro program to unlock up to 20% cashback on every order.</p>
-                      <button className="w-full bg-black/10 hover:bg-black/20 text-white font-black text-[10px] tracking-widest uppercase py-4 rounded-xl border border-white/20 transition-all">LEARN MORE</button>
-                   </div>
+                    </div>
+                  </div>
+                  <div className="bg-cyan-600 rounded-[2rem] p-8 text-white shadow-xl shadow-cyan-600/20">
+                    <div className="flex items-center gap-4 mb-6">
+                      <TrendingUp className="w-8 h-8 text-cyan-100" />
+                      <h3 className="font-black uppercase tracking-widest text-xs">Engagement Boost</h3>
+                    </div>
+                    <p className="text-2xl font-bold leading-tight mb-4 text-cyan-50">Join our Pro program to unlock up to 20% cashback on every order.</p>
+                    <button className="w-full bg-black/10 hover:bg-black/20 text-white font-black text-[10px] tracking-widest uppercase py-4 rounded-xl border border-white/20 transition-all">LEARN MORE</button>
+                  </div>
                 </div>
 
                 <div className="lg:col-span-8">
@@ -13564,13 +14243,13 @@ function CustomerDashboard({ customer, onLogout }) {
                         {orders.slice(0, 5).map(order => (
                           <div key={order.id} className="flex items-center justify-between p-8 hover:bg-gray-50 transition-all group">
                             <div className="flex items-center gap-6">
-                               <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center font-black text-gray-400 group-hover:bg-[#0A0F0D] group-hover:text-cyan-400 transition-all">
-                                  #{order.order_number.toString().slice(-3)}
-                               </div>
-                               <div>
-                                  <p className="font-black text-gray-900 text-sm uppercase mb-1">{order.order_number}</p>
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatDate(order.created_at)}</p>
-                               </div>
+                              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center font-black text-gray-400 group-hover:bg-[#0A0F0D] group-hover:text-cyan-400 transition-all">
+                                #{order.order_number.toString().slice(-3)}
+                              </div>
+                              <div>
+                                <p className="font-black text-gray-900 text-sm uppercase mb-1">{order.order_number}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatDate(order.created_at)}</p>
+                              </div>
                             </div>
                             <div className="text-right">
                               <p className="text-xl font-black text-gray-900">₱{(parseFloat(order.total_amount) || 0).toFixed(2)}</p>
@@ -13613,16 +14292,16 @@ function CustomerDashboard({ customer, onLogout }) {
                             <td className="px-8 py-6 text-gray-500 font-bold text-xs whitespace-nowrap">{formatDate(order.created_at)}</td>
                             <td className="px-8 py-6 font-black text-gray-900 group-hover:text-cyan-600 text-xs">{order.order_number}</td>
                             <td className="px-8 py-6">
-                               <div className="flex flex-wrap gap-2">
-                                  {order.items && order.items[0] ?
-                                    order.items.filter(i => i.product_name).map((item, idx) => (
-                                      <span key={idx} className="bg-gray-100 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest text-gray-500">
-                                        {item.quantity}× {item.product_name}
-                                      </span>
-                                    ))
-                                    : <span className="text-gray-300 italic">—</span>
-                                  }
-                               </div>
+                              <div className="flex flex-wrap gap-2">
+                                {order.items && order.items[0] ?
+                                  order.items.filter(i => i.product_name).map((item, idx) => (
+                                    <span key={idx} className="bg-gray-100 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest text-gray-500">
+                                      {item.quantity}× {item.product_name}
+                                    </span>
+                                  ))
+                                  : <span className="text-gray-300 italic">—</span>
+                                }
+                              </div>
                             </td>
                             <td className="px-8 py-6 text-right font-black text-gray-900 text-base whitespace-nowrap">
                               ₱{(parseFloat(order.total_amount) || 0).toFixed(2)}
@@ -13646,51 +14325,51 @@ function CustomerDashboard({ customer, onLogout }) {
 
             {activeTab === 'ledger' && (
               <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
-                 <div className="px-8 py-6 border-b border-gray-50 flex justify-between items-center">
-                    <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">Financial Ledger</h2>
-                    <span className="text-[10px] font-bold text-gray-400">AUDIT READY</span>
-                 </div>
-                 {ledger.length === 0 ? (
-                    <div className="p-20 text-center">
-                       <Activity className="w-16 h-16 text-gray-100 mx-auto mb-6" />
-                       <p className="text-gray-400 font-black uppercase tracking-widest text-xs tracking-[0.3em]">No financial movements recorded.</p>
-                    </div>
-                 ) : (
-                    <div className="overflow-x-auto max-h-[60vh] scrollbar-hide">
-                       <table className="w-full text-sm font-data-table">
-                          <thead className="bg-[#FBFCFE] sticky top-0 z-10 border-b border-gray-50">
-                             <tr>
-                                <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Date</th>
-                                <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Description</th>
-                                <th className="text-center px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Movement</th>
-                                <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Magnitude</th>
-                                <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">New Balance</th>
-                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-50">
-                             {ledger.map(entry => (
-                                <tr key={entry.id} className="hover:bg-gray-50 transition-all">
-                                   <td className="px-8 py-6 text-gray-500 font-bold text-xs">{formatDate(entry.created_at)}</td>
-                                   <td className="px-8 py-6 font-bold text-gray-900 text-xs">
-                                      {entry.notes || (entry.type === 'purchase' ? 'Inventory Purchase' : 'Balance Settlement')}
-                                   </td>
-                                   <td className="px-8 py-6 text-center">
-                                      <span className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${entry.type === 'debit' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                         {entry.type}
-                                      </span>
-                                   </td>
-                                   <td className={`px-8 py-6 text-right font-black text-sm ${entry.type === 'debit' ? 'text-red-500' : 'text-emerald-500'}`}>
-                                      {entry.type === 'debit' ? '-' : '+'}₱{parseFloat(entry.amount).toFixed(2)}
-                                   </td>
-                                   <td className="px-8 py-6 text-right font-black text-gray-900 text-sm">
-                                      ₱{parseFloat(entry.current_balance || 0).toFixed(2)}
-                                   </td>
-                                </tr>
-                             ))}
-                          </tbody>
-                       </table>
-                    </div>
-                 )}
+                <div className="px-8 py-6 border-b border-gray-50 flex justify-between items-center">
+                  <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">Financial Ledger</h2>
+                  <span className="text-[10px] font-bold text-gray-400">AUDIT READY</span>
+                </div>
+                {ledger.length === 0 ? (
+                  <div className="p-20 text-center">
+                    <Activity className="w-16 h-16 text-gray-100 mx-auto mb-6" />
+                    <p className="text-gray-400 font-black uppercase tracking-widest text-xs tracking-[0.3em]">No financial movements recorded.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[60vh] scrollbar-hide">
+                    <table className="w-full text-sm font-data-table">
+                      <thead className="bg-[#FBFCFE] sticky top-0 z-10 border-b border-gray-50">
+                        <tr>
+                          <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Date</th>
+                          <th className="text-left px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Description</th>
+                          <th className="text-center px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Movement</th>
+                          <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Magnitude</th>
+                          <th className="text-right px-8 py-6 font-black uppercase tracking-widest text-[10px] text-gray-400">New Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {ledger.map(entry => (
+                          <tr key={entry.id} className="hover:bg-gray-50 transition-all">
+                            <td className="px-8 py-6 text-gray-500 font-bold text-xs">{formatDate(entry.created_at)}</td>
+                            <td className="px-8 py-6 font-bold text-gray-900 text-xs">
+                              {entry.notes || (entry.type === 'purchase' ? 'Inventory Purchase' : 'Balance Settlement')}
+                            </td>
+                            <td className="px-8 py-6 text-center">
+                              <span className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${entry.type === 'debit' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                {entry.type}
+                              </span>
+                            </td>
+                            <td className={`px-8 py-6 text-right font-black text-sm ${entry.type === 'debit' ? 'text-red-500' : 'text-emerald-500'}`}>
+                              {entry.type === 'debit' ? '-' : '+'}₱{parseFloat(entry.amount).toFixed(2)}
+                            </td>
+                            <td className="px-8 py-6 text-right font-black text-gray-900 text-sm">
+                              ₱{parseFloat(entry.current_balance || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -13701,35 +14380,35 @@ function CustomerDashboard({ customer, onLogout }) {
         <div className="fixed inset-0 bg-[#0A0F0D]/60 backdrop-blur-xl z-[100] flex items-center justify-center px-4 animate-fadeIn">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-slideUp">
             <div className="bg-[#0A0F0D] py-10 px-10 text-white relative">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
-               <div className="flex justify-between items-center relative z-10">
-                 <div>
-                   <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Deposit Settlement</h3>
-                   <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Balance Liquidation Protocol</p>
-                 </div>
-                 <button onClick={() => setShowPaymentModal(false)} className="w-10 h-10 bg-white/5 text-gray-400 hover:text-white rounded-full flex items-center justify-center transition-all">
-                    <X className="w-6 h-6" />
-                 </button>
-               </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
+              <div className="flex justify-between items-center relative z-10">
+                <div>
+                  <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Deposit Settlement</h3>
+                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Balance Liquidation Protocol</p>
+                </div>
+                <button onClick={() => setShowPaymentModal(false)} className="w-10 h-10 bg-white/5 text-gray-400 hover:text-white rounded-full flex items-center justify-center transition-all">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
             <div className="p-10 space-y-8">
               <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Full Debt Amount</p>
-                 <p className="text-4xl font-black text-gray-900 leading-none">₱{parseFloat(displayCustomer.credit_balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Full Debt Amount</p>
+                <p className="text-4xl font-black text-gray-900 leading-none">₱{parseFloat(displayCustomer.credit_balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               </div>
 
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Payment Liquidation Amount</label>
                 <div className="relative">
-                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-300">₱</span>
-                   <input
-                     type="number"
-                     step="0.01"
-                     value={paymentAmount}
-                     onChange={(e) => setPaymentAmount(e.target.value)}
-                     className="w-full pl-12 pr-6 py-6 bg-gray-50 border border-gray-200 rounded-[1.5rem] focus:border-cyan-500 focus:outline-none font-black text-3xl transition-all"
-                     placeholder="0.00"
-                   />
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-300">₱</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="w-full pl-12 pr-6 py-6 bg-gray-50 border border-gray-200 rounded-[1.5rem] focus:border-cyan-500 focus:outline-none font-black text-3xl transition-all"
+                    placeholder="0.00"
+                  />
                 </div>
               </div>
 
@@ -13984,6 +14663,7 @@ function PrintTestPage({ config, setCurrentPage, setLastOrderData, showSuccessOv
     </div>
   );
 }
+
 
 
 

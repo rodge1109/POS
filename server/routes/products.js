@@ -12,8 +12,8 @@ router.get('/', async (req, res) => {
     // Get products (filter by active unless ?all=true)
     const productsResult = await pool.query(
       all === 'true'
-        ? 'SELECT * FROM products WHERE company_id = $1 ORDER BY category, name'
-        : 'SELECT * FROM products WHERE active = true AND company_id = $1 ORDER BY category, name',
+        ? 'SELECT p.*, (SELECT COUNT(*) FROM product_composition pc WHERE pc.product_id = p.id AND pc.company_id = p.company_id) as ingredient_count FROM products p WHERE p.company_id = $1 ORDER BY p.category, p.name'
+        : 'SELECT p.*, (SELECT COUNT(*) FROM product_composition pc WHERE pc.product_id = p.id AND pc.company_id = p.company_id) as ingredient_count FROM products p WHERE p.active = true AND p.company_id = $1 ORDER BY p.category, p.name',
       [req.company_id]
     );
 
@@ -48,7 +48,8 @@ router.get('/', async (req, res) => {
         cost: product.cost ? parseFloat(product.cost) : 0,
         active: product.active,
         stock_quantity: product.stock_quantity || 0,
-        low_stock_threshold: product.low_stock_threshold || 10
+        low_stock_threshold: product.low_stock_threshold || 10,
+        ingredient_count: parseInt(product.ingredient_count) || 0
       };
     });
 
