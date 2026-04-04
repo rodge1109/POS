@@ -4039,6 +4039,11 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
               {loginStep === 'company' ? 'Enter 6-digit access code' : 'Enter 4-digit PIN'}
             </p>
 
+            <div className="flex items-center justify-center gap-1.5 mt-2 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100/50">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Supabase Connected</span>
+            </div>
+
             {loginStep === 'employee' && localStorage.getItem('active_company_name') && (
               <div className="mt-2 flex flex-col items-center animate-fadeIn">
                 <p className="text-gray-900 text-xs font-black tracking-tight">{localStorage.getItem('active_company_name')}</p>

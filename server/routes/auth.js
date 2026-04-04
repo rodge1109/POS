@@ -51,7 +51,7 @@ router.post('/login', async (req, res) => {
       SELECT e.id, e.username, e.name, e.role, e.active, e.company_id, e.permissions, c.name as company_name 
       FROM employees e
       LEFT JOIN companies c ON e.company_id = c.id
-      WHERE e."PIN"::text = $1 AND e.active = true
+      WHERE e.pin::text = $1 AND e.active = true
     `;
     let params = [pin];
 
@@ -137,7 +137,7 @@ router.post('/register-company', async (req, res) => {
     // 2. Create Admin Employee
     // Note: In a real app we would use bcrypt for password_hash
     const employeeResult = await client.query(
-      `INSERT INTO employees (username, name, email, role, "PIN", password_hash, company_id) 
+      `INSERT INTO employees (username, name, email, role, pin, password_hash, company_id) 
        VALUES ($1, $2, $3, 'admin', $4, $5, $6) RETURNING id`,
       [email.toLowerCase(), ownerName, email.toLowerCase(), pin, password, companyId]
     );
@@ -317,13 +317,13 @@ router.post('/change-password', verifyToken, async (req, res) => {
     const employee = result.rows[0];
 
     // Verify current PIN
-    if (String(employee.PIN) !== currentPin) {
+    if (String(employee.pin) !== currentPin) {
       return res.status(401).json({ success: false, error: 'Current PIN is incorrect' });
     }
 
     // Update PIN
     await pool.query(
-      'UPDATE employees SET "PIN" = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      'UPDATE employees SET pin = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [newPin, req.user.id]
     );
 
@@ -395,7 +395,7 @@ router.post('/employees', verifyToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO employees (username, "PIN", name, role, company_id)
+      `INSERT INTO employees (username, pin, name, role, company_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, username, name, role, active, created_at`,
       [username.toLowerCase().trim(), pin, name, role, req.company_id]
@@ -430,7 +430,7 @@ router.put('/employees/:id', verifyToken, async (req, res) => {
 
       // Check if PIN is already in use by another employee in this company
       const existingPin = await pool.query(
-        'SELECT id FROM employees WHERE "PIN"::text = $1 AND id != $2 AND company_id = $3',
+        'SELECT id FROM employees WHERE pin::text = $1 AND id != $2 AND company_id = $3',
         [pin, id, req.company_id]
       );
 
@@ -438,7 +438,7 @@ router.put('/employees/:id', verifyToken, async (req, res) => {
         return res.status(400).json({ success: false, error: 'PIN already in use' });
       }
 
-      query += `, "PIN" = $${paramCount}`;
+      query += `, pin = $${paramCount}`;
       params.push(pin);
       paramCount++;
     }
