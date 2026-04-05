@@ -183,9 +183,26 @@ router.post('/', async (req, res) => {
       }
     }
 
+    const newProductResult = await client.query(
+      `SELECT p.*, (SELECT COUNT(*) FROM product_composition WHERE product_id = p.id AND company_id = $1) as ingredient_count 
+       FROM products p WHERE p.id = $2 AND p.company_id = $1`,
+      [req.company_id, productResult.rows[0].id]
+    );
+
     await client.query('COMMIT');
 
-    res.status(201).json({ success: true, product });
+    const finalProduct = newProductResult.rows[0];
+    res.status(201).json({ 
+      success: true, 
+      product: {
+        ...finalProduct,
+        price: finalProduct.price ? parseFloat(finalProduct.price) : null,
+        cost: finalProduct.cost ? parseFloat(finalProduct.cost) : 0,
+        stock_quantity: finalProduct.stock_quantity || 0,
+        low_stock_threshold: finalProduct.low_stock_threshold || 10,
+        ingredient_count: parseInt(finalProduct.ingredient_count) || 0
+      }
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating product:', error);
@@ -228,9 +245,26 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    const updatedResult = await client.query(
+      `SELECT p.*, (SELECT COUNT(*) FROM product_composition WHERE product_id = p.id AND company_id = $1) as ingredient_count 
+       FROM products p WHERE p.id = $2 AND p.company_id = $1`,
+      [req.company_id, id]
+    );
+
     await client.query('COMMIT');
 
-    res.json({ success: true, product: productResult.rows[0] });
+    const finalProduct = updatedResult.rows[0];
+    res.json({ 
+      success: true, 
+      product: {
+        ...finalProduct,
+        price: finalProduct.price ? parseFloat(finalProduct.price) : null,
+        cost: finalProduct.cost ? parseFloat(finalProduct.cost) : 0,
+        stock_quantity: finalProduct.stock_quantity || 0,
+        low_stock_threshold: finalProduct.low_stock_threshold || 10,
+        ingredient_count: parseInt(finalProduct.ingredient_count) || 0
+      }
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error updating product:', error);

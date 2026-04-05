@@ -9,12 +9,16 @@
 
 /* Data Tables - Roboto, Inter, IBM Plex Sans */
 .font-data-table {
-  font-family: 'Roboto', 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 13.5px;
+  letter-spacing: -0.015em;
+  line-height: 1.6;
 }
 
 /* Dashboards - Inter, Lato, Montserrat */
 .font-dashboard {
-  font-family: 'Inter', 'Lato', 'Montserrat', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.012em;
 }
 
 /* Cards/Layouts - Poppins, Open Sans, Proxima Nova */

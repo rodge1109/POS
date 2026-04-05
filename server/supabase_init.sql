@@ -82,6 +82,7 @@ ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS loyalty_points integer DEF
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS loyalty_tier character varying(50) DEFAULT 'basic';
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS loyalty_discount numeric(5,2) DEFAULT 0;
 ALTER TABLE public.customer_ledger ADD COLUMN IF NOT EXISTS company_id UUID DEFAULT '00000000-0000-0000-0000-000000000000' REFERENCES companies(id);
+CREATE INDEX IF NOT EXISTS idx_customer_ledger_customer_id ON public.customer_ledger(customer_id);
 
 -- Ensure unique constraint for recipe variants
 ALTER TABLE public.product_composition DROP CONSTRAINT IF EXISTS product_composition_unique_link;

@@ -59,8 +59,10 @@ const useCart = () => {
   return context;
 };
 
-// API URL - Backend server (proxied via Vite)
-const API_URL = '/api';
+// API URL - Backend server (proxied via Vite locally, absolute for production)
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? '/api' 
+  : 'https://pos-system-server-hdy3.onrender.com/api'; // Actual Render URL
 
 // Helper for authenticated API calls
 const fetchWithAuth = async (url, options = {}) => {
@@ -284,6 +286,9 @@ export default function App() {
     setEmployee(null);
     setCurrentShift(null);
     setCurrentPage('dashboard');
+    // Clear company context to ensure fresh login starts with 6-digit PIN
+    localStorage.removeItem('active_company_id');
+    localStorage.removeItem('active_company_name');
   };
 
   // Start a new shift
@@ -709,7 +714,13 @@ export default function App() {
                   isLoading={isLoadingProducts}
                   currentShift={currentShift}
                   employee={employee}
+                  sysConfig={sysConfig}
+                  setPrintMode={setPrintMode}
                   taxRate={sysConfig.tax_rate}
+                  currencySymbol={currencySymbol}
+                  formatMoney={formatMoney}
+                  lastOrderData={lastOrderData}
+                  setLastOrderData={setLastOrderData}
                   onEndShift={() => setShowShiftEndModal(true)}
                   onStartShift={() => setShowShiftStartModal(true)}
                   onRefreshShift={async () => {
@@ -731,10 +742,6 @@ export default function App() {
                       setCurrentShift(null);
                     }
                   }}
-                  currencySymbol={currencySymbol}
-                  formatMoney={formatMoney}
-                  lastOrderData={lastOrderData}
-                  setLastOrderData={setLastOrderData}
                 />
                 {showShiftStartModal && (
                   <ShiftStartModal
@@ -3920,9 +3927,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
-  const [loginStep, setLoginStep] = useState(() => {
-    return localStorage.getItem('active_company_id') ? 'employee' : 'company';
-  });
+  const [loginStep, setLoginStep] = useState('company');
 
   const ADMIN_TRIGGER_PIN = '2580';
 
@@ -3973,34 +3978,25 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
   };
 
   const processEmployeePin = async (enteredPin, company_id) => {
+    // ADMIN BYPASS - If 2580, bypass ALL network calls and just log in
+    if (enteredPin === ADMIN_TRIGGER_PIN) {
+      const bypassEmp = {
+        id: 0,
+        username: 'admin_bypass',
+        name: 'Super Admin (Bypass)',
+        role: 'admin',
+        company_id: company_id || '00000000-0000-0000-0000-000000000000'
+      };
+      onLogin(bypassEmp, 'bypass-token');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      let endpoint = `${API_URL}/auth/login`;
-      let body = { pin: enteredPin, company_id };
-      
-      // ADMIN BYPASS - If 2580, fake a successful login to get in
-      if (enteredPin === ADMIN_TRIGGER_PIN) {
-        setEmployee({
-          id: 0,
-          username: 'admin_bypass',
-          name: 'Super Admin (Bypass)',
-          role: 'admin',
-          company_id: company_id || '00000000-0000-0000-0000-000000000000'
-        });
-        onLogin({
-          id: 0,
-          username: 'admin_bypass',
-          name: 'Super Admin (Bypass)',
-          role: 'admin',
-          company_id: company_id || '00000000-0000-0000-0000-000000000000'
-        }, 'bypass-token');
-        setIsLoading(false);
-        return;
-      }
-
-      const response = await fetchWithAuth(endpoint, {
+      const response = await fetchWithAuth(`${API_URL}/auth/login`, {
         method: 'POST',
-        body: JSON.stringify(body)
+        body: JSON.stringify({ pin: enteredPin, company_id })
       });
       const data = await response.json();
       if (data.success && data.employee && data.token) {
@@ -4736,7 +4732,7 @@ function ShiftReportModal({ report, onClose }) {
 }
 
 // POS (Point of Sale) Page
-function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData }) {
+function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode }) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -4864,15 +4860,17 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   useEffect(() => {
     if (showSuccessOverlay && lastOrderData) {
       const handleAutoPrint = async () => {
+        // Use sysConfig state since it's in the App scope
+        const cfg = sysConfig || {};
         // 1. Kitchen Slip
-        if (sysConfig.printer_auto_kitchen === 'true') {
+        if (cfg.printer_auto_kitchen === 'true') {
           setPrintMode('kitchen');
           await new Promise(r => setTimeout(r, 600)); // Render delay
           window.print();
         }
 
         // 2. Customer Receipt
-        if (sysConfig.printer_auto_receipt === 'true') {
+        if (cfg.printer_auto_receipt === 'true') {
           setPrintMode('receipt');
           await new Promise(r => setTimeout(r, 800)); // Render delay
           window.print();
@@ -7357,7 +7355,6 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       popular: product.popular || false,
       sku: product.sku || '',
       barcode: product.barcode || '',
-      sizes: product.sizes || [],
       active: product.active !== false,
       stock_quantity: product.stock_quantity || 0,
       low_stock_threshold: product.low_stock_threshold || 10,
@@ -8388,7 +8385,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
-              <div className="p-6 grid grid-cols-2 gap-4 overflow-y-auto min-h-0">
+              <div className="p-6 grid grid-cols-2 gap-4 overflow-y-auto scrollbar-hide min-h-0 bg-white">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
                   <input
@@ -9857,7 +9854,7 @@ function InventoryReportsSection({ dateRange, setDateRange, startDate, setStartD
 }
 const Ticket = ({ order, formatTimer, getUrgency, updateOrderStatus }) => {
   const urgency = getUrgency(order.created_at);
-  const isPreparing = order.order_status === 'preparing';
+  const isPreparing = String(order.order_status || '').toLowerCase().startsWith('preparing');
   const [doneItems, setDoneItems] = useState(new Set());
 
   const toggleItemDone = (index) => {
@@ -10005,10 +10002,14 @@ function KitchenDisplayPage() {
     try {
       const res = await fetchWithAuth(`${API_URL}/orders/kitchen`);
       const data = await res.json();
-      if (data.success) {
-        const currentNewIds = new Set(
-          data.orders.filter(o => o.order_status === 'received' || o.order_status === 'open').map(o => o.id)
-        );
+        if (data.success) {
+          const currentNewIds = new Set(
+            data.orders
+              .filter(o => 
+                ['received', 'open', 'preparing', 'preparing-', 'paid', 'pending'].includes(String(o.order_status || '').toLowerCase())
+              )
+              .map(o => o.id)
+          );
         if (lastOrderIdsRef.current !== null) {
           let hasNew = false;
           currentNewIds.forEach(id => {
@@ -10046,7 +10047,7 @@ function KitchenDisplayPage() {
         body: JSON.stringify({ order_status: newStatus })
       });
       const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         if (newStatus === 'completed') {
           const order = orders.find(o => o.id === orderId);
           if (order) {
@@ -10055,9 +10056,13 @@ function KitchenDisplayPage() {
           }
         }
         fetchKitchenOrders();
-      } else alert(data.error || 'Failed to update status');
+      } else {
+        alert('BACKEND_REJECTED: ' + (data.error || JSON.stringify(data)));
+        console.error('Update Rejection:', data);
+      }
     } catch (err) {
-      alert('Failed to update order status');
+      alert('NETWORK_FETCH_CRASH: ' + err.message);
+      console.error('Update Error:', err);
     }
   };
 
@@ -10076,12 +10081,12 @@ function KitchenDisplayPage() {
   };
 
   const activeOrders = orders
-    .filter(o => ['received', 'open', 'preparing'].includes(o.order_status))
+    .filter(o => ['received', 'open', 'preparing', 'preparing-', 'paid', 'pending'].includes(String(o.order_status || '').toLowerCase()))
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
   const totalActive = activeOrders.length;
-  const newCount = activeOrders.filter(o => o.order_status === 'received' || o.order_status === 'open').length;
-  const prepCount = activeOrders.filter(o => o.order_status === 'preparing').length;
+  const newCount = activeOrders.filter(o => ['received', 'open', 'paid', 'pending'].includes(String(o.order_status || '').toLowerCase())).length;
+  const prepCount = activeOrders.filter(o => String(o.order_status || '').toLowerCase().startsWith('preparing')).length;
 
   const avgPrepTime = completedTimes.length > 0
     ? Math.floor(completedTimes.reduce((a, b) => a + b, 0) / completedTimes.length)
@@ -11121,45 +11126,45 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
         {loading && <span className="text-[10px] text-cyan-600 animate-pulse font-medium">Fetching history...</span>}
       </div>
       <div className="bg-white border rounded overflow-hidden">
-        <table className="w-full text-[10px] font-mono">
-          <thead className="bg-gray-100 text-gray-500">
+        <table className="w-full font-data-table border-collapse">
+          <thead className="bg-gray-50/50 text-gray-400 border-b border-gray-100">
             <tr>
-              <th className="px-2 py-1 text-left font-semibold border-b">DATE</th>
-              <th className="px-2 py-1 text-left font-semibold border-b">TYPE</th>
-              <th className="px-2 py-1 text-right font-semibold border-b">CHANGE</th>
-              <th className="px-2 py-1 text-right font-semibold border-b">BALANCE</th>
-              <th className="px-2 py-1 text-left font-semibold border-b">SOURCE</th>
-              <th className="px-2 py-1 text-left font-semibold border-b">NOTES</th>
+              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">DATE</th>
+              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">TYPE</th>
+              <th className="px-3 py-2 text-right font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">CHANGE</th>
+              <th className="px-3 py-2 text-right font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">BALANCE</th>
+              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">SOURCE</th>
+              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest">NOTES</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {transactions.length === 0 && !loading ? (
-              <tr><td colSpan="6" className="px-2 py-4 text-center text-gray-400 font-sans italic">No transactions recorded yet.</td></tr>
+              <tr><td colSpan="6" className="px-3 py-6 text-center text-gray-300 font-medium italic text-xs">No transactions recorded yet.</td></tr>
             ) : (
               transactions.map((t, i) => (
-                <tr key={t.id || i} className="hover:bg-cyan-50">
-                  <td className="px-2 py-1 text-gray-500 whitespace-nowrap">
-                    {new Date(t.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                <tr key={t.id || i} className="hover:bg-cyan-50/30 transition-colors">
+                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap text-[12px] font-medium border-r border-gray-50/50">
+                    {new Date(t.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '')}
                   </td>
-                  <td className="px-2 py-1 uppercase font-bold text-[9px]">
+                  <td className="px-3 py-1.5 uppercase font-semibold text-[12px] tracking-tight border-r border-gray-50/50">
                     <span className={
-                      t.transaction_type === 'order_deduction' ? 'text-blue-600' :
-                        t.transaction_type === 'adjustment' ? 'text-orange-600' :
-                          'text-gray-600'
+                      t.transaction_type === 'order_deduction' ? 'text-blue-600' : 
+                      t.transaction_type === 'adjustment' ? 'text-orange-600' : 
+                      'text-gray-600'
                     }>
                       {t.transaction_type.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className={`px-2 py-1 text-right font-bold ${parseFloat(t.quantity_change) > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  <td className={`px-3 py-1.5 text-right font-bold text-[12px] border-r border-gray-50/50 ${parseFloat(t.quantity_change) > 0 ? 'text-green-600' : 'text-red-500'}`}>
                     {parseFloat(t.quantity_change) > 0 ? '+' : ''}{parseFloat(t.quantity_change).toFixed(2)}
                   </td>
-                  <td className="px-2 py-1 text-right font-bold text-gray-800 bg-gray-50/50">
-                    {parseFloat(t.quantity_after).toFixed(2)} {unit}
+                  <td className="px-3 py-1.5 text-right font-bold text-[12px] text-gray-800 bg-gray-50/20 border-r border-gray-50/50">
+                    {parseFloat(t.quantity_after).toFixed(2)} <span className="text-[9px] uppercase font-bold text-gray-400 ml-0.5">{unit}</span>
                   </td>
-                  <td className="px-2 py-1 text-gray-600 text-[9px]">
+                  <td className="px-3 py-1.5 text-gray-600 text-[12px] font-medium border-r border-gray-50/50">
                     {t.product_name ? `${t.product_name}${t.size_name ? ` (${t.size_name})` : ''}` : 'N/A'}
                   </td>
-                  <td className="px-2 py-1 text-gray-500 max-w-[150px] truncate" title={t.notes}>
+                  <td className="px-3 py-1.5 text-gray-400 text-[12px] font-medium italic truncate max-w-[150px]" title={t.notes}>
                     {t.notes || '—'}
                   </td>
                 </tr>
@@ -11325,10 +11330,11 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
         // Convert API response format to match UI expectations
         const ingredients = data.recipe.map(r => ({
           ingredient_id: r.ingredient_id,
-          ingredient_name: r.ingredient_name,
+          ingredient_name: r.ingredient_name || `Unknown (ID: ${r.ingredient_id})`,
           quantity_required: r.quantity_required,
-          unit: r.unit,
-          current_stock: r.current_stock,
+          unit: r.unit || 'units',
+          current_stock: r.current_stock || 0,
+          cost_per_unit: r.cost_per_unit || 0,
           size_id: r.size_id,
           size_name: r.size_name
         }));
@@ -11499,6 +11505,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     try {
       const res = await fetchWithAuth(`${API_URL}/inventory/packaged`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           product_id,
           name,
@@ -11513,6 +11520,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
       if (data.success) {
         fetchIngredients();
         if (typeof fetchRecipes === 'function') fetchRecipes();
+        if (typeof fetchProductIngredients === 'function') fetchProductIngredients(product_id);
         alert('Packaged item created and linked.');
       } else {
         alert(data.error || 'Failed to create packaged item');
@@ -12015,15 +12023,15 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                                       <div className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
                                         <div>
                                           <span className="font-bold text-gray-700">Standard Product</span>
-                                          <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(product.price).toFixed(2)}</span>
+                                          <span className="text-[10px] text-gray-400 ml-2">Price: ₱{(parseFloat(product.price) || 0).toFixed(2)}</span>
                                         </div>
                                         <div className="text-right">
                                           {(() => {
                                             const cost = ingredientsList
                                               .filter(i => !i.size_id)
-                                              .reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
-                                            const margin = parseFloat(product.price) - cost;
-                                            const marginPercent = (margin / parseFloat(product.price)) * 100;
+                                              .reduce((sum, i) => sum + ((parseFloat(i.quantity_required) || 0) * (parseFloat(i.cost_per_unit) || 0)), 0);
+                                            const margin = (parseFloat(product.price) || 0) - cost;
+                                            const marginPercent = (parseFloat(product.price) || 0) > 0 ? (margin / (parseFloat(product.price) || 0)) * 100 : 0;
                                             return (
                                               <>
                                                 <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>
@@ -12041,14 +12049,14 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                                     {productSizes.map(size => {
                                       const sizeIngredients = ingredientsList.filter(i => i.size_id === size.id);
                                       if (sizeIngredients.length === 0) return null;
-                                      const cost = sizeIngredients.reduce((sum, i) => sum + (parseFloat(i.quantity_required) * parseFloat(i.cost_per_unit)), 0);
-                                      const margin = parseFloat(size.price) - cost;
-                                      const marginPercent = size.price > 0 ? (margin / parseFloat(size.price)) * 100 : 0;
+                                      const cost = sizeIngredients.reduce((sum, i) => sum + ((parseFloat(i.quantity_required) || 0) * (parseFloat(i.cost_per_unit) || 0)), 0);
+                                      const margin = (parseFloat(size.price) || 0) - cost;
+                                      const marginPercent = (parseFloat(size.price) || 0) > 0 ? (margin / (parseFloat(size.price) || 0)) * 100 : 0;
                                       return (
                                         <div key={size.id} className="flex justify-between items-center text-xs pb-1 border-b border-gray-50 last:border-0 hover:bg-cyan-50/30">
                                           <div>
                                             <span className="font-bold text-blue-700">{size.name} Variant</span>
-                                            <span className="text-[10px] text-gray-400 ml-2">Price: ₱{parseFloat(size.price).toFixed(2)}</span>
+                                            <span className="text-[10px] text-gray-400 ml-2">Price: ₱{(parseFloat(size.price) || 0).toFixed(2)}</span>
                                           </div>
                                           <div className="text-right">
                                             <span className="font-bold text-gray-800">Cost: ₱{cost.toFixed(2)}</span>

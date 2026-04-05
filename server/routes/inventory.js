@@ -86,7 +86,7 @@ router.post('/ingredients', async (req, res) => {
 router.post('/packaged', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { product_id, name, unit = 'pc', current_stock = 0, reorder_level = 0, cost_per_unit = 0, quantity_required = 1 } = req.body;
+    const { product_id, name, unit = 'pc', current_stock, reorder_level, cost_per_unit, quantity_required = 1 } = req.body;
 
     if (!product_id || !name) {
       return res.status(400).json({ success: false, error: 'product_id and name are required' });
@@ -98,7 +98,7 @@ router.post('/packaged', async (req, res) => {
       `INSERT INTO ingredients (name, unit, current_stock, reorder_level, supplier, cost_per_unit, company_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, name, unit, current_stock, reorder_level, cost_per_unit`,
-      [name, unit, current_stock, reorder_level, null, cost_per_unit, req.company_id]
+      [name, unit, parseFloat(current_stock) || 0, parseFloat(reorder_level) || 0, null, parseFloat(cost_per_unit) || 0, req.company_id]
     );
     const ingredient = ingResult.rows[0];
 
@@ -366,12 +366,13 @@ router.get('/recipes/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
     const result = await pool.query(`
-      SELECT pc.id, pc.product_id, pc.ingredient_id, pc.quantity_required,
-             i.name as ingredient_name, i.unit, i.current_stock
+      SELECT pc.id, pc.product_id, pc.ingredient_id, pc.quantity_required, pc.size_id,
+             i.name as ingredient_name, i.unit, i.current_stock, i.cost_per_unit,
+             s.size_name as size_name
       FROM product_composition pc
-      JOIN ingredients i ON pc.ingredient_id = i.id AND pc.company_id = i.company_id
-      WHERE pc.product_id = $1 AND pc.company_id = $2
-      ORDER BY i.name
+      LEFT JOIN ingredients i ON pc.ingredient_id = i.id
+      LEFT JOIN product_sizes s ON pc.size_id = s.id
+      WHERE pc.product_id::text = $1::text AND pc.company_id = $2
     `, [productId, req.company_id]);
     res.json({ success: true, recipe: result.rows });
   } catch (error) {
@@ -451,7 +452,7 @@ router.get('/recipes/:productId', async (req, res) => {
         pc.ingredient_id,
         pc.quantity_required,
         pc.size_id,
-        ps.name as size_name,
+        ps.size_name as size_name,
         i.name as ingredient_name,
         i.unit,
         i.current_stock,
