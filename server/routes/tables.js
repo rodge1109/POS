@@ -45,7 +45,7 @@ router.put('/:id/status', async (req, res) => {
     }
     const result = await pool.query(
       'UPDATE tables SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') RETURNING *',
-      [status, id, req.company_id]
+      [status, id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Table not found' });
@@ -69,7 +69,7 @@ router.post('/:id/open-check', async (req, res) => {
     // Lock the table row to prevent race conditions
     const tableResult = await client.query(
       'SELECT * FROM tables WHERE id = $1 AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') FOR UPDATE',
-      [id, req.company_id]
+      [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
     );
     if (tableResult.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -120,24 +120,24 @@ router.post('/:id/open-check', async (req, res) => {
         }
       } else {
         productId = item.product_id || item.id;
-        await client.query(
-          'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND company_id = $3',
-          [item.quantity, productId, req.company_id]
-        );
-      }
-
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [order.id, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id]
+        'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+        [item.quantity, productId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
       );
     }
 
-    // Update table status
     await client.query(
-      'UPDATE tables SET status = $1, current_order_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND company_id = $4',
-      ['occupied', order.id, id, req.company_id]
+      `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [order.id, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
     );
+  }
+
+  // Update table status
+  await client.query(
+    'UPDATE tables SET status = $1, current_order_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND (company_id::text = $4::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+    ['occupied', order.id, id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+  );
 
     await client.query('COMMIT');
 
@@ -165,7 +165,7 @@ router.post('/:id/add-items', async (req, res) => {
 
     await client.query('BEGIN');
 
-    const tableResult = await client.query('SELECT * FROM tables WHERE id = $1 AND company_id = $2', [id, req.company_id]);
+    const tableResult = await client.query('SELECT * FROM tables WHERE id = $1 AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
     if (tableResult.rows.length === 0 || !tableResult.rows[0].current_order_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'No open check on this table' });
@@ -174,7 +174,7 @@ router.post('/:id/add-items', async (req, res) => {
     const orderId = tableResult.rows[0].current_order_id;
 
     // Verify order is still open
-    const orderCheck = await client.query('SELECT * FROM orders WHERE id = $1 AND order_status = $2 AND company_id = $3', [orderId, 'open', req.company_id]);
+    const orderCheck = await client.query('SELECT * FROM orders WHERE id = $1 AND order_status = $2 AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, 'open', req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
     if (orderCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'Check is not open' });
@@ -191,8 +191,8 @@ router.post('/:id/add-items', async (req, res) => {
           ? parseInt(item.id.replace('combo-', ''))
           : item.id;
         const comboItemsResult = await client.query(
-          'SELECT product_id, quantity FROM combo_items WHERE combo_id = $1 AND company_id = $2',
-          [comboId, req.company_id]
+          'SELECT product_id, quantity FROM combo_items WHERE combo_id = $1 AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+          [comboId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
         );
         for (const ci of comboItemsResult.rows) {
           await client.query(
@@ -211,14 +211,14 @@ router.post('/:id/add-items', async (req, res) => {
       await client.query(
         `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [orderId, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id]
+        [orderId, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
       );
     }
 
     // Recalculate order totals from all items
     const totalsResult = await client.query(
-      'SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM order_items WHERE order_id = $1 AND company_id = $2',
-      [orderId, req.company_id]
+      'SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM order_items WHERE order_id = $1 AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+      [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
     );
     const newSubtotal = parseFloat(totalsResult.rows[0].subtotal);
     const newTax = newSubtotal * 0.08;

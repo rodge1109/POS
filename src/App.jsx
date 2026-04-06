@@ -1984,14 +1984,26 @@ function DashboardPage({ setCurrentPage, employee }) {
               {
                 label: `Revenue (${currency})`,
                 data: sortedProfitDates.slice(-daysToShow).map(d => convertAmount(profitMap[d].revenue)),
-                backgroundColor: 'rgba(8, 145, 178, 0.7)',
-                borderRadius: 4,
+                borderColor: '#0891b2',
+                backgroundColor: 'rgba(8, 145, 178, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#0891b2',
+                pointRadius: 4,
+                pointHoverRadius: 6
               },
               {
                 label: `Cost (${currency})`,
                 data: sortedProfitDates.slice(-daysToShow).map(d => convertAmount(profitMap[d].cost)),
-                backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                borderRadius: 4,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#ef4444',
+                pointRadius: 4,
+                pointHoverRadius: 6
               }
             ]
           });
@@ -2164,9 +2176,10 @@ function DashboardPage({ setCurrentPage, employee }) {
               <p className="text-emerald-600 text-sm font-bold mb-1">💰 Are we making money?</p>
               <p className="text-gray-500 text-xs mb-6">Comparative Revenue vs Cost Analysis ({currency})</p>
               <div className="h-80">
-                {profitData && <Bar data={profitData} options={{
+                {profitData && <Line data={profitData} options={{
                   responsive: true,
                   maintainAspectRatio: false,
+                  interaction: { mode: 'index', intersect: false },
                   plugins: {
                     legend: { position: 'top', labels: { usePointStyle: true, font: { weight: 'bold' } } },
                     tooltip: {
@@ -2178,6 +2191,7 @@ function DashboardPage({ setCurrentPage, employee }) {
                   scales: {
                     y: {
                       beginAtZero: true,
+                      grid: { color: 'rgba(0, 0, 0, 0.05)' },
                       ticks: { callback: v => (currency === 'PHP' ? '₱' : '$') + v.toLocaleString() }
                     },
                     x: { grid: { display: false } }
@@ -2549,6 +2563,128 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
             <div className="flex items-center space-x-2"><Shield className="w-5 h-5 text-emerald-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">SAFE-STORE</span></div>
             <div className="flex items-center space-x-2"><Box className="w-5 h-5 text-blue-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">ULTRA-RETAIL</span></div>
             <div className="flex items-center space-x-2"><Activity className="w-5 h-5 text-purple-600" /><span className="font-black text-lg tracking-tighter uppercase text-gray-900">CORE-HUB</span></div>
+          </div>
+        </div>
+      </section>
+
+      {/* System Walkthrough: The Lumina Engine */}
+      <section className="py-32 bg-white relative">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          <div className="flex flex-col md:flex-row items-end justify-between mb-20 gap-8">
+            <div className="max-w-2xl">
+              <span className="text-cyan-600 font-black text-[10px] tracking-[0.5em] uppercase border-b-2 border-cyan-600 pb-2 mb-8 inline-block">The Lumina Engine</span>
+              <h2 className="text-5xl md:text-8xl font-black text-gray-900 leading-none tracking-tighter uppercase">
+                COMPLETE <span className="text-gray-300">ECOSYSTEM</span>
+              </h2>
+            </div>
+            <p className="text-gray-500 font-bold text-lg max-w-sm border-l-4 border-cyan-500 pl-6">
+              A unified platform designed for complex operations. From the front counter to the back office, we've got you covered.
+            </p>
+          </div>
+
+          <div className="space-y-40">
+            {/* Module 1: Omni-Channel POS */}
+            <div className="flex flex-col lg:flex-row items-center gap-16 md:gap-24 group">
+              <div className="lg:w-1/2 order-2 lg:order-1">
+                <div className="inline-block px-4 py-1 bg-cyan-100 text-cyan-700 rounded-full text-[10px] font-black tracking-widest uppercase mb-6">Front-of-House</div>
+                <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Unified <span className="text-cyan-600">POS Terminal</span></h3>
+                <p className="text-gray-600 text-lg font-medium leading-relaxed mb-10">
+                  Our Point-of-Sale is designed for speed and beauty. Whether it's a quick-service cafe or a detailed retail boutique, custom variants and fast-checkout flows ensure your customers never wait.
+                  <span className="block mt-4 text-cyan-600 font-black tracking-tight">Includes: Multi-Tax, Loyalty Rewards, Table Management, & Split Bills.</span>
+                </p>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-cyan-600 font-black text-xs mb-1 uppercase">Variants</p>
+                    <p className="text-gray-400 text-[10px] font-bold">Handle sizes and add-ons effortlessly.</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-cyan-600 font-black text-xs mb-1 uppercase">Inventory Sync</p>
+                    <p className="text-gray-400 text-[10px] font-bold">Stock updates the moment you pay.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="lg:w-1/2 order-1 lg:order-2 relative">
+                <div className="absolute -inset-4 bg-cyan-600/5 rounded-[3rem] blur-2xl group-hover:bg-cyan-600/10 transition-colors"></div>
+                <img src="https://ncompzjefmmdiznhbjjc.supabase.co/storage/v1/object/public/product-images/pos_interface_screenshot_1775480696556.png" alt="POS Screenshot" className="relative rounded-[2.5rem] shadow-2xl border-8 border-white group-hover:scale-[1.02] transition-transform duration-700" />
+              </div>
+            </div>
+
+            {/* Module 2: Kitchen Display System (KDS) */}
+            <div className="flex flex-col lg:flex-row items-center gap-16 md:gap-24 group">
+              <div className="lg:w-1/2 relative">
+                <div className="absolute -inset-4 bg-orange-600/5 rounded-[3rem] blur-2xl group-hover:bg-orange-600/10 transition-colors"></div>
+                <img src="https://ncompzjefmmdiznhbjjc.supabase.co/storage/v1/object/public/product-images/kds_interface_screenshot_1775480719291.png" alt="KDS Screenshot" className="relative rounded-[2.5rem] shadow-2xl border-8 border-white group-hover:scale-[1.02] transition-transform duration-700" />
+              </div>
+              <div className="lg:w-1/2">
+                <div className="inline-block px-4 py-1 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black tracking-widest uppercase mb-6">Back-of-House</div>
+                <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Kitchen <span className="text-orange-600">Command Center</span></h3>
+                <p className="text-gray-600 text-lg font-medium leading-relaxed mb-10">
+                  Kill the chaos in the kitchen. Our KDS provides real-time order tracking, status management, and performance metrics (Average Prep Time) to keep your staff synchronized and efficient.
+                  <span className="block mt-4 text-orange-600 font-black tracking-tight">Includes: Ticket Timers, Sound Alerts, Order Prioritization & Status Sync.</span>
+                </p>
+                <div className="flex gap-4">
+                  <div className="px-6 py-4 bg-orange-50 rounded-2xl border border-orange-100 text-center flex-1">
+                    <Clock className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+                    <p className="text-[10px] font-black text-orange-800 uppercase">Live Timers</p>
+                  </div>
+                  <div className="px-6 py-4 bg-orange-50 rounded-2xl border border-orange-100 text-center flex-1">
+                    <Activity className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+                    <p className="text-[10px] font-black text-orange-800 uppercase">Load Metrics</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Module 3: Analytics & Intelligence */}
+            <div className="flex flex-col lg:flex-row items-center gap-16 md:gap-24 group">
+              <div className="lg:w-1/2 order-2 lg:order-1">
+                <div className="inline-block px-4 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black tracking-widest uppercase mb-6">Management</div>
+                <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Enterprise <span className="text-blue-600">Analytics</span></h3>
+                <p className="text-gray-600 text-lg font-medium leading-relaxed mb-10">
+                  Make decisions based on data, not guesses. Monitor daily sales, bestselling categories, and customer demographics across all branches on one unified dashboard.
+                  <span className="block mt-4 text-blue-600 font-black tracking-tight">Includes: Weighted Average Cost (WAC), Tax Reports, Daily Snapshots, & Net Growth.</span>
+                </p>
+                <ul className="space-y-3">
+                  {['Sales by Category Matrix', 'Multi-Store Comparison', 'Transaction Trends', 'Payment Method Distribution'].map(r => (
+                    <li key={r} className="flex items-center space-x-3 text-sm font-bold text-gray-500">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="lg:w-1/2 order-1 lg:order-2 relative">
+                <div className="absolute -inset-4 bg-blue-600/5 rounded-[3rem] blur-2xl group-hover:bg-blue-600/10 transition-colors"></div>
+                <img src="https://ncompzjefmmdiznhbjjc.supabase.co/storage/v1/object/public/product-images/reports_analytics_screenshot_1775480741822.png" alt="Analytics Screenshot" className="relative rounded-[2.5rem] shadow-2xl border-8 border-white group-hover:scale-[1.02] transition-transform duration-700" />
+              </div>
+            </div>
+
+            {/* Module 4: Advanced Inventory */}
+            <div className="flex flex-col lg:flex-row items-center gap-16 md:gap-24 group">
+              <div className="lg:w-1/2 relative">
+                <div className="absolute -inset-4 bg-purple-600/5 rounded-[3rem] blur-2xl group-hover:bg-purple-600/10 transition-colors"></div>
+                <img src="https://ncompzjefmmdiznhbjjc.supabase.co/storage/v1/object/public/product-images/inventory_management_screenshot_1775481143562.png" alt="Inventory Screenshot" className="relative rounded-[2.5rem] shadow-2xl border-8 border-white group-hover:scale-[1.02] transition-transform duration-700" />
+              </div>
+              <div className="lg:w-1/2">
+                <div className="inline-block px-4 py-1 bg-purple-100 text-purple-700 rounded-full text-[10px] font-black tracking-widest uppercase mb-6">Logistics</div>
+                <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Precision <span className="text-purple-600">Inventory</span></h3>
+                <p className="text-gray-600 text-lg font-medium leading-relaxed mb-10">
+                  Total visibility of your supply chain. Monitor raw materials, set automatic reorder levels, and track batch-level expiry dates to eliminate waste and maximize profit.
+                  <span className="block mt-4 text-purple-600 font-black tracking-tight">Includes: Expiry Alerts, Automated Reorder, Recipe Management, & Waste Tracking.</span>
+                </p>
+                <div className="flex items-center gap-8">
+                  <div className="text-center">
+                    <p className="text-3xl font-black text-gray-900">100%</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Audit Accuracy</p>
+                  </div>
+                  <div className="w-px h-12 bg-gray-200"></div>
+                  <div className="text-center">
+                    <p className="text-3xl font-black text-purple-600">-30%</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Waste Reduction</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -4918,12 +5054,16 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         setShowSuccessOverlay(true);
         fetchTables();
         if (onRefreshShift) onRefreshShift();
+      } else if (result.error?.includes('occupied')) {
+        // If it failed because it's already occupied, try adding to it instead
+        console.warn('Table already occupied, attempting to add items instead...');
+        addItemsToTable(tableId);
       } else {
         alert(result.error || 'Failed to open check');
       }
     } catch (error) {
       console.error('Error opening check:', error);
-      alert('Failed to open check');
+      alert('Network error: Failed to open check');
     }
   };
 
@@ -6078,34 +6218,44 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
             {/* Action Buttons */}
             {!showTableView && (
               <div className="p-1.5 md:p-4 space-y-1 md:space-y-2 bg-white border-t border-gray-100 flex-shrink-0">
-                {/* Main action button - context-dependent */}
-                {selectedTable && selectedTable.status === 'available' ? (
-                  /* Table selected - First order */
-                  <button
-                    onClick={() => openCheckOnTable(selectedTable.id)}
-                    disabled={cartItems.length === 0}
-                    className={`w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all flex flex-col items-center justify-center gap-1 ${cartItems.length === 0
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200 active:scale-95'
-                      }`}
-                  >
-                    <span className="uppercase tracking-widest text-[10px] opacity-80">Phase 1: Save Order</span>
-                    <span>PLACE ORDER → TABLE {selectedTable.table_number}</span>
-                  </button>
-                ) : isAddingToTable && selectedTable ? (
-                  /* Adding items to occupied table */
-                  <button
-                    onClick={() => addItemsToTable(selectedTable.id)}
-                    disabled={cartItems.length === 0}
-                    className={`w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all flex flex-col items-center justify-center gap-1 ${cartItems.length === 0
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg hover:shadow-orange-200 active:scale-95'
-                      }`}
-                  >
-                    <span className="uppercase tracking-widest text-[10px] opacity-80">Update Bill</span>
-                    <span>ADD TO TABLE {selectedTable.table_number}</span>
-                  </button>
-                ) : cartItems.length > 0 && !selectedTable ? (
+                {/* Main action button - always use live status from the tables list */}
+                {(() => {
+                  const liveTable = tables?.find(t => t.id === selectedTable?.id);
+                  const isOccupied = liveTable?.status === 'occupied';
+
+                  if (selectedTable && !isOccupied) {
+                    return (
+                      <button
+                        onClick={() => openCheckOnTable(selectedTable.id)}
+                        disabled={cartItems.length === 0}
+                        className={`w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all flex flex-col items-center justify-center gap-1 ${cartItems.length === 0
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200 active:scale-95'
+                          }`}
+                      >
+                        <span className="uppercase tracking-widest text-[10px] opacity-80">Phase 1: Save Order</span>
+                        <span>PLACE ORDER → TABLE {selectedTable.table_number}</span>
+                      </button>
+                    );
+                  } else if (selectedTable && isOccupied) {
+                    return (
+                      <button
+                        onClick={() => addItemsToTable(selectedTable.id)}
+                        disabled={cartItems.length === 0}
+                        className={`w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all flex flex-col items-center justify-center gap-1 ${cartItems.length === 0
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg hover:shadow-orange-200 active:scale-95'
+                          }`}
+                      >
+                        <span className="uppercase tracking-widest text-[10px] opacity-80">Update Bill</span>
+                        <span>ADD TO TABLE {selectedTable.table_number}</span>
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {cartItems.length > 0 && !selectedTable ? (
                   /* Items in cart but no table selected - show a specific 'Save to Table' prompt */
                   <div className="hidden md:block space-y-2">
                     <button
@@ -6166,9 +6316,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
           </div>
         </div>
 
-        {/* Payment Modal */}
         {showPaymentModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-10 animate-fadeIn font-dashboard">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-10 font-dashboard">
             <div className="w-full max-w-[34rem] h-full md:h-auto md:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
               {/* Green Header */}
               <div className="bg-cyan-600 text-white px-5 py-4 flex-shrink-0">
@@ -6186,16 +6335,16 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-5 space-y-4 pb-20">
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-3 md:p-4 space-y-3 pb-20">
                 {/* Order Summary */}
-                <div className="bg-green-50 border border-cyan-100 p-3 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Items in Cart</span>
-                    <span className="font-medium text-sm">{cartItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                <div className="bg-green-50 border border-cyan-100 p-2 rounded-lg">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-gray-500">Items in Cart</span>
+                    <span className="font-medium">{cartItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
                   </div>
-                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-cyan-200">
-                    <span className="font-bold text-gray-800 text-xs">Amount Due</span>
-                    <span className="font-bold text-cyan-600 text-2xl">{money(total)}</span>
+                  <div className="flex justify-between items-center mt-0.5 pt-0.5 border-t border-cyan-200">
+                    <span className="font-bold text-gray-800 text-[10px]">Amount Due</span>
+                    <span className="font-bold text-cyan-600 text-xl">{money(total)}</span>
                   </div>
                 </div>
 
@@ -6225,13 +6374,13 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
                 {/* Payment Method */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Payment Method</label>
+                  <label className="block text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-tight">Payment Method</label>
                   <div className="grid grid-cols-4 gap-1.5">
                     {['cash', 'gcash', 'card', 'credit'].map(method => (
                       <button
                         key={method}
                         onClick={() => setPaymentMethod(method)}
-                        className={`py-2 font-medium text-xs transition-all rounded-lg border-2 ${paymentMethod === method
+                        className={`py-1.5 font-bold text-[10px] transition-all rounded-lg border-2 ${paymentMethod === method
                           ? method === 'credit' ? 'bg-orange-500 text-white border-orange-500' : 'bg-cyan-600 text-white border-cyan-600'
                           : 'bg-white text-gray-600 border-gray-200 hover:border-cyan-400 hover:bg-green-50'
                           }`}
@@ -6297,21 +6446,15 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   </div>
 
                   {selectedCustomer ? (
-                    <div className={`${paymentMethod === 'credit' ? 'bg-orange-50 border-orange-200' : 'bg-cyan-50 border-cyan-100'} border p-3 rounded-xl transition-colors`}>
+                    <div className={`${paymentMethod === 'credit' ? 'bg-orange-50 border-orange-200' : 'bg-cyan-50 border-cyan-100'} border p-2 rounded-xl transition-colors`}>
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${paymentMethod === 'credit' ? 'bg-orange-200 text-orange-700' : 'bg-cyan-200 text-cyan-700'}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] ${paymentMethod === 'credit' ? 'bg-orange-200 text-orange-700' : 'bg-cyan-200 text-cyan-700'}`}>
                             {selectedCustomer.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800 text-sm">{selectedCustomer.name}</p>
-                            <p className="text-[10px] text-gray-500 font-medium">{selectedCustomer.phone}</p>
-                            {paymentMethod === 'credit' && (
-                              <p className="text-[10px] font-bold text-orange-600 mt-0.5 uppercase tracking-tight">
-                                Credit Bal: ₱{(parseFloat(selectedCustomer.credit_balance) || 0).toFixed(0)} /
-                                Lmt: ₱{(parseFloat(selectedCustomer.credit_limit) || 0).toFixed(0)}
-                              </p>
-                            )}
+                            <p className="font-bold text-gray-800 text-xs leading-tight">{selectedCustomer.name}</p>
+                            <p className="text-[9px] text-gray-400 font-medium">{selectedCustomer.phone}</p>
                           </div>
                         </div>
                         <button
@@ -6319,9 +6462,9 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                             setSelectedCustomer(null);
                             if (discountType === 'loyalty') setDiscountType(null);
                           }}
-                          className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-1 hover:bg-white/50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -6334,13 +6477,13 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                           <Search className="w-3.5 h-3.5" />
                         )}
                       </div>
-                      <input
-                        type="text"
-                        value={customerSearch}
-                        onChange={(e) => setCustomerSearch(e.target.value)}
-                        placeholder="Search name or phone..."
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm transition-all bg-gray-50/50"
-                      />
+                        <input
+                          type="text"
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          placeholder="Search customer..."
+                          className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-cyan-500 text-xs transition-all bg-gray-50/50 uppercase font-bold"
+                        />
                       {customerSearchResults.length > 0 && (
                         <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl mt-2 z-[60] overflow-hidden animate-scaleIn">
                           {customerSearchResults.map(c => (
@@ -6423,10 +6566,10 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                       ))}
                     </div>
                     {parseFloat(amountReceived) >= total && (
-                      <div className="bg-green-50 border border-cyan-200 p-3 rounded-lg mt-2">
-                        <div className="flex justify-between items-center font-bold">
-                          <span className="text-cyan-800">Change:</span>
-                          <span className="text-cyan-600 text-2xl">Php {(parseFloat(amountReceived) - total).toFixed(2)}</span>
+                      <div className="bg-cyan-50 border-2 border-cyan-500 p-2 md:p-3 rounded-lg mt-2 shadow-sm animate-bounce-in">
+                        <div className="flex justify-between items-center font-black">
+                          <span className="text-cyan-800 text-xs uppercase tracking-widest">Return Change:</span>
+                          <span className="text-cyan-600 text-2xl md:text-3xl">₱ {(parseFloat(amountReceived) - total).toFixed(2)}</span>
                         </div>
                       </div>
                     )}
@@ -6878,10 +7021,9 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
           </div>
         )}
 
-        {/* Success Overlay */}
         {showSuccessOverlay && (
           <div
-            className="fixed inset-0 flex items-center justify-center z-[60] bg-black/40 animate-fadeIn"
+            className="fixed inset-0 flex items-center justify-center z-[60] bg-black/40"
             onKeyDown={(e) => { if (e.key === 'Enter') setShowSuccessOverlay(false); }}
             tabIndex={0}
             ref={(el) => el && el.focus()}
