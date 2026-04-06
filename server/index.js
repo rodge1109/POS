@@ -16,6 +16,7 @@ import settingsRoutes from './routes/settings.js';
 import inventoryRoutes from './routes/inventory.js';
 import modifiersRoutes from './routes/modifiers.js';
 import categoriesRoutes from './routes/categories.js';
+import uploadRoutes from './routes/upload.js';
 import { verifyToken } from './routes/auth.js'; // Import the protection middleware!
 import { startScheduler } from './services/scheduler.js' 
 import fs from 'fs';
@@ -29,15 +30,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    // Allow localhost on any port for development
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      return callback(null, true);
-    }
-    callback(null, true); // Allow all origins in development
-  },
+  origin: true, 
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -126,6 +119,7 @@ app.use('/api/customers', (req, res, next) => {
 }, customersRoutes);
 app.use('/api/inventory', verifyToken, inventoryRoutes);
 app.use('/api/modifiers', verifyToken, modifiersRoutes);
+app.use('/api/upload', verifyToken, uploadRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

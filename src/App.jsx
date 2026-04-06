@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload } from 'lucide-react';
 // Fallback alias to avoid missing icon errors in dynamic builds
 const Settings2 = Settings;
 const LayoutIcon = Layout;
@@ -60,9 +60,7 @@ const useCart = () => {
 };
 
 // API URL - Backend server (proxied via Vite locally, absolute for production)
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? '/api' 
-  : 'https://pos-system-server-hdy3.onrender.com/api'; // Actual Render URL
+const API_URL = '/api'; 
 
 // Helper for authenticated API calls
 const fetchWithAuth = async (url, options = {}) => {
@@ -7065,6 +7063,52 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   const [priceAdjustType, setPriceAdjustType] = useState('percent');
   const [priceAdjustValue, setPriceAdjustValue] = useState('');
   const [pricingSaving, setPricingSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+
+  const handlePhotoUpload = async (file, type = 'product') => {
+    if (!file) return;
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File is too large. Max 5MB allowed.');
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+        
+        const response = await fetchWithAuth(`${API_URL}/upload`, {
+          method: 'POST',
+          body: JSON.stringify({
+            fileName: file.name,
+            fileData: base64data,
+            contentType: file.type
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          if (type === 'combo') {
+            setComboFormData(prev => ({ ...prev, image: result.url }));
+          } else {
+            setFormData(prev => ({ ...prev, image: result.url }));
+          }
+        } else {
+          alert('Upload failed: ' + result.error);
+        }
+        setImageUploading(false);
+      };
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      alert('Failed to upload image. Please check your connection.');
+      setImageUploading(false);
+    }
+  };
+
 
   // Combo states
   const [combos, setCombos] = useState([]);
@@ -8534,14 +8578,42 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Image Path</label>
-                  <input
-                    type="text"
-                    value={formData.image}
-                    onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                    placeholder="assets/images/food/..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Product Photo</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.image}
+                      onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                      placeholder="assets/images/food/..."
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+                    />
+                    <label className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-cyan-50 border border-gray-200 cursor-pointer transition-all group" title="Browse Photo">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handlePhotoUpload(e.target.files[0], 'product')}
+                        disabled={imageUploading}
+                      />
+                      {imageUploading ? (
+                        <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Upload className="w-5 h-5 text-gray-500 group-hover:text-cyan-600" />
+                      )}
+                    </label>
+                  </div>
+                  {formData.image && (
+                    <div className="mt-2 relative inline-block group">
+                      <img src={formData.image} alt="Preview" className="w-16 h-16 object-cover rounded-lg border border-gray-100 shadow-sm transition-transform group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
+                      <button 
+                        type="button" 
+                        onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                        className="absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 col-span-2">
@@ -8691,14 +8763,30 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={comboFormData.image}
-                  onChange={(e) => setComboFormData(prev => ({ ...prev, image: e.target.value }))}
-                  placeholder="e.g., assets/images/food/combo.png"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL / Upload</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={comboFormData.image}
+                    onChange={(e) => setComboFormData(prev => ({ ...prev, image: e.target.value }))}
+                    placeholder="e.g., assets/images/food/combo.png"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500"
+                  />
+                  <label className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-cyan-50 border border-gray-200 cursor-pointer transition-all group" title="Browse Photo">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => handlePhotoUpload(e.target.files[0], 'combo')}
+                      disabled={imageUploading}
+                    />
+                    {imageUploading ? (
+                      <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Upload className="w-5 h-5 text-gray-500 group-hover:text-cyan-600" />
+                    )}
+                  </label>
+                </div>
                 {comboFormData.image && (
                   <div className="mt-2">
                     <img
