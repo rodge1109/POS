@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail } from 'lucide-react';
 // Fallback alias to avoid missing icon errors in dynamic builds
 const Settings2 = Settings;
 const LayoutIcon = Layout;
@@ -558,37 +558,8 @@ export default function App() {
   return (
     <CartContext.Provider value={contextValue}>
       <style>{`
-        @media print {
-          /* Hide EVERYTHING except the printable-receipt container */
-          body * {
-            visibility: hidden !important;
-          }
-          #printable-receipt, #printable-receipt * {
-            visibility: visible !important;
-          }
-          #printable-receipt {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 80mm !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: white !important;
-            font-family: 'Courier New', Courier, monospace !important;
-            font-size: 11px !important;
-            line-height: 1.2 !important;
-            color: black !important;
-          }
-          /* Remove page headers/footers */
-          @page {
-            size: 80mm auto;
-            margin: 0;
-          }
-          header, footer, nav, .no-print {
-            display: none !important;
-          }
-        }
         @keyframes fadeIn {
+
           from {
             opacity: 0;
             transform: translateY(20px);
@@ -9274,17 +9245,67 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
   const [reconciliation, setReconciliation] = useState(null);
   const [reconciliationMismatches, setReconciliationMismatches] = useState([]);
   const [reconciliationError, setReconciliationError] = useState('');
+  const [customerData, setCustomerData] = useState([]);
+  const [channelData, setChannelData] = useState([]);
+  const [trendData, setTrendData] = useState([]);
+  const [promoData, setPromoData] = useState({ totalDiscounts: 0, discountedOrders: 0, promoRevenue: 0 });
+  const [returnData, setReturnData] = useState({ refundedCount: 0, refundedAmount: 0, voidedCount: 0, voidedAmount: 0 });
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  const handleEmailReport = async () => {
+    let start = startDate;
+    let end = endDate;
+    const today = new Date();
+    if (dateRange === 'today') {
+      start = end = today.toISOString().split('T')[0];
+    } else if (dateRange === 'week') {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 7);
+      start = d.toISOString().split('T')[0];
+      end = today.toISOString().split('T')[0];
+    } else if (dateRange === 'month') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      end = today.toISOString().split('T')[0];
+    }
+
+    setEmailLoading(true);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/reports/email`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          startDate: start, 
+          endDate: end,
+          reportType: activeReport 
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Report has been sent to your email successfully!');
+      } else {
+        alert('Failed to send email: ' + (data.error || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error('Email report error:', e);
+      alert('Failed to send email. Ensure SMTP is configured in System Settings.');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
 
   const activeReport = currentReport || 'reports-sales';
   const reportTypes = [
-    { id: 'reports-sales', name: 'Sales Summary' },
-    { id: 'reports-items', name: 'Sales by Item' },
-    { id: 'reports-category', name: 'Sales by Category' },
-    { id: 'reports-employees', name: 'Sales by Employee' },
-    { id: 'reports-payments', name: 'Sales by Payment Type' },
-    { id: 'reports-inventory', name: 'Inventory Reports' },
-    { id: 'reports-financial', name: 'Financial Reports' },
-    { id: 'reports-tax', name: 'Tax Reports' }
+    { id: 'reports-sales', name: '1. Daily Sales Snapshot', icon: '📅' },
+    { id: 'reports-items', name: '2. Product Performance', icon: '🏷️' },
+    { id: 'reports-category', name: '3. Category Analysis', icon: '📁' },
+    { id: 'reports-trends', name: '5. Time Period Trends', icon: '📈' },
+    { id: 'reports-profit', name: '6. Gross Profit & Margin', icon: '💰' },
+    { id: 'reports-inventory', name: '7. Inventory & Sell-Through', icon: '📦' },
+    { id: 'reports-customers', name: '8. Customer Insights', icon: '👤' },
+    { id: 'reports-promos', name: '9. Discounts & Promos', icon: '🎟️' },
+    { id: 'reports-returns', name: '10. Returns & Refunds', icon: '🔄' },
+    { id: 'reports-employees', name: '11. Staff Performance', icon: '👥' },
+    { id: 'reports-channels', name: '12. Channel Breakdown', icon: '🌐' }
   ];
 
   useEffect(() => {
@@ -9315,6 +9336,11 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           const categoryMap = {};
           const employeeMap = {};
           const paymentMap = {};
+          const customerMap = {};
+          const channelMap = {};
+          const promoStats = { totalDiscounts: 0, discountedOrders: 0, promoRevenue: 0 };
+          const returnStats = { refundedCount: 0, refundedAmount: 0, voidedCount: 0, voidedAmount: 0 };
+          const hourlyTrends = Array(24).fill(0).map((_, i) => ({ hour: i, orders: 0, revenue: 0 }));
 
           orders.forEach((o) => {
             const status = (o.order_status || o.status || '').toLowerCase();
@@ -9324,6 +9350,46 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             const items = Array.isArray(o.items) ? o.items : [];
             const empName = o.employee_name || 'System/Online';
             const payMethod = o.payment_method || 'Unspecified';
+            const custName = o.customer_name || 'Walk-in Customer';
+            const channel = (o.service_type || 'POS').toUpperCase();
+            const date = new Date(o.created_at);
+            const hour = date.getHours();
+
+            // Trends
+            if (!isRefundedOrVoided) {
+              hourlyTrends[hour].orders += 1;
+              hourlyTrends[hour].revenue += Number(o.total_amount || 0);
+            }
+
+            // Group by Channel
+            if (!channelMap[channel]) channelMap[channel] = { name: channel, orders: 0, revenue: 0 };
+            channelMap[channel].orders += 1;
+            channelMap[channel].revenue += Number(o.total_amount || 0);
+
+            // Group by Customer
+            if (!customerMap[custName]) customerMap[custName] = { name: custName, orders: 0, revenue: 0, lastVisit: o.created_at };
+            customerMap[custName].orders += 1;
+            customerMap[custName].revenue += Number(o.total_amount || 0);
+            if (new Date(o.created_at) > new Date(customerMap[custName].lastVisit)) {
+              customerMap[custName].lastVisit = o.created_at;
+            }
+
+            // Returns & Refunds
+            if (status === 'refunded') {
+              returnStats.refundedCount += 1;
+              returnStats.refundedAmount += Number(o.total_amount || 0);
+            } else if (status === 'voided') {
+              returnStats.voidedCount += 1;
+              returnStats.voidedAmount += Number(o.total_amount || 0);
+            }
+
+            // Discounts & Promos
+            const disc = Number(o.discount_amount || 0);
+            if (disc > 0 && !isRefundedOrVoided) {
+              promoStats.totalDiscounts += disc;
+              promoStats.discountedOrders += 1;
+              promoStats.promoRevenue += Number(o.total_amount || 0);
+            }
 
             // Group by Employee
             if (!employeeMap[empName]) employeeMap[empName] = { name: empName, orders: 0, revenue: 0 };
@@ -9375,6 +9441,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               }
 
               const itemRev = itemRevenueCents / 100;
+              const itemCost = Number(it.cost || 0) * qty;
 
               // Group by Item
               if (!itemsMap[nameKey]) itemsMap[nameKey] = { name: nameKey, quantity: 0, revenue: 0 };
@@ -9392,6 +9459,12 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           setCategoryData(Object.values(categoryMap).sort((a, b) => b.revenue - a.revenue));
           setEmployeeData(Object.values(employeeMap).sort((a, b) => b.revenue - a.revenue));
           setPaymentData(Object.values(paymentMap).sort((a, b) => b.revenue - a.revenue));
+          // New States (Adding them to the component state if not present)
+          setCustomerData(Object.values(customerMap).sort((a, b) => b.revenue - a.revenue));
+          setChannelData(Object.values(channelMap).sort((a, b) => b.revenue - a.revenue));
+          setTrendData(hourlyTrends);
+          setPromoData(promoStats);
+          setReturnData(returnStats);
         }
 
         const reconRes = await fetchWithAuth(`${API_URL}/orders/reconciliation?start=${start}&end=${end}`);
@@ -9458,16 +9531,39 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
       : 'ok';
 
   return (
-    <div className="reports-lineitems min-h-screen bg-gray-100 pt-0">
+    <div className="reports-lineitems min-h-screen bg-gray-100 pt-0 printable-report">
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
-        <div className="flex flex-wrap justify-between gap-2 items-center">
+        <div className="flex flex-wrap justify-between gap-2 items-center print:hidden">
           <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="today">Today</option>
-            <option value="week">Last 7 Days</option>
-            <option value="month">This Month</option>
-            <option value="custom">Custom</option>
-          </select>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => window.print()}
+              className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-colors"
+              title="Print current report"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">Print</span>
+            </button>
+            <button 
+              onClick={handleEmailReport}
+              disabled={emailLoading}
+              className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+              title="Send report to email"
+            >
+              {emailLoading ? (
+                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Mail className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">Email</span>
+            </button>
+            <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="px-4 py-2 border rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">This Month</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
         </div>
         {dateRange === 'custom' && (
           <div className="flex flex-wrap gap-2">
@@ -9689,6 +9785,203 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           </div>
         )}
 
+        {!loading && activeReport === 'reports-trends' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-orange-500">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Peak Sales Hours</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {trendData.filter(t => t.orders > 0).sort((a,b) => b.revenue - a.revenue).slice(0, 4).map((t, idx) => (
+                  <div key={t.hour} className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                    <p className="text-xs text-orange-600 font-bold">#{idx + 1} Busy Hour</p>
+                    <p className="text-lg font-bold text-gray-800">{t.hour === 0 ? '12 AM' : t.hour <= 11 ? `${t.hour} AM` : t.hour === 12 ? '12 PM' : `${t.hour-12} PM`}</p>
+                    <p className="text-sm text-gray-500">{t.orders} Orders | Php {t.revenue.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full font-data-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr><th className="text-left px-4 py-3 text-sm font-semibold">Time Interval</th><th className="text-right px-4 py-3 text-sm font-semibold">Transactions</th><th className="text-right px-4 py-3 text-sm font-semibold">Revenue</th><th className="text-right px-4 py-3 text-sm font-semibold">% of Total</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {trendData.map(t => (
+                    <tr key={t.hour} className={t.orders > 0 ? 'bg-white' : 'bg-gray-50/30'}>
+                      <td className="px-4 py-3 text-sm">{t.hour === 0 ? '12:00 AM' : t.hour <= 11 ? `${t.hour}:00 AM` : t.hour === 12 ? '12:00 PM' : `${t.hour-12}:00 PM`}</td>
+                      <td className="px-4 py-3 text-sm text-right">{t.orders}</td>
+                      <td className="px-4 py-3 text-sm text-right font-medium">Php {t.revenue.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm text-right text-gray-500">{((t.revenue / (netSales || 1)) * 100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeReport === 'reports-profit' && (
+          <div className="space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-cyan-500">
+                <p className="text-sm text-gray-500">Net Sales</p>
+                <p className="text-2xl font-bold text-gray-800">Php {netSales.toFixed(2)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-red-400">
+                <p className="text-sm text-gray-500">Cost of Goods (COGS)</p>
+                <p className="text-2xl font-bold text-red-600">Php {(itemsData.reduce((s, i) => s + (i.cost || 0), 0)).toFixed(2)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500 bg-green-50/20">
+                <p className="text-sm text-green-700 font-bold">Estimated Gross Profit</p>
+                <p className="text-2xl font-bold text-green-700">Php {(netSales - itemsData.reduce((s, i) => s + (i.cost || 0), 0)).toFixed(2)}</p>
+                <p className="text-xs text-green-600 mt-1">Margin: {(((netSales - itemsData.reduce((s, i) => s + (i.cost || 0), 0)) / (netSales || 1)) * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full font-data-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr><th className="text-left px-4 py-3 text-sm">Product Item</th><th className="text-right px-4 py-3 text-sm">Revenue</th><th className="text-right px-4 py-3 text-sm">COGS</th><th className="text-right px-4 py-3 text-sm">Profit</th><th className="text-right px-4 py-3 text-sm">Margin%</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {itemsData.map(item => {
+                    const profit = item.revenue - (item.cost || 0);
+                    const margin = (profit / (item.revenue || 1)) * 100;
+                    return (
+                      <tr key={item.name}>
+                        <td className="px-4 py-3 text-sm font-medium">{item.name}</td>
+                        <td className="px-4 py-3 text-sm text-right">Php {item.revenue.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-500">Php {(item.cost || 0).toFixed(2)}</td>
+                        <td className={`px-4 py-3 text-sm text-right font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Php {profit.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-medium">{margin.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeReport === 'reports-customers' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg p-5 shadow-sm border-l-4 border-indigo-500 flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Unique Customers</p>
+                <p className="text-2xl font-bold text-indigo-600">{customerData.length} Identified</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Avg Spend / Visit</p>
+                <p className="text-2xl font-bold text-gray-800">Php {(netSales / (salesData.length || 1)).toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full font-data-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr><th className="text-left px-4 py-3 text-sm">Customer Name</th><th className="text-right px-4 py-3 text-sm">Visits</th><th className="text-right px-4 py-3 text-sm">Total Spend</th><th className="text-right px-4 py-3 text-sm">Last Ordered</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {customerData.map(c => (
+                    <tr key={c.name} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-bold text-gray-700">{c.name}</td>
+                      <td className="px-4 py-3 text-sm text-right">{c.orders}</td>
+                      <td className="px-4 py-3 text-sm text-right text-indigo-600 font-bold">Php {c.revenue.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm text-right text-gray-500">{new Date(c.lastVisit).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeReport === 'reports-promos' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-yellow-500">
+                <p className="text-sm text-gray-500">Total Discounts Given</p>
+                <p className="text-2xl font-bold text-yellow-600">Php {promoData.totalDiscounts.toFixed(2)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+                <p className="text-sm text-gray-500">Discounted Transactions</p>
+                <p className="text-2xl font-bold text-blue-600">{promoData.discountedOrders} Orders</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500">
+                <p className="text-sm text-gray-500">Promo Redemption Rate</p>
+                <p className="text-2xl font-bold text-purple-600">{((promoData.discountedOrders / (salesData.length || 1)) * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500 border border-dashed border-gray-300">
+              <p className="font-bold text-gray-700 mb-1">Impact Analysis</p>
+              <p className="text-sm">Discounted orders generated <strong>Php {promoData.promoRevenue.toFixed(2)}</strong> in gross revenue this period.</p>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeReport === 'reports-returns' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg p-5 shadow-sm border-l-4 border-red-500">
+                <p className="text-sm text-gray-500">Refunded Transactions</p>
+                <p className="text-2xl font-bold text-red-600">{returnData.refundedCount} | Php {returnData.refundedAmount.toFixed(2)}</p>
+                <p className="text-xs text-gray-400 mt-1">Impact on net revenue</p>
+              </div>
+              <div className="bg-white rounded-lg p-5 shadow-sm border-l-4 border-gray-400">
+                <p className="text-sm text-gray-500">Voided Transactions</p>
+                <p className="text-2xl font-bold text-gray-700">{returnData.voidedCount} | Php {returnData.voidedAmount.toFixed(2)}</p>
+                <p className="text-xs text-gray-400 mt-1">Errors/Pre-payment cancellations</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+               <p className="p-4 text-sm font-bold text-gray-700 border-b">Recent Canceled/Refunded Activity</p>
+               <table className="w-full font-data-table">
+                <thead className="bg-gray-50">
+                  <tr><th className="text-left px-4 py-3 text-sm">Order #</th><th className="text-left px-4 py-3 text-sm">Reason/Staff</th><th className="text-right px-4 py-3 text-sm">Amount</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {salesData.filter(o => ['voided', 'refunded', 'cancelled'].includes(o.order_status.toLowerCase())).slice(0, 10).map(o => (
+                    <tr key={o.id}>
+                      <td className="px-4 py-3 text-sm font-bold">{o.order_number}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{o.order_status} · {o.employee_name || 'POS'}</td>
+                      <td className="px-4 py-3 text-sm text-right text-red-600">Php {Number(o.total_amount || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {salesData.filter(o => ['voided', 'refunded', 'cancelled'].includes(o.order_status.toLowerCase())).length === 0 && (
+                    <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400 italic">No refund activity recorded for this period.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeReport === 'reports-channels' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-cyan-600 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-800">Omnichannel Performance</h3>
+              <div className="flex gap-4">
+                <div className="text-center"><p className="text-xs text-gray-400 font-bold">OFFLINE</p><p className="font-bold text-cyan-600">{((channelData.find(c => c.name === 'POS')?.revenue || 0) / (netSales || 1) * 100).toFixed(1)}%</p></div>
+                <div className="text-center"><p className="text-xs text-gray-400 font-bold">ONLINE</p><p className="font-bold text-purple-600">{((channelData.find(c => c.name === 'ONLINE')?.revenue || 0) / (netSales || 1) * 100).toFixed(1)}%</p></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+               <table className="w-full font-data-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr><th className="text-left px-4 py-3 text-sm">Sales Channel</th><th className="text-right px-4 py-3 text-sm">Transactions</th><th className="text-right px-4 py-3 text-sm">Net Revenue</th><th className="text-right px-4 py-3 text-sm">Contribution</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {channelData.map(c => (
+                    <tr key={c.name}>
+                      <td className="px-4 py-3 text-sm font-bold uppercase tracking-wider">{c.name === 'DINEOUT' ? 'ONLINE / DELIVERY' : c.name === 'POS' ? 'IN-STORE (POS)' : c.name}</td>
+                      <td className="px-4 py-3 text-sm text-right">{c.orders}</td>
+                      <td className="px-4 py-3 text-sm text-right font-medium text-cyan-700">Php {c.revenue.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm text-right text-gray-500">{((c.revenue / (netSales || 1)) * 100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {!loading && activeReport === 'reports-inventory' && (
           <InventoryReportsSection
             dateRange={dateRange}
@@ -9701,9 +9994,27 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           />
         )}
 
-        {!loading && ['reports-employees', 'reports-financial', 'reports-tax'].includes(activeReport) && (
-          <div className="bg-white rounded-lg p-6 text-gray-600">This report tab is active and ready for configuration.</div>
+        {!loading && activeReport === 'reports-employees' && (
+           <div className="space-y-3">
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+              <p className="text-sm text-gray-500">Staff Contribution</p>
+              <p className="text-2xl font-bold text-blue-600">{employeeData.length} Employees Active</p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full font-data-table">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr><th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">Employee</th><th className="text-right px-4 py-3 text-sm font-semibold text-gray-600">Orders</th><th className="text-right px-4 py-3 text-sm font-semibold text-gray-600">Total Net Sales</th></tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {employeeData.map(emp => (
+                    <tr key={emp.name}><td className="px-4 py-3 text-sm text-gray-800 font-medium">{emp.name}</td><td className="px-4 py-3 text-sm text-right text-gray-600">{emp.orders}</td><td className="px-4 py-3 text-sm text-right text-cyan-600">Php {emp.revenue.toFixed(2)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
+
       </div>
     </div>
   );
@@ -11141,6 +11452,8 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   const [adjustingStock, setAdjustingStock] = useState({});
   const [expandedLedgerId, setExpandedLedgerId] = useState(null); // { id: number, type: 'product' | 'ingredient' } | null
   const [ledgerTransactions, setLedgerTransactions] = useState([]);
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [selectedItemForAdjustment, setSelectedItemForAdjustment] = useState(null);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const ingredientCsvInputRef = useRef(null);
   const productCsvInputRef = useRef(null);
@@ -11208,66 +11521,77 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   };
 
   const InventoryLedger = ({ transactions, loading, unit }) => (
-    <div className="bg-gray-50 p-3 border-x border-b shadow-inner">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">📜 Transaction History (Ledger)</h4>
-        {loading && <span className="text-[10px] text-cyan-600 animate-pulse font-medium">Fetching history...</span>}
+    <div className="bg-gray-100 p-2 border-t font-sans">
+      <div className="flex justify-between items-center mb-1 px-1">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Stock Movement Journal</span>
+        <span className="text-[9px] text-cyan-600 font-mono italic">Audit Trail Active</span>
       </div>
-      <div className="bg-white border rounded overflow-hidden">
-        <table className="w-full font-data-table border-collapse">
-          <thead className="bg-gray-50/50 text-gray-400 border-b border-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">DATE</th>
-              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">TYPE</th>
-              <th className="px-3 py-2 text-right font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">CHANGE</th>
-              <th className="px-3 py-2 text-right font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">BALANCE</th>
-              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest border-r border-gray-50/50">SOURCE</th>
-              <th className="px-3 py-2 text-left font-bold text-[9px] uppercase tracking-widest">NOTES</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {transactions.length === 0 && !loading ? (
-              <tr><td colSpan="6" className="px-3 py-6 text-center text-gray-300 font-medium italic text-xs">No transactions recorded yet.</td></tr>
-            ) : (
-              transactions.map((t, i) => (
-                <tr key={t.id || i} className="hover:bg-cyan-50/30 transition-colors">
-                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap text-[12px] font-medium border-r border-gray-50/50">
-                    {new Date(t.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '')}
-                  </td>
-                  <td className="px-3 py-1.5 uppercase font-semibold text-[12px] tracking-tight border-r border-gray-50/50">
-                    <span className={
-                      t.transaction_type === 'order_deduction' ? 'text-blue-600' : 
-                      t.transaction_type === 'adjustment' ? 'text-orange-600' : 
-                      'text-gray-600'
-                    }>
-                      {t.transaction_type.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className={`px-3 py-1.5 text-right font-bold text-[12px] border-r border-gray-50/50 ${parseFloat(t.quantity_change) > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {parseFloat(t.quantity_change) > 0 ? '+' : ''}{parseFloat(t.quantity_change).toFixed(2)}
-                  </td>
-                  <td className="px-3 py-1.5 text-right font-bold text-[12px] text-gray-800 bg-gray-50/20 border-r border-gray-50/50">
-                    {parseFloat(t.quantity_after).toFixed(2)} <span className="text-[9px] uppercase font-bold text-gray-400 ml-0.5">{unit}</span>
-                  </td>
-                  <td className="px-3 py-1.5 text-gray-600 text-[12px] font-medium border-r border-gray-50/50">
-                    {t.product_name ? `${t.product_name}${t.size_name ? ` (${t.size_name})` : ''}` : 'N/A'}
-                  </td>
-                  <td className="px-3 py-1.5 text-gray-400 text-[12px] font-medium italic truncate max-w-[150px]" title={t.notes}>
-                    {t.notes || '—'}
-                  </td>
+      {loading ? (
+        <div className="py-4 text-center text-[10px] text-gray-400">Loading ledger...</div>
+      ) : (
+        <div className="bg-white border rounded shadow-sm overflow-hidden border-gray-200">
+          <table className="w-full text-[10px] border-collapse">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-2 py-1.5 font-bold text-gray-500 uppercase tracking-tighter">Date / Time</th>
+                <th className="text-center px-2 py-1.5 font-bold text-gray-500 uppercase tracking-tighter">Action</th>
+                <th className="text-center px-2 py-1.5 font-bold text-gray-500 uppercase tracking-tighter">Change</th>
+                <th className="text-center px-2 py-1.5 font-bold text-gray-500 uppercase tracking-tighter">Running Balance</th>
+                <th className="text-center px-1 py-1.5 font-bold text-gray-500 uppercase tracking-tighter">Expiry</th>
+                <th className="text-left px-2 py-1.5 font-bold text-gray-500 uppercase tracking-tighter">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-6 text-center text-gray-400 italic font-medium">No movement recorded for this item.</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                transactions.map(t => (
+                  <tr key={t.id} className="border-b last:border-0 hover:bg-cyan-50/20 transition-colors">
+                    <td className="px-2 py-1.5 whitespace-nowrap text-gray-400 font-medium">
+                      {new Date(t.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-black uppercase tracking-tighter">
+                      <span className={t.quantity_change > 0 ? 'text-green-600' : 'text-orange-500'}>
+                        {t.transaction_type.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className={`px-2 py-1.5 text-center font-bold ${t.quantity_change > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {t.quantity_change > 0 ? '+' : ''}{parseFloat(t.quantity_change).toFixed(2)}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-black text-gray-700 bg-gray-50/30">
+                      {parseFloat(t.quantity_after || 0).toFixed(2)} <span className="text-[8px] text-gray-300 ml-0.5">{unit || 'pc'}</span>
+                    </td>
+                    <td className="px-1 py-1.5 text-center">
+                      {t.expiry_date ? (
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${new Date(t.expiry_date) < new Date() ? 'bg-red-500 text-white animate-pulse' : 'bg-cyan-100 text-cyan-700 border border-cyan-200'}`}>
+                          {new Date(t.expiry_date).toLocaleDateString()}
+                        </span>
+                      ) : (
+                        <span className="text-gray-200 font-bold">—</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-gray-500 truncate max-w-[150px] font-medium" title={t.notes}>
+                      {t.notes || '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
+
 
   const views = [
     { id: 'inventory-stock', name: 'Stock' },
     { id: 'inventory-ingredients', name: 'Raw Materials' },
     { id: 'inventory-recipes', name: 'Composite' },
+    { id: 'inventory-reorder', name: 'Low Stock 📦' },
+    { id: 'inventory-expiring', name: 'Expiring Soon ⚠️' },
     { id: 'inventory-status', name: 'Status' },
     { id: 'inventory-receive', name: 'Receive' },
   ];
@@ -11277,8 +11601,9 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     const regularProducts = menuData.filter(p => !p.isCombo);
     setProducts(regularProducts);
 
-    // Load ingredients when needed
-    if (currentView.startsWith('inventory-ingredients') || currentView.startsWith('inventory-recipes') || currentView.startsWith('inventory-status')) {
+    // Load ingredients and data when needed
+    const viewsNeedingIngredients = ['inventory-ingredients', 'inventory-stock', 'inventory-recipes', 'inventory-reorder', 'inventory-expiring', 'inventory-status'];
+    if (viewsNeedingIngredients.includes(currentView)) {
       console.log('[InventoryPage] Loading ingredients for view:', currentView);
       fetchIngredients();
       if (currentView.startsWith('inventory-recipes')) {
@@ -11686,9 +12011,14 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   };
 
   const filteredProducts = products
-    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter(p => {
-      const hasRecipe = p.ingredient_count > 0;
+      const name = (p.name || '').toLowerCase();
+      const cat = (p.category || '').toLowerCase();
+      const term = (searchTerm || '').toLowerCase();
+      return name.includes(term) || cat.includes(term);
+    })
+    .filter(p => {
+      const hasRecipe = (p.ingredient_count || 0) > 0;
       if (trackingFilter === 'Standalone') return !hasRecipe;
       if (trackingFilter === 'Composite') return hasRecipe;
       return true;
@@ -11696,6 +12026,8 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     .sort((a, b) => {
       let aVal = sortBy === 'stock' ? (a.stock_quantity || 0) : a[sortBy];
       let bVal = sortBy === 'stock' ? (b.stock_quantity || 0) : b[sortBy];
+      if (aVal === undefined || aVal === null) aVal = '';
+      if (bVal === undefined || bVal === null) bVal = '';
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
       if (sortDir === 'asc') return aVal > bVal ? 1 : -1;
@@ -11776,6 +12108,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                     # Product {sortBy === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
                   </th>
                   <th className="text-left px-2 py-1.5 font-semibold text-gray-600 border-b w-20">SKU ID</th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-600 border-b w-24">Expiry</th>
                   <th
                     onClick={() => handleSort('category')}
                     className="text-left px-2 py-1.5 font-semibold text-gray-600 border-b cursor-pointer hover:bg-gray-200"
@@ -11810,6 +12143,13 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                           {product.name}
                         </td>
                         <td className="px-2 py-1 text-gray-600 font-mono text-xs">{product.sku || '-'}</td>
+                        <td className="px-2 py-1">
+                          {product.last_expiry_date ? (
+                            <span className={`text-[10px] font-bold px-1 rounded ${new Date(product.last_expiry_date) < new Date() ? 'bg-red-500 text-white animate-pulse' : (new Date(product.last_expiry_date) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) ? 'bg-yellow-400 text-black' : 'text-gray-500')}`}>
+                              {new Date(product.last_expiry_date).toLocaleDateString()}
+                            </span>
+                          ) : '-'}
+                        </td>
                         <td className="px-2 py-1 text-gray-500">{product.category}</td>
                         <td className="px-2 py-1 text-right text-gray-600">₱{(product.price || 0).toFixed(2)}</td>
                         <td className={`px-2 py-1 text-center font-medium ${hasRecipe ? 'text-[10px] text-gray-400 italic' : (isLow ? 'text-red-600' : 'text-gray-800')}`}>
@@ -11830,22 +12170,16 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                           )}
                         </td>
                         <td className="px-2 py-1 text-center">
-                          <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => adjustStock(product.id, -1)}
-                              disabled={hasRecipe || !!adjustingStock[product.id]}
-                              className="w-5 h-5 bg-red-500 text-white text-xs hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >-</button>
-                            <button
-                              type="button"
-                              onClick={() => adjustStock(product.id, 1)}
-                              disabled={hasRecipe || !!adjustingStock[product.id]}
-                              className="w-5 h-5 bg-cyan-500 text-white text-xs hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {adjustingStock[product.id] ? '…' : '+'}
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedItemForAdjustment({ ...product, type: 'product' });
+                              setShowAdjustmentModal(true);
+                            }}
+                            className="text-[10px] px-2 py-1 bg-cyan-600 text-white font-bold rounded hover:bg-cyan-700 transition-colors uppercase"
+                          >
+                            Adjust
+                          </button>
                         </td>
                       </tr>
                       {isExpanded && (
@@ -11930,6 +12264,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                     <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b w-16">Unit</th>
                     <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b w-20">Stock</th>
                     <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b w-20">Reorder</th>
+                    <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b w-24">Last Expiry</th>
                     <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b w-16">Cost/Unit</th>
                     <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b">Status</th>
                     <th className="text-center px-2 py-1.5 font-semibold text-gray-600 border-b w-28">Action</th>
@@ -11954,6 +12289,13 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                             {parseFloat(ing.current_stock).toFixed(2)}
                           </td>
                           <td className="px-2 py-1 text-center text-gray-500">{parseFloat(ing.reorder_level).toFixed(2)}</td>
+                          <td className="px-2 py-1 text-center">
+                            {ing.last_expiry_date ? (
+                              <span className={`text-[10px] font-bold px-1 rounded ${new Date(ing.last_expiry_date) < new Date() ? 'bg-red-500 text-white animate-pulse' : (new Date(ing.last_expiry_date) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) ? 'bg-yellow-400 text-black' : 'text-gray-500')}`}>
+                                {new Date(ing.last_expiry_date).toLocaleDateString()}
+                              </span>
+                            ) : '-'}
+                          </td>
                           <td className="px-2 py-1 text-center text-gray-500">₱{parseFloat(ing.cost_per_unit).toFixed(2)}</td>
                           <td className="px-2 py-1 text-center">
                             <span className={`text-xs px-1.5 py-0.5 ${isLow ? 'bg-red-100 text-red-600 font-bold' : 'bg-cyan-100 text-cyan-600'}`}>
@@ -11963,14 +12305,12 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                           <td className="px-2 py-1 text-center">
                             <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                               <button
-                                onClick={() => {
-                                  const change = prompt(`Add/remove ${ing.name} (${ing.unit}):`);
-                                  if (change) {
-                                    const notes = prompt('Notes (optional):');
-                                    updateInventory(ing.id, change, notes);
-                                  }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedItemForAdjustment({ ...ing, type: 'ingredient' });
+                                  setShowAdjustmentModal(true);
                                 }}
-                                className="text-xs px-2 py-0.5 bg-blue-500 text-white hover:bg-blue-600"
+                                className="text-xs px-2 py-0.5 bg-cyan-600 text-white hover:bg-cyan-700"
                               >
                                 Adjust
                               </button>
@@ -12179,6 +12519,145 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
           </div>
         )}
 
+        {currentView === 'inventory-reorder' && (
+          <div className="bg-white border rounded shadow-sm overflow-hidden">
+            <div className="p-4 bg-red-50 border-b border-red-100">
+              <h3 className="text-sm font-black text-red-800 flex items-center gap-2 uppercase tracking-widest">
+                📦 Low Stock Replenishment List
+              </h3>
+              <p className="text-[10px] text-red-600 mt-1 uppercase font-bold">
+                Found {ingredients.filter(ing => (ing.current_stock || 0) <= (ing.reorder_level || 0)).length + products.filter(p => p.ingredient_count === 0 && (p.stock_quantity || 0) <= (p.low_stock_threshold || 10)).length} items below minimum safety levels.
+              </p>
+            </div>
+            
+            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+              <table className="w-full text-xs font-data-table border-collapse">
+                <thead className="bg-gray-50 border-b text-gray-400 uppercase text-[10px] font-black sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left">ITEM NAME</th>
+                    <th className="px-4 py-3 text-center w-24">CURRENT</th>
+                    <th className="px-4 py-3 text-center w-24">REORDER AT</th>
+                    <th className="px-4 py-3 text-center w-24 text-red-500">GAP</th>
+                    <th className="px-4 py-3 text-center w-32">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[
+                    ...ingredients.map(ing => ({ ...ing, itemType: 'Raw Material', current: ing.current_stock, threshold: ing.reorder_level })),
+                    ...products.filter(p => (p.ingredient_count || 0) === 0).map(p => ({ ...p, itemType: 'Retail Product', current: p.stock_quantity, threshold: p.low_stock_threshold || 10 }))
+                  ]
+                  .filter(item => (item.current || 0) <= (item.threshold || 0))
+                  .sort((a,b) => (a.current / (a.threshold || 1)) - (b.current / (b.threshold || 1)))
+                  .map(item => {
+                    const gap = (item.threshold || 0) - (item.current || 0);
+                    return (
+                      <tr key={`${item.itemType}-${item.id}`} className="hover:bg-red-50/20 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-black text-gray-800">{item.name}</div>
+                          <div className="text-[9px] uppercase font-bold text-gray-400">{item.itemType}</div>
+                        </td>
+                        <td className="px-4 py-3 text-center font-black text-red-600">
+                          {parseFloat(item.current || 0).toFixed(2)} {item.unit || 'pc'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-gray-400">
+                          {parseFloat(item.threshold || 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-center font-black bg-red-50 text-red-700">
+                          +{parseFloat(gap + (item.threshold * 0.5)).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => {
+                              setSelectedItemForAdjustment({ ...item, type: item.itemType === 'Retail Product' ? 'product' : 'ingredient' });
+                              setShowAdjustmentModal(true);
+                            }}
+                            className="text-[9px] font-black uppercase px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 shadow-sm"
+                          >
+                            Restock Now
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {ingredients.filter(ing => ing.current_stock <= ing.reorder_level).length === 0 && products.filter(p => p.ingredient_count === 0 && p.stock_quantity <= p.low_stock_threshold).length === 0 && (
+                <div className="py-20 text-center text-gray-400 font-medium italic">All inventory levels are above safety thresholds.</div>
+              )}
+            </div>
+          </div>
+        )}
+        {currentView === 'inventory-expiring' && (
+          <div className="bg-white border rounded shadow-sm overflow-hidden">
+            <div className="p-4 bg-orange-50 border-b border-orange-100">
+              <h3 className="text-sm font-bold text-orange-800 flex items-center gap-2 uppercase tracking-widest">
+                ⚠️ Expiring Items Alert
+              </h3>
+              <p className="text-[10px] text-orange-600 mt-1">Found {ingredients.filter(ing => ing.last_expiry_date && new Date(ing.last_expiry_date) < new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)).length + products.filter(p => p.last_expiry_date && new Date(p.last_expiry_date) < new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)).length} items nearing or past expiry.</p>
+            </div>
+            
+            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+              <table className="w-full text-xs font-data-table border-collapse">
+                <thead className="bg-gray-50 border-b text-gray-500 uppercase text-[10px] font-black sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left w-12">TYPE</th>
+                    <th className="px-4 py-3 text-left">ITEM NAME</th>
+                    <th className="px-4 py-3 text-center w-32">EXPIRY DATE</th>
+                    <th className="px-4 py-3 text-center w-28">DAYS REMAINING</th>
+                    <th className="px-4 py-3 text-center w-24">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[
+                    ...ingredients.map(ing => ({ ...ing, itemType: 'Raw Material' })),
+                    ...products.map(p => ({ ...p, itemType: 'Retail Product' }))
+                  ]
+                  .filter(item => item.last_expiry_date && new Date(item.last_expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                  .sort((a,b) => new Date(a.last_expiry_date) - new Date(b.last_expiry_date))
+                  .map(item => {
+                    const days = Math.ceil((new Date(item.last_expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                    const isExpired = days <= 0;
+                    const isSoon = days <= 7;
+                    return (
+                      <tr key={`${item.itemType}-${item.id}`} className={isExpired ? 'bg-red-50/30' : ''}>
+                        <td className="px-4 py-3">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-transparent ${item.itemType === 'Retail Product' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                            {item.itemType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-gray-800">{item.name}</td>
+                        <td className="px-4 py-3 text-center font-mono">
+                          {new Date(item.last_expiry_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-center font-black">
+                          {isExpired ? (
+                            <span className="text-red-600">EXPIRED</span>
+                          ) : (
+                            <span className={isSoon ? 'text-orange-600' : 'text-gray-600'}>
+                              {days} days
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {isExpired ? (
+                            <div className="w-3 h-3 bg-red-600 rounded-full mx-auto animate-pulse" />
+                          ) : isSoon ? (
+                            <div className="w-3 h-3 bg-orange-500 rounded-full mx-auto" />
+                          ) : (
+                            <div className="w-3 h-3 bg-green-500 rounded-full mx-auto" />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {ingredients.filter(i => i.last_expiry_date).length === 0 && products.filter(p => p.last_expiry_date).length === 0 && (
+                <div className="py-20 text-center text-gray-400 font-medium italic">All items are within shelf-life or have no expiry date set.</div>
+              )}
+            </div>
+          </div>
+        )}
         {currentView === 'inventory-status' && (
           <div className="bg-white border">
             <div className="p-4 border-b">
@@ -12696,6 +13175,20 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               </div>
             </div>
           </div>
+        )}
+        {showAdjustmentModal && selectedItemForAdjustment && (
+          <StockAdjustmentModal
+            item={selectedItemForAdjustment}
+            API_URL={API_URL}
+            onRefresh={() => {
+              fetchIngredients();
+              refreshProducts();
+            }}
+            onClose={() => {
+              setShowAdjustmentModal(false);
+              setSelectedItemForAdjustment(null);
+            }}
+          />
         )}
       </div>
     </div>
@@ -14777,6 +15270,153 @@ function PrintTestPage({ config, setCurrentPage, setLastOrderData, showSuccessOv
         <p className="text-xs text-gray-500">
           Tip: For silent printing, launch the browser with <code>--kiosk --kiosk-printing</code> and set your thermal printer as default.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function StockAdjustmentModal({ item, API_URL, onRefresh, onClose }) {
+  const [qty, setQty] = useState('');
+  const [type, setType] = useState('receive'); // receive, waste, correction
+  const [expiry, setExpiry] = useState('');
+  const [cost, setCost] = useState('');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    if (!qty || isNaN(qty)) {
+      setError('Please enter a valid quantity.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const q = parseFloat(qty);
+      // Automatic sign change based on type
+      const quantity_change = (type === 'receive' || (type === 'correction' && q > 0)) ? Math.abs(q) : -Math.abs(q);
+      
+      const payload = {
+        quantity_change,
+        notes: `${type.toUpperCase()}: ${notes}`,
+        expiry_date: expiry || null,
+        invoice_cost: cost || null,
+        created_by: 'POS'
+      };
+
+      if (item.type === 'product') payload.product_id = item.id;
+      else payload.ingredient_id = item.id;
+
+      const res = await fetchWithAuth(`${API_URL}/inventory/adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        onRefresh();
+        onClose();
+      } else {
+        setError(data.error || 'Adjustment failed');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200">
+        <div className="px-5 py-4 bg-cyan-600 text-white flex justify-between items-center">
+          <div className="flex flex-col">
+            <h3 className="font-bold text-sm">Stock Adjustment</h3>
+            <p className="text-[10px] opacity-80 uppercase tracking-wider">{item.name}</p>
+          </div>
+          <button onClick={onClose} className="hover:opacity-70 p-1">✕</button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          {error && <div className="p-3 bg-red-50 text-red-600 text-[10px] rounded border border-red-100 font-bold">{error}</div>}
+          
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1.5 tracking-widest">Movement Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'receive', label: 'Receive', color: 'bg-green-500' },
+                { id: 'waste', label: 'Waste', color: 'bg-red-500' },
+                { id: 'correction', label: 'Correction', color: 'bg-gray-600' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setType(t.id)}
+                  className={`py-2 text-[10px] font-black rounded border-2 transition-all uppercase tracking-tighter ${type === t.id ? `${t.color} text-white border-transparent shadow-lg` : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1.5 tracking-widest">Amount ({item.unit || 'pc'})</label>
+              <input
+                type="number"
+                value={qty}
+                onChange={e => setQty(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-3 py-2 border-2 border-gray-100 rounded focus:border-cyan-500 outline-none text-base font-black text-gray-800 placeholder-gray-200"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1.5 tracking-widest">Expiry Date</label>
+              <input
+                type="date"
+                value={expiry}
+                onChange={e => setExpiry(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-gray-100 rounded focus:border-cyan-500 outline-none text-[11px] font-bold text-gray-600 bg-gray-50/50"
+              />
+            </div>
+          </div>
+
+          {type === 'receive' && (
+            <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1.5 tracking-widest text-cyan-600">Unit Buy Cost (₱)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-gray-400 font-bold text-sm">₱</span>
+                <input
+                  type="number"
+                  value={cost}
+                  onChange={e => setCost(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-7 pr-3 py-2 border-2 border-cyan-100 bg-cyan-50/10 rounded focus:border-cyan-500 outline-none text-sm font-black text-gray-700"
+                />
+              </div>
+              <p className="text-[9px] text-cyan-600/60 mt-1 italic font-medium">Recalculates Weighted Average Cost (WAC).</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1.5 tracking-widest">Internal Audit Notes</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Supplier name, Reason for waste, Batch ID, etc."
+              className="w-full px-3 py-2 border-2 border-gray-100 rounded focus:border-cyan-500 outline-none text-[11px] h-20 resize-none font-medium placeholder-gray-200"
+            />
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !qty}
+            className={`w-full py-4 text-white font-black rounded-xl transition-all uppercase tracking-[0.2em] text-[11px] shadow-xl ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-700 hover:scale-[1.02] active:scale-95 shadow-cyan-200/50'}`}
+          >
+            {loading ? 'Adjusting Stock...' : 'Confirm Transaction'}
+          </button>
+        </div>
       </div>
     </div>
   );

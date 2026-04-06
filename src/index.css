@@ -139,47 +139,54 @@ input.payment-amount-input {
   scrollbar-width: none;  /* Firefox */
 }
 
-/* ===== Thermal Printer Printing Styles ===== */
+/* ===== Printing Styles ===== */
 @media print {
-  /* Hide everything except the receipt */
-  body * {
-    visibility: hidden;
-  }
-  
-  #printable-receipt, #printable-receipt * {
-    visibility: visible;
-  }
-
-  #printable-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 58mm !important; /* Force 58mm width */
-    margin: 0;
-    padding: 0;
-    background: white;
-  }
-
-  /* Reset layout for print */
-  body, html {
-    width: 58mm !important;
-    height: auto;
-    margin: 0;
-    padding: 0;
+  /* Reset background for printing */
+  body, html, .printable-report {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
     overflow: visible !important;
   }
 
-  /* Remove headers/footers from browser */
-  @page {
-    size: 58mm auto;
-    margin: 0;
-  }
-
-  /* Success overlay and other fixed elements must be hidden */
-  .fixed, .absolute:not(#printable-receipt), nav, header {
+  /* Hide everything except the report content */
+  nav, header, aside, .print-hidden, .no-print, button, select, 
+  .reconciliation-assistant {
     display: none !important;
   }
+
+
+  /* Ensure the main container is visible and full width */
+  .printable-report {
+    display: block !important;
+    position: static !important;
+    padding: 20px !important;
+  }
+
+  /* Receipts still use the old id-based show-only logic if needed */
+  #printable-receipt {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm !important;
+    visibility: visible;
+  }
+
+  #printable-receipt * {
+    visibility: visible;
+  }
+
+  @page {
+    margin: 0.5cm;
+    size: auto;
+  }
 }
+
+
 
 /* Custom class for 58mm receipts */
 .thermal-58 {

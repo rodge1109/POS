@@ -249,30 +249,32 @@ router.put('/ingredients/:id', async (req, res) => {
 router.post('/adjust', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { ingredient_id, quantity_change, notes, created_by = 'manual', invoice_cost } = req.body;
+    const { ingredient_id, product_id, quantity_change, notes, created_by = 'manual', invoice_cost, expiry_date } = req.body;
 
-    if (!ingredient_id || quantity_change === undefined) {
-      return res.status(400).json({ success: false, error: 'Ingredient ID and quantity change are required' });
+    if ((!ingredient_id && !product_id) || quantity_change === undefined) {
+      return res.status(400).json({ success: false, error: 'Item ID and quantity change are required' });
     }
 
     await client.query('BEGIN');
 
-    // Get current stock and current cost
-    const ingredientResult = await client.query(
-      'SELECT current_stock, cost_per_unit FROM ingredients WHERE id = $1 AND company_id = $2',
-      [ingredient_id, req.company_id]
-    );
-
-    if (ingredientResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ success: false, error: 'Ingredient not found' });
+    let currentStock, currentCost, tableName, idCol;
+    if (ingredient_id) {
+      tableName = 'ingredients';
+      idCol = 'id';
+      const result = await client.query('SELECT current_stock, cost_per_unit FROM ingredients WHERE id = $1 AND company_id = $2', [ingredient_id, req.company_id]);
+      if (result.rows.length === 0) throw new Error('Ingredient not found');
+      currentStock = parseFloat(result.rows[0].current_stock || 0);
+      currentCost = parseFloat(result.rows[0].cost_per_unit || 0);
+    } else {
+      tableName = 'products';
+      idCol = 'id';
+      const result = await client.query('SELECT stock_quantity, cost FROM products WHERE id = $1 AND company_id = $2', [product_id, req.company_id]);
+      if (result.rows.length === 0) throw new Error('Product not found');
+      currentStock = parseFloat(result.rows[0].stock_quantity || 0);
+      currentCost = parseFloat(result.rows[0].cost || 0);
     }
 
-    const currentStock = parseFloat(ingredientResult.rows[0].current_stock || 0);
-    const currentCost = parseFloat(ingredientResult.rows[0].cost_per_unit || 0);
     const qtyChange = parseFloat(quantity_change);
-    
-    // Calculate new stock
     const newStock = Math.round((currentStock + qtyChange) * 100) / 100;
 
     if (newStock < 0) {
@@ -280,34 +282,33 @@ router.post('/adjust', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Insufficient stock' });
     }
 
-    // Apply Weighted Average Cost (WAC) logic only if adding stock and an invoice cost is provided
     let newCostPerUnit = currentCost;
     if (qtyChange > 0 && invoice_cost !== undefined && invoice_cost !== null) {
       const invCost = parseFloat(invoice_cost);
       if (invCost >= 0) {
-        // Blended value = (Old Stock * Old Cost) + (Received Stock * New Cost)
         const currentTotalValue = currentStock * currentCost;
         const newReceivedValue = qtyChange * invCost;
-        if (newStock > 0) {
-          newCostPerUnit = Math.round(((currentTotalValue + newReceivedValue) / newStock) * 100) / 100;
-        } else {
-          newCostPerUnit = invCost; // Fallback entirely to new cost if net stock somehow lands exactly at 0
-        }
+        newCostPerUnit = newStock > 0 ? Math.round(((currentTotalValue + newReceivedValue) / newStock) * 100) / 100 : invCost;
       }
     }
 
-    // Update ingredient stock and blended cost
-    await client.query(
-      'UPDATE ingredients SET current_stock = $1, cost_per_unit = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND company_id = $4',
-      [newStock, newCostPerUnit, ingredient_id, req.company_id]
+    // Update stock, cost, and last expiry date
+    const updateQuery = ingredient_id
+      ? `UPDATE ingredients SET current_stock = $1, cost_per_unit = $2, last_expiry_date = COALESCE($3, last_expiry_date), updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND company_id = $5`
+      : `UPDATE products SET stock_quantity = $1, cost = $2, last_expiry_date = COALESCE($3, last_expiry_date), updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND company_id = $5`;
+    
+    await client.query(updateQuery, [newStock, newCostPerUnit, expiry_date || null, ingredient_id || product_id, req.company_id]);
+
+    // Record transaction with expiry date
+    const transactionResult = await client.query(
+      `INSERT INTO inventory_transactions (ingredient_id, product_id, transaction_type, quantity_change, quantity_after, notes, created_by, expiry_date, company_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [ingredient_id || null, product_id || null, qtyChange > 0 ? 'receive' : 'adjustment', quantity_change, newStock, notes || null, created_by, expiry_date || null, req.company_id]
     );
 
-    // Record transaction
-    const transactionResult = await client.query(
-      `INSERT INTO inventory_transactions (ingredient_id, transaction_type, quantity_change, quantity_after, notes, created_by, company_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [ingredient_id, 'adjustment', quantity_change, newStock, notes || null, created_by, req.company_id]
-    );
+    await client.query('COMMIT');
+    res.json({ success: true, transaction: transactionResult.rows[0] });
+
 
     await client.query('COMMIT');
     res.json({ success: true, transaction: transactionResult.rows[0] });

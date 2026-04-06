@@ -1,23 +1,16 @@
 import nodemailer from 'nodemailer';
 import pool from '../config/database.js';
 
-// Load settings from DB
-async function getSettings() {
-  const result = await pool.query('SELECT key, value FROM system_settings');
+// Load settings from DB scoped by company_id
+async function getSettings(company_id) {
+  const result = await pool.query('SELECT key, value FROM system_settings WHERE company_id = $1', [company_id]);
   const s = {};
   result.rows.forEach(r => { s[r.key] = r.value; });
   return s;
 }
 
 const currencySymbols = {
-  PHP: '₱',
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  SGD: 'S$',
-  AUD: 'A$',
-  CAD: 'C$',
-  JPY: '¥'
+  PHP: '₱', USD: '$', EUR: '€', GBP: '£', SGD: 'S$', AUD: 'A$', CAD: 'C$', JPY: '¥'
 };
 
 const formatCurrency = (amount, currency = 'PHP') => {
@@ -41,7 +34,7 @@ async function createTransporter(s) {
 
 // ── Report Queries ─────────────────────────────────────────────────────────
 
-async function getSalesReport(startDate, endDate) {
+async function getSalesReport(startDate, endDate, company_id) {
   const result = await pool.query(`
     SELECT
       COUNT(*) as total_orders,
@@ -51,51 +44,34 @@ async function getSalesReport(startDate, endDate) {
       COUNT(CASE WHEN payment_method = 'cash' THEN 1 END) as cash_orders,
       COUNT(CASE WHEN payment_method = 'gcash' THEN 1 END) as gcash_orders,
       COUNT(CASE WHEN payment_method = 'card' THEN 1 END) as card_orders,
-      COUNT(CASE WHEN payment_method = 'credit' THEN 1 END) as credit_orders,
       COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END), 0) as cash_revenue,
       COALESCE(SUM(CASE WHEN payment_method = 'gcash' THEN total_amount ELSE 0 END), 0) as gcash_revenue,
       COALESCE(SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END), 0) as card_revenue
     FROM orders
     WHERE order_status IN ('completed', 'received', 'preparing')
+      AND company_id = $3
       AND DATE(created_at AT TIME ZONE 'Asia/Manila') BETWEEN $1 AND $2
-  `, [startDate, endDate]);
+  `, [startDate, endDate, company_id]);
 
   const topItems = await pool.query(`
     SELECT oi.product_name, SUM(oi.quantity) as total_qty, SUM(oi.subtotal) as total_sales
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
     WHERE o.order_status IN ('completed', 'received', 'preparing')
+      AND o.company_id = $3
       AND DATE(o.created_at AT TIME ZONE 'Asia/Manila') BETWEEN $1 AND $2
       AND oi.status = 'active'
     GROUP BY oi.product_name
     ORDER BY total_qty DESC
     LIMIT 10
-  `, [startDate, endDate]);
+  `, [startDate, endDate, company_id]);
 
   return { summary: result.rows[0], topItems: topItems.rows };
 }
 
-async function getKitchenReport(startDate, endDate) {
-  const result = await pool.query(`
-    SELECT o.order_number, o.order_status, o.created_at,
-           t.table_number, o.service_type
-    FROM orders o
-    LEFT JOIN tables t ON o.table_id = t.id
-    WHERE o.order_status IN ('received', 'preparing', 'completed', 'paid')
-      AND EXISTS (
-        SELECT 1 FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = o.id AND (COALESCE(p.send_to_kitchen, true) = true OR p.id IS NULL)
-      )
-      AND DATE(o.created_at AT TIME ZONE 'Asia/Manila') BETWEEN $1 AND $2
-    ORDER BY o.created_at DESC
-  `, [startDate, endDate]);
-  return result.rows;
-}
-
 // ── HTML Email Builder ─────────────────────────────────────────────────────
 
-function buildEmailHtml(title, period, businessName, salesData, kitchenOrders = null, currency = 'PHP') {
+function buildEmailHtml(title, period, businessName, salesData, currency = 'PHP') {
   const { summary, topItems } = salesData;
   const fmt = (n) => formatCurrency(n, currency);
 
@@ -106,49 +82,27 @@ function buildEmailHtml(title, period, businessName, salesData, kitchenOrders = 
       <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;text-align:right;">${fmt(item.total_sales)}</td>
     </tr>`).join('');
 
-  const kitchenSection = kitchenOrders ? `
-    <h3 style="color:#166534;margin-top:32px;">Kitchen Orders (${kitchenOrders.length})</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="background:#f0fdf4;">
-          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #bbf7d0;">Order #</th>
-          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #bbf7d0;">Table/Type</th>
-          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #bbf7d0;">Status</th>
-          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #bbf7d0;">Time</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${kitchenOrders.map(o => `
-          <tr>
-            <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-family:monospace;">${o.order_number}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;">${o.table_number ? `Table ${o.table_number}` : o.service_type || 'POS'}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;">${o.order_status}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;">${new Date(o.created_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table>` : '';
-
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family:Arial,sans-serif;background:#f9fafb;margin:0;padding:20px;">
   <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#16a34a;color:#fff;padding:24px 32px;">
+    <div style="background:#0891b2;color:#fff;padding:24px 32px;">
       <h1 style="margin:0;font-size:22px;">${businessName}</h1>
       <p style="margin:4px 0 0;opacity:0.85;font-size:14px;">${title}</p>
       <p style="margin:4px 0 0;opacity:0.7;font-size:13px;">${period}</p>
     </div>
     <div style="padding:24px 32px;">
-      <h3 style="color:#166534;margin-top:0;">Sales Summary</h3>
+      <h3 style="color:#0e7490;margin-top:0;">Sales Summary</h3>
       <table style="width:100%;border-collapse:collapse;">
-        <tr style="background:#f0fdf4;">
+        <tr style="background:#ecfeff;">
           <td style="padding:10px 14px;font-weight:bold;border-radius:8px 0 0 8px;">Total Orders</td>
-          <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:bold;color:#16a34a;border-radius:0 8px 8px 0;">${summary.total_orders}</td>
+          <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:bold;color:#0891b2;border-radius:0 8px 8px 0;">${summary.total_orders}</td>
         </tr>
         <tr>
           <td style="padding:10px 14px;font-weight:bold;">Total Sales</td>
-          <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:bold;color:#16a34a;">${fmt(summary.total_revenue)}</td>
+          <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:bold;color:#0891b2;">${fmt(summary.total_revenue)}</td>
         </tr>
         <tr style="background:#f9fafb;">
           <td style="padding:8px 14px;color:#6b7280;">Subtotal</td>
@@ -160,13 +114,13 @@ function buildEmailHtml(title, period, businessName, salesData, kitchenOrders = 
         </tr>
       </table>
 
-      <h3 style="color:#166534;margin-top:24px;">By Payment Method</h3>
+      <h3 style="color:#0e7490;margin-top:24px;">By Payment Method</h3>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
-          <tr style="background:#f0fdf4;">
-            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #bbf7d0;">Method</th>
-            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #bbf7d0;">Orders</th>
-            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid #bbf7d0;">Revenue</th>
+          <tr style="background:#ecfeff;">
+            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #a5f3fc;">Method</th>
+            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #a5f3fc;">Orders</th>
+            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid #a5f3fc;">Revenue</th>
           </tr>
         </thead>
         <tbody>
@@ -177,19 +131,17 @@ function buildEmailHtml(title, period, businessName, salesData, kitchenOrders = 
       </table>
 
       ${topItems.length > 0 ? `
-      <h3 style="color:#166534;margin-top:24px;">Top Selling Items</h3>
+      <h3 style="color:#0e7490;margin-top:24px;">Top Selling Items</h3>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
-          <tr style="background:#f0fdf4;">
-            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #bbf7d0;">Item</th>
-            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #bbf7d0;">Qty Sold</th>
-            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid #bbf7d0;">Sales</th>
+          <tr style="background:#ecfeff;">
+            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #a5f3fc;">Item</th>
+            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #a5f3fc;">Qty Sold</th>
+            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid #a5f3fc;">Sales</th>
           </tr>
         </thead>
         <tbody>${topItemsRows}</tbody>
       </table>` : ''}
-
-      ${kitchenSection}
     </div>
     <div style="background:#f9fafb;padding:16px 32px;text-align:center;color:#9ca3af;font-size:12px;border-top:1px solid #e5e7eb;">
       This is an automated report from ${businessName} POS System
@@ -201,124 +153,132 @@ function buildEmailHtml(title, period, businessName, salesData, kitchenOrders = 
 
 // ── Send Functions ─────────────────────────────────────────────────────────
 
-export async function sendDailyReport() {
-  const s = await getSettings();
-  if (s.report_daily !== 'true' || !s.owner_email) return;
+export async function sendCustomReport(company_id, startDate, endDate, recipientEmail) {
+  const s = await getSettings(company_id);
+  const emailTo = recipientEmail || s.owner_email;
+  if (!emailTo) throw new Error('No recipient email configured.');
 
-  const today = new Date();
-  const ph = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
-  const dateStr = `${ph.getFullYear()}-${String(ph.getMonth() + 1).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
-
-  const salesData = await getSalesReport(dateStr, dateStr);
-  const kitchenOrders = s.report_kitchen === 'true' ? await getKitchenReport(dateStr, dateStr) : null;
+  const salesData = await getSalesReport(startDate, endDate, company_id);
 
   const html = buildEmailHtml(
-    'Daily Sales Report',
-    `Date: ${dateStr}`,
-    s.business_name || 'Restaurant',
-    salesData,
-    kitchenOrders,
-    s.currency || 'PHP'
-  );
-
-  const transporter = await createTransporter(s);
-  await transporter.sendMail({
-    from: `"${s.business_name || 'Restaurant POS'}" <${s.smtp_from || s.smtp_user}>`,
-    to: s.owner_email,
-    subject: `Daily Report — ${dateStr} | ${s.business_name || 'Restaurant'}`,
-    html,
-  });
-  console.log(`Daily report sent to ${s.owner_email}`);
-}
-
-export async function sendWeeklyReport() {
-  const s = await getSettings();
-  if (s.report_weekly !== 'true' || !s.owner_email) return;
-
-  const ph = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
-  const endDate = `${ph.getFullYear()}-${String(ph.getMonth() + 1).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
-  const start = new Date(ph);
-  start.setDate(start.getDate() - 6);
-  const startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-
-  const salesData = await getSalesReport(startDate, endDate);
-  const kitchenOrders = s.report_kitchen === 'true' ? await getKitchenReport(startDate, endDate) : null;
-
-  const html = buildEmailHtml(
-    'Weekly Sales Report',
+    'Requested Sales Report',
     `Period: ${startDate} to ${endDate}`,
     s.business_name || 'Restaurant',
     salesData,
-    kitchenOrders,
     s.currency || 'PHP'
   );
 
   const transporter = await createTransporter(s);
   await transporter.sendMail({
     from: `"${s.business_name || 'Restaurant POS'}" <${s.smtp_from || s.smtp_user}>`,
-    to: s.owner_email,
-    subject: `Weekly Report — ${startDate} to ${endDate} | ${s.business_name || 'Restaurant'}`,
+    to: emailTo,
+    subject: `Sales Report — ${startDate} to ${endDate} | ${s.business_name || 'Restaurant'}`,
     html,
   });
-  console.log(`Weekly report sent to ${s.owner_email}`);
 }
 
-export async function sendMonthlyReport() {
-  const s = await getSettings();
-  if (s.report_monthly !== 'true' || !s.owner_email) return;
+// Fixed Daily/Weekly/Monthly to support company_id or run for all companies
+export async function sendDailyReport(company_id) {
+  if (company_id) {
+    const s = await getSettings(company_id);
+    if (s.report_daily !== 'true' || !s.owner_email) return;
 
-  const ph = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
-  const year = ph.getFullYear();
-  const month = ph.getMonth() + 1;
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
-  const monthName = ph.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'Asia/Manila' });
+    const today = new Date();
+    const ph = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const dateStr = `${ph.getFullYear()}-${String(ph.getMonth() + 1).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
 
-  const salesData = await getSalesReport(startDate, endDate);
-  const kitchenOrders = s.report_kitchen === 'true' ? await getKitchenReport(startDate, endDate) : null;
-
-  const html = buildEmailHtml(
-    'Monthly Sales Report',
-    `Month: ${monthName}`,
-    s.business_name || 'Restaurant',
-    salesData,
-    kitchenOrders,
-    s.currency || 'PHP'
-  );
-
-  const transporter = await createTransporter(s);
-  await transporter.sendMail({
-    from: `"${s.business_name || 'Restaurant POS'}" <${s.smtp_from || s.smtp_user}>`,
-    to: s.owner_email,
-    subject: `Monthly Report — ${monthName} | ${s.business_name || 'Restaurant'}`,
-    html,
-  });
-  console.log(`Monthly report sent to ${s.owner_email}`);
+    return sendCustomReport(company_id, dateStr, dateStr, s.owner_email);
+  } else {
+    // Run for ALL companies
+    const res = await pool.query('SELECT id FROM companies');
+    for (const row of res.rows) {
+      try { await sendDailyReport(row.id); } catch(e) {}
+    }
+  }
 }
 
-export async function sendTestEmail() {
-  const s = await getSettings();
+export async function sendWeeklyReport(company_id) {
+  if (company_id) {
+    const s = await getSettings(company_id);
+    if (s.report_weekly !== 'true' || !s.owner_email) return;
+
+    const ph = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const endDate = `${ph.getFullYear()}-${String(ph.getMonth() + 1).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
+    const start = new Date(ph);
+    start.setDate(start.getDate() - 6);
+    const startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+
+    const salesData = await getSalesReport(startDate, endDate, company_id);
+
+    const html = buildEmailHtml(
+      'Weekly Sales Report',
+      `Period: ${startDate} to ${endDate}`,
+      s.business_name || 'Restaurant',
+      salesData,
+      s.currency || 'PHP'
+    );
+
+    const transporter = await createTransporter(s);
+    return transporter.sendMail({
+      from: `"${s.business_name || 'Restaurant POS'}" <${s.smtp_from || s.smtp_user}>`,
+      to: s.owner_email,
+      subject: `Weekly Report — ${startDate} to ${endDate} | ${s.business_name || 'Restaurant'}`,
+      html,
+    });
+  } else {
+    const res = await pool.query('SELECT id FROM companies');
+    for (const row of res.rows) {
+      try { await sendWeeklyReport(row.id); } catch(e) {}
+    }
+  }
+}
+
+export async function sendMonthlyReport(company_id) {
+  if (company_id) {
+    const s = await getSettings(company_id);
+    if (s.report_monthly !== 'true' || !s.owner_email) return;
+
+    const ph = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const year = ph.getFullYear();
+    const month = ph.getMonth() + 1;
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
+    const monthName = ph.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'Asia/Manila' });
+
+    const salesData = await getSalesReport(startDate, endDate, company_id);
+
+    const html = buildEmailHtml(
+      'Monthly Sales Report',
+      `Month: ${monthName}`,
+      s.business_name || 'Restaurant',
+      salesData,
+      s.currency || 'PHP'
+    );
+
+    const transporter = await createTransporter(s);
+    return transporter.sendMail({
+      from: `"${s.business_name || 'Restaurant POS'}" <${s.smtp_from || s.smtp_user}>`,
+      to: s.owner_email,
+      subject: `Monthly Report — ${monthName} | ${s.business_name || 'Restaurant'}`,
+      html,
+    });
+  } else {
+    const res = await pool.query('SELECT id FROM companies');
+    for (const row of res.rows) {
+      try { await sendMonthlyReport(row.id); } catch(e) {}
+    }
+  }
+}
+
+export async function sendTestEmail(company_id) {
+  const s = await getSettings(company_id);
   if (!s.owner_email) throw new Error('Owner email not configured.');
 
-  const today = new Date();
-  const ph = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
-  const dateStr = `${ph.getFullYear()}-${String(ph.getMonth() + 1).padStart(2, '0')}-${String(ph.getDate()).padStart(2, '0')}`;
-  const salesData = await getSalesReport(dateStr, dateStr);
-
-  const html = buildEmailHtml(
-    'Test Report — Email Configuration Check',
-    `Sent: ${new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}`,
-    s.business_name || 'Restaurant',
-    salesData,
-    null,
-    s.currency || 'PHP'
-  );
-
   const transporter = await createTransporter(s);
-  await transporter.sendMail({
+  return transporter.sendMail({
     from: `"${s.business_name || 'Restaurant POS'}" <${s.smtp_from || s.smtp_user}>`,
     to: s.owner_email,
     subject: `Test Email — ${s.business_name || 'Restaurant'} POS`,
-    html,
+    text: 'Your email configuration is working correctly.',
   });
 }
