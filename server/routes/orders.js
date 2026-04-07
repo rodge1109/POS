@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN customers c ON o.customer_id = c.id
       LEFT JOIN shifts s ON o.shift_id = s.id
       LEFT JOIN employees e ON s.employee_id = e.id
-      WHERE o.company_id = $1
+      WHERE o.company_id::uuid = $1::uuid
     `;
     const params = [req.company_id];
 
@@ -51,12 +51,12 @@ router.get('/', async (req, res) => {
 
     if (start) {
       params.push(start);
-      query += ` AND DATE(o.created_at) >= $${params.length}`;
+      query += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${params.length}`;
     }
 
     if (end) {
       params.push(end);
-      query += ` AND DATE(o.created_at) <= $${params.length}`;
+      query += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${params.length}`;
     }
 
     if (include_adjustments === 'true') {
@@ -85,11 +85,13 @@ router.get('/', async (req, res) => {
       const itemsResult = await pool.query(
         `SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.size_name, oi.quantity, 
                 oi.unit_price, oi.subtotal, oi.combo_id, oi.is_combo, oi.notes, oi.status,
-                p.category, p.cost
+                p.category, 
+                COALESCE(p.cost, 0) as cost
          FROM order_items oi
          LEFT JOIN products p ON oi.product_id = p.id
-         WHERE oi.order_id = ANY($1) AND oi.company_id = $2 ORDER BY oi.id`,
-        [orderIds, req.company_id]
+         LEFT JOIN product_sizes ps ON oi.product_id = ps.product_id AND oi.size_name = ps.size_name
+         WHERE oi.order_id::text = ANY($1::text[]) AND oi.company_id::uuid = $2::uuid ORDER BY oi.id`,
+        [orderIds.map(id => String(id)), req.company_id]
       );
 
       console.log('DEBUG - Items query result count:', itemsResult.rows.length);
@@ -175,7 +177,7 @@ router.get('/kitchen-report', async (req, res) => {
     const params = [req.company_id];
     if (date) {
       params.push(date);
-      where += ` AND DATE(o.created_at) = $${params.length}`;
+      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $${params.length}`;
     }
     params.push(limit, offset);
 
@@ -224,11 +226,11 @@ router.get('/reconciliation', async (req, res) => {
 
     if (start) {
       params.push(start);
-      where += ` AND DATE(o.created_at) >= $${params.length}`;
+      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${params.length}`;
     }
     if (end) {
       params.push(end);
-      where += ` AND DATE(o.created_at) <= $${params.length}`;
+      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${params.length}`;
     }
 
     const result = await pool.query(
@@ -344,7 +346,16 @@ router.get('/:id', async (req, res) => {
     }
 
     const itemsResult = await pool.query(
-      'SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+      `SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.size_name, oi.quantity,
+              oi.unit_price, oi.subtotal, oi.combo_id, oi.is_combo, oi.notes, oi.status,
+              p.category,
+              COALESCE(p.cost, 0) as cost
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       LEFT JOIN product_sizes ps ON oi.product_id = ps.product_id AND oi.size_name = ps.size_name
+       WHERE oi.order_id::text = $1::text
+         AND (oi.company_id::text = $2::text OR oi.company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')
+       ORDER BY oi.id`,
       [id, req.company_id]
     );
 
@@ -485,10 +496,9 @@ router.post('/', async (req, res) => {
     // Generate order number
     const orderNumber = generateOrderNumber();
 
-    // Create order
     const orderResult = await client.query(
       `INSERT INTO orders (order_number, customer_id, subtotal, delivery_fee, tax_amount, discount_amount, total_amount, payment_method, payment_reference, payment_status, order_status, order_type, service_type, shift_id, company_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::uuid) RETURNING *`,
       [
         orderNumber,
         customerId,
@@ -539,7 +549,7 @@ router.post('/', async (req, res) => {
 
       await client.query(
         `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         VALUES ($1::text, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::uuid)`,
         [
           order.id,
           productId,
@@ -747,10 +757,9 @@ router.post('/:orderId/items/:itemId/adjust', async (req, res) => {
       [newStatus, itemId, req.company_id]
     );
 
-    // Record the adjustment
     await client.query(
       `INSERT INTO order_item_adjustments (order_item_id, order_id, adjustment_type, reason, original_amount, created_by, company_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2::text, $3, $4, $5, $6, $7::uuid)`,
       [itemId, orderId, type, reason.trim(), item.subtotal, created_by || 'POS', req.company_id]
     );
 

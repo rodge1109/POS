@@ -14,7 +14,7 @@ router.get('/ingredients', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM ingredients
-      WHERE company_id = $1
+      WHERE company_id::uuid = $1::uuid
       ORDER BY name ASC
     `, [req.company_id]);
     res.json({ success: true, ingredients: result.rows });
@@ -29,7 +29,7 @@ router.get('/ingredients/low-stock', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM ingredients
-      WHERE current_stock <= reorder_level AND company_id = $1
+      WHERE current_stock <= reorder_level AND company_id::uuid = $1::uuid
       ORDER BY current_stock ASC
     `, [req.company_id]);
     res.json({ success: true, ingredients: result.rows, count: result.rows.length });
@@ -44,7 +44,7 @@ router.get('/ingredients/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'SELECT * FROM ingredients WHERE id = $1 AND company_id = $2',
+      'SELECT * FROM ingredients WHERE id = $1 AND company_id::uuid = $2::uuid',
       [id, req.company_id]
     );
     if (result.rows.length === 0) {
@@ -237,9 +237,75 @@ router.put('/ingredients/:id', async (req, res) => {
     }
 
     res.json({ success: true, ingredient: result.rows[0] });
+
+    // Auto-update product costs in background
+    updateProductCosts(req.company_id).catch(err => console.error('Background cost update error:', err));
   } catch (error) {
     console.error('Error updating ingredient:', error);
     res.status(500).json({ success: false, error: 'Failed to update ingredient' });
+  }
+});
+
+/**
+ * Recalculate all product costs based on their current ingredient weighted averages.
+ */
+export async function updateProductCosts(company_id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // 1. Update Costs for Products without sizes (Base Items)
+    await client.query(`
+      UPDATE products p
+      SET cost = COALESCE((
+        SELECT SUM(pc.quantity_required * i.cost_per_unit)
+        FROM product_composition pc
+        JOIN ingredients i ON pc.ingredient_id = i.id
+        WHERE pc.product_id = p.id 
+        AND pc.size_id IS NULL
+        AND pc.company_id = p.company_id
+      ), 0),
+      updated_at = CURRENT_TIMESTAMP
+      WHERE p.company_id = $1::uuid
+    `, [company_id]);
+
+    // 2. Update Costs for Product Sizes
+    await client.query(`
+      UPDATE product_sizes ps
+      SET cost = COALESCE((
+        SELECT SUM(pc.quantity_required * i.cost_per_unit)
+        FROM product_composition pc
+        JOIN ingredients i ON pc.ingredient_id = i.id
+        WHERE pc.product_id = ps.product_id 
+        AND pc.size_id = ps.id
+        AND pc.company_id = ps.company_id
+      ), 0)
+      WHERE ps.company_id = $1::uuid
+    `, [company_id]);
+
+    await client.query('COMMIT');
+    console.log(`Product costs recalculated for company ${company_id}`);
+    return true;
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    console.error('Error updating product costs:', error);
+    return false;
+  } finally {
+    client.release();
+  }
+}
+
+// POST manual trigger to recalculate all product costs
+router.post('/recalculate-costs', async (req, res) => {
+  try {
+    const success = await updateProductCosts(req.company_id);
+    if (success) {
+      res.json({ success: true, message: 'Product costs recalculated successfully based on current ingredient rates.' });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to recalculate costs' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -312,6 +378,11 @@ router.post('/adjust', async (req, res) => {
 
     await client.query('COMMIT');
     res.json({ success: true, transaction: transactionResult.rows[0] });
+
+    // Auto-update product costs in background if an ingredient was adjusted
+    if (ingredient_id) {
+      updateProductCosts(req.company_id).catch(err => console.error('Background cost update error:', err));
+    }
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     console.error('Error adjusting inventory:', error);
@@ -373,7 +444,7 @@ router.get('/recipes/:productId', async (req, res) => {
       FROM product_composition pc
       LEFT JOIN ingredients i ON pc.ingredient_id = i.id
       LEFT JOIN product_sizes s ON pc.size_id = s.id
-      WHERE pc.product_id::text = $1::text AND pc.company_id = $2
+      WHERE pc.product_id::text = $1::text AND pc.company_id::uuid = $2::uuid
     `, [productId, req.company_id]);
     res.json({ success: true, recipe: result.rows });
   } catch (error) {
@@ -502,6 +573,9 @@ router.post('/recipes/:productId/ingredients', async (req, res) => {
       [productId, ingredient_id, quantity_required, size_id || null, req.company_id]
     );
     res.json({ success: true, composition: result.rows[0] });
+
+    // Auto-update product costs
+    updateProductCosts(req.company_id).catch(err => console.error('Background cost update error:', err));
   } catch (error) {
     console.error('Error adding recipe ingredient:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -526,6 +600,9 @@ router.put('/recipes/:productId/ingredients/:ingredientId', async (req, res) => 
       return res.status(404).json({ success: false, error: 'Recipe item not found' });
     }
     res.json({ success: true, composition: result.rows[0] });
+
+    // Auto-update product costs
+    updateProductCosts(req.company_id).catch(err => console.error('Background cost update error:', err));
   } catch (error) {
     console.error('Error updating recipe ingredient:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -550,6 +627,9 @@ router.delete('/recipes/:productId/ingredients/:ingredientId', async (req, res) 
 
     const result = await pool.query(query, params);
     res.json({ success: true, message: 'Ingredient removed from recipe' });
+
+    // Auto-update product costs
+    updateProductCosts(req.company_id).catch(err => console.error('Background cost update error:', err));
   } catch (error) {
     console.error('Error deleting recipe ingredient:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });

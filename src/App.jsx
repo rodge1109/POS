@@ -1671,7 +1671,7 @@ function SubMenu({ currentPage, setCurrentPage, employee }) {
 }
 
 // Dashboard Page - Business Intelligence & Analytics
-function DashboardPage({ setCurrentPage, employee }) {
+function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => Number(amount) || 0, currency = 'PHP' }) {
   const [salesData, setSalesData] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
@@ -1682,21 +1682,15 @@ function DashboardPage({ setCurrentPage, employee }) {
   const [profitData, setProfitData] = useState(null);
   const [customerMetrics, setCustomerMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState('today'); // Default to Today
-  const [currency, setCurrency] = useState('PHP'); // Default: PHP (all data stored in PHP)
+  const [timeframe, setTimeframe] = useState('week'); // Default: Week
+  const [rawOrders, setRawOrders] = useState([]);
+  const [orders, setOrders] = useState([]);
 
-  // Conversion rate (1 USD = 55 PHP) - Data is stored in PHP
-  const PESO_RATE = 55;
+  // Conversion rate logic using props
   const formatCurrency = (amount) => {
-    // Data is in PHP, convert only if viewing in USD
-    const value = currency === 'USD' ? amount / PESO_RATE : amount;
+    const value = convertAmount ? convertAmount(amount) : amount;
     const symbol = currency === 'PHP' ? '₱' : '$';
     return `${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  const convertAmount = (amount) => {
-    // Data is in PHP, convert only if viewing in USD
-    return currency === 'USD' ? amount / PESO_RATE : amount;
   };
 
   useEffect(() => {
@@ -1709,7 +1703,7 @@ function DashboardPage({ setCurrentPage, employee }) {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         };
 
-        // Get date range based on timeframe
+        // Get date range based on timeframe using local time
         const today = new Date();
         let startDate = new Date();
         if (timeframe === 'today') {
@@ -1722,27 +1716,79 @@ function DashboardPage({ setCurrentPage, employee }) {
           startDate.setFullYear(today.getFullYear() - 1);
         }
 
-        // Fetch orders and customers for deep analytics
-        const [salesResponse, customersResponse] = await Promise.all([
-          fetchWithAuth(`${API_URL}/orders?include_items=true`),
-          fetchWithAuth(`${API_URL}/customers`)
-        ]);
+        // Use local date strings for backend filtering
+        const toDateStr = (date) => {
+          const d = new Date(date);
+          const offset = d.getTimezoneOffset() * 60000;
+          return new Date(d.getTime() - offset).toISOString().split('T')[0];
+        };
 
-        const salesResult = await salesResponse.json();
-        const customersResult = await customersResponse.json();
+        const startStr = toDateStr(startDate);
+        const endStr = timeframe === 'today' ? startStr : toDateStr(today);
+
+        // Debug log (user can see in dev tools)
+        console.log(`[DASHBOARD DEBUG] Loading timeframe: ${timeframe}, Range: ${startStr} to ${endStr}`);
+
+        // DEBUG: Match working OrdersPage URL exactly if it works there but not here
+        // Match Orders page source query to avoid backend date filter mismatches.
+        const salesUrl = `${API_URL}/orders?include_items=true&limit=1000`;
+
+        const salesResponse = await fetchWithAuth(salesUrl);
+        let salesResult = await salesResponse.json();
+        if (!salesResponse.ok || !salesResult?.success) {
+          console.warn('[DASHBOARD DEBUG] include_items fetch failed, retrying base orders endpoint.');
+          const fallbackSalesResponse = await fetchWithAuth(`${API_URL}/orders?limit=1000`);
+          salesResult = await fallbackSalesResponse.json();
+        }
+
+        let customersResult = { success: false, customers: [] };
+        try {
+          const customersResponse = await fetchWithAuth(`${API_URL}/customers`);
+          customersResult = await customersResponse.json();
+        } catch (err) {
+          console.warn('[DASHBOARD DEBUG] Customers fetch failed; continuing without customer metrics source.', err);
+        }
 
         if (salesResult.success && salesResult.orders) {
           const orders = Array.isArray(salesResult.orders) ? salesResult.orders : [];
+          setRawOrders(orders);
           const allCustomers = customersResult.success ? (customersResult.customers || []) : [];
 
-          // Filter by timeframe for metric calculation
-          const filteredOrders = orders.filter(order => {
+          // Frontend timeframe filtering (using local time), excluding only terminal non-revenue statuses.
+          const excludedStatuses = new Set(['voided', 'refunded', 'cancelled']);
+          const filteredOrders = orders.filter((order) => {
             const orderDate = new Date(order.created_at);
-            return orderDate >= startDate && orderDate <= today;
+            if (Number.isNaN(orderDate.getTime())) return false;
+            const status = String(order.order_status || order.status || '').trim().toLowerCase();
+            if (excludedStatuses.has(status)) return false;
+
+            if (timeframe === 'today') {
+              const orderDay = toDateStr(orderDate);
+              return orderDay === startStr;
+            }
+
+            const startCheck = new Date(startDate);
+            startCheck.setHours(0, 0, 0, 0);
+            const endCheck = new Date(today);
+            endCheck.setHours(23, 59, 59, 999);
+            return orderDate >= startCheck && orderDate <= endCheck;
           });
 
+          console.log(`[DASHBOARD DEBUG] Fetched ${orders.length} orders total. Filtered to ${filteredOrders.length}.`);
+
+          const toNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : 0;
+          };
+          const getOrderRevenue = (order) => {
+            const primary = toNum(order.total_amount);
+            if (primary > 0) return primary;
+            const fallback = toNum(order.subtotal) - toNum(order.discount_amount) + toNum(order.tax_amount) + toNum(order.delivery_fee);
+            return fallback > 0 ? fallback : 0;
+          };
+
           // Calculate metrics
-          const totalRevenue = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
+          const totalRevenue = filteredOrders.reduce((sum, order) => sum + getOrderRevenue(order), 0);
           const avgOrderValue = filteredOrders.length > 0 ? totalRevenue / filteredOrders.length : 0;
           const totalOrders = filteredOrders.length;
           const totalItems = filteredOrders.reduce((sum, o) => sum + (o.items?.length || 1), 0);
@@ -1815,7 +1861,7 @@ function DashboardPage({ setCurrentPage, employee }) {
             const dateKey = timeframe === 'year'
               ? date.toLocaleString('en-US', { month: 'short', year: '2-digit' })
               : date.toLocaleDateString();
-            dateMap[dateKey] = (dateMap[dateKey] || 0) + (parseFloat(order.total_amount) || 0);
+            dateMap[dateKey] = (dateMap[dateKey] || 0) + getOrderRevenue(order);
           });
 
           const sortedDates = Object.keys(dateMap).sort();
@@ -1840,17 +1886,57 @@ function DashboardPage({ setCurrentPage, employee }) {
 
           // Calculate revenue by category
           const categoryMap = {};
-          filteredOrders.forEach(order => {
-            if (order.items && Array.isArray(order.items)) {
-              order.items.forEach(item => {
-                const category = item.category || 'Other';
-                const itemRevenue = parseFloat(item.subtotal || item.unit_price * item.quantity || 0);
-                categoryMap[category] = (categoryMap[category] || 0) + itemRevenue;
-              });
-            }
-          });
+          const productMap = {};
 
-          console.log('FINAL Category Map:', categoryMap);
+          filteredOrders.forEach(order => {
+            // Accurate Revenue Allocation Logic
+            const items = Array.isArray(order.items) ? order.items : [];
+            if (items.length === 0) return;
+
+            const discountedSubtotal = Number(order.subtotal || 0) - Number(order.discount_amount || 0);
+            const targetRevenueCents = Math.round(discountedSubtotal * 100);
+
+            const baseCents = items.map((it) => {
+              const qty = Number(it.quantity || 0);
+              const unit = Number(it.unit_price ?? it.price ?? 0);
+              const subtotal = Number(it.subtotal);
+              const base = Number.isFinite(subtotal) ? subtotal : (qty * unit);
+              return Math.max(0, Math.round(base * 100));
+            });
+            const baseSumCents = baseCents.reduce((a, b) => a + b, 0);
+
+            let allocated = 0;
+            items.forEach((item, idx) => {
+              let itemRevenueCents = 0;
+              if (baseSumCents > 0) {
+                if (idx === items.length - 1) {
+                  itemRevenueCents = targetRevenueCents - allocated;
+                } else {
+                  itemRevenueCents = Math.round((baseCents[idx] / baseSumCents) * targetRevenueCents);
+                  allocated += itemRevenueCents;
+                }
+              } else {
+                if (idx === items.length - 1) {
+                  itemRevenueCents = targetRevenueCents - allocated;
+                } else {
+                  itemRevenueCents = Math.floor(targetRevenueCents / items.length);
+                  allocated += itemRevenueCents;
+                }
+              }
+
+              const itemRevenue = itemRevenueCents / 100;
+              const category = item.category || 'Uncategorized';
+              const name = item.product_name || 'Unknown Item';
+
+              categoryMap[category] = (categoryMap[category] || 0) + itemRevenue;
+
+              if (!productMap[name]) {
+                productMap[name] = { name, quantity: 0, revenue: 0 };
+              }
+              productMap[name].quantity += Number(item.quantity || 0);
+              productMap[name].revenue += itemRevenue;
+            });
+          });
 
           const categoryNames = Object.keys(categoryMap).sort((a, b) => categoryMap[b] - categoryMap[a]);
           setRevenueByCategory({
@@ -1873,32 +1959,17 @@ function DashboardPage({ setCurrentPage, employee }) {
             }]
           });
 
-          // Find top products
-          const productMap = {};
-          filteredOrders.forEach(order => {
-            if (order.items && Array.isArray(order.items)) {
-              order.items.forEach(item => {
-                const key = item.product_name || 'Unknown Product';
-                const itemRevenue = parseFloat(item.subtotal || item.unit_price * item.quantity || 0);
-                if (!productMap[key]) {
-                  productMap[key] = { name: key, quantity: 0, revenue: 0 };
-                }
-                productMap[key].quantity += (item.quantity || 1);
-                productMap[key].revenue += itemRevenue;
-              });
-            }
-          });
-
+          // Use already computed productMap for top/low products
           const sortedProds = Object.values(productMap).sort((a, b) => b.revenue - a.revenue);
 
           setTopProducts(sortedProds.slice(0, 5).map(p => ({
             ...p,
-            revenue: convertAmount(p.revenue)
+            revenue: convertAmount ? convertAmount(p.revenue) : p.revenue
           })));
 
           setLowProducts(sortedProds.slice(-5).reverse().map(p => ({
             ...p,
-            revenue: convertAmount(p.revenue)
+            revenue: convertAmount ? convertAmount(p.revenue) : p.revenue
           })));
 
           // Service Speed Trend (Last 7 days or based on timeframe)
@@ -1967,7 +2038,7 @@ function DashboardPage({ setCurrentPage, employee }) {
             if (!profitMap[dateKey]) {
               profitMap[dateKey] = { revenue: 0, cost: 0 };
             }
-            profitMap[dateKey].revenue += (parseFloat(order.total_amount) || 0);
+            profitMap[dateKey].revenue += getOrderRevenue(order);
 
             if (order.items && Array.isArray(order.items)) {
               order.items.forEach(item => {
@@ -4749,7 +4820,7 @@ function ShiftReportModal({ report, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="bg-cyan-600 text-white p-4 rounded-t-xl sticky top-0">
           <h2 className="text-xl font-bold">Shift Report</h2>
           <p className="text-cyan-100 text-sm">{report.employee_name}</p>
@@ -4994,7 +5065,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     try {
       const response = await fetchWithAuth(`${API_URL}/tables`);
       const result = await response.json();
-      if (result.success) setTables(result.tables);
+      if (result.success) setTables(result.tables || []);
     } catch (error) {
       console.error('Error fetching tables:', error);
     }
@@ -5578,12 +5649,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     }
   };
 
-  const filteredItems = menuData.filter(item => {
+  const filteredItems = (menuData || []).filter(item => {
     const isActive = item.active !== false;
     const matchesSearch = !barcodeInput.trim() ||
-      item.name.toLowerCase().includes(barcodeInput.toLowerCase()) ||
-      (item.barcode && item.barcode.toLowerCase().includes(barcodeInput.toLowerCase())) ||
-      (item.sku && item.sku.toLowerCase().includes(barcodeInput.toLowerCase()));
+      String(item.name || '').toLowerCase().includes(barcodeInput.toLowerCase()) ||
+      (item.barcode && String(item.barcode).toLowerCase().includes(barcodeInput.toLowerCase())) ||
+      (item.sku && String(item.sku).toLowerCase().includes(barcodeInput.toLowerCase()));
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return isActive && matchesSearch && matchesCategory;
   });
@@ -5807,7 +5878,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
   return (
     <>
-      <div className="bg-gray-200 h-screen overflow-hidden">
+      <div className="bg-gray-200 h-full flex flex-col overflow-hidden">
         <div className="flex flex-col-reverse md:flex-row h-full">
           {/* Left Panel - Menu Items */}
           <div className="w-full md:flex-1 flex flex-col overflow-hidden flex-1">
@@ -6220,7 +6291,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               <div className="p-1.5 md:p-4 space-y-1 md:space-y-2 bg-white border-t border-gray-100 flex-shrink-0">
                 {/* Main action button - always use live status from the tables list */}
                 {(() => {
-                  const liveTable = tables?.find(t => t.id === selectedTable?.id);
+                  const liveTable = tables?.find(t => t.id?.toString() === selectedTable?.id?.toString());
                   const isOccupied = liveTable?.status === 'occupied';
 
                   if (selectedTable && !isOccupied) {
@@ -9375,7 +9446,7 @@ function CustomersPage({ setCurrentPage }) {
 
 // Inventory Reports Section Component
 function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
-  const [dateRange, setDateRange] = useState('today');
+  const [dateRange, setDateRange] = useState('week');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [salesData, setSalesData] = useState([]);
@@ -9393,21 +9464,52 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
   const [promoData, setPromoData] = useState({ totalDiscounts: 0, discountedOrders: 0, promoRevenue: 0 });
   const [returnData, setReturnData] = useState({ refundedCount: 0, refundedAmount: 0, voidedCount: 0, voidedAmount: 0 });
   const [emailLoading, setEmailLoading] = useState(false);
+  const toNum = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const getOrderRevenue = (order) => {
+    const primary = toNum(order?.total_amount);
+    if (primary > 0) return primary;
+    const fallback = toNum(order?.subtotal) - toNum(order?.discount_amount) + toNum(order?.tax_amount) + toNum(order?.delivery_fee);
+    return fallback > 0 ? fallback : 0;
+  };
+  const extractOrderItems = (orderLike) => {
+    if (!orderLike || typeof orderLike !== 'object') return [];
+    const candidates = [
+      orderLike.items,
+      orderLike.order_items,
+      orderLike.orderItems,
+      orderLike.line_items,
+      orderLike.lineItems
+    ];
+    for (const c of candidates) {
+      if (Array.isArray(c)) return c;
+    }
+    return [];
+  };
 
   const handleEmailReport = async () => {
     let start = startDate;
     let end = endDate;
     const today = new Date();
+    const toDateStr = (date) => {
+      const d = new Date(date);
+      const offset = d.getTimezoneOffset() * 60000;
+      return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    };
+
     if (dateRange === 'today') {
-      start = end = today.toISOString().split('T')[0];
+      start = end = toDateStr(today);
     } else if (dateRange === 'week') {
       const d = new Date(today);
       d.setDate(d.getDate() - 7);
-      start = d.toISOString().split('T')[0];
-      end = today.toISOString().split('T')[0];
+      start = toDateStr(d);
+      end = toDateStr(today);
     } else if (dateRange === 'month') {
-      start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-      end = today.toISOString().split('T')[0];
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      start = toDateStr(start);
+      end = toDateStr(today);
     }
 
     setEmailLoading(true);
@@ -9454,24 +9556,110 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     const run = async () => {
       setLoading(true);
       try {
+        const toDateStr = (date) => {
+          const d = new Date(date);
+          const offset = d.getTimezoneOffset() * 60000;
+          return new Date(d.getTime() - offset).toISOString().split('T')[0];
+        };
+
         const today = new Date();
         let start = startDate;
         let end = endDate;
         if (dateRange === 'today') {
-          start = end = today.toISOString().split('T')[0];
+          start = end = toDateStr(today);
         } else if (dateRange === 'week') {
           const d = new Date(today);
           d.setDate(d.getDate() - 7);
-          start = d.toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
+          start = toDateStr(d);
+          end = toDateStr(today);
         } else if (dateRange === 'month') {
-          start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
+          const first = new Date(today.getFullYear(), today.getMonth(), 1);
+          start = toDateStr(first);
+          end = toDateStr(today);
         }
-        const res = await fetchWithAuth(`${API_URL}/orders?start=${start}&end=${end}&include_items=true`);
-        const data = await res.json();
-        if (res.ok && data.success) {
-          const orders = data.orders || [];
+        const useDirectItemSource = activeReport === 'reports-items' || activeReport === 'reports-category';
+        const needsOrderItems = !useDirectItemSource && (activeReport === 'reports-profit' || activeReport === 'reports-inventory');
+        const ordersUrl = `${API_URL}/orders?limit=1000${needsOrderItems ? '&include_items=true' : ''}`;
+        const res = await fetchWithAuth(ordersUrl);
+        let data = await res.json();
+        if (!res.ok || !data?.success) {
+          const fallbackRes = await fetchWithAuth(`${API_URL}/orders?limit=1000`);
+          data = await fallbackRes.json();
+        }
+        if (data?.success) {
+          const allOrders = data.orders || [];
+          const startDateObj = new Date(`${start}T00:00:00`);
+          const endDateObj = new Date(`${end}T23:59:59.999`);
+          let orders = allOrders.filter((o) => {
+            const dt = new Date(o.created_at);
+            if (Number.isNaN(dt.getTime())) return false;
+            return dt >= startDateObj && dt <= endDateObj;
+          });
+
+          if (needsOrderItems) {
+            const hydrated = await Promise.all(orders.map(async (o) => {
+              const existingItems = extractOrderItems(o);
+              if (existingItems.length > 0) return { ...o, items: existingItems };
+              try {
+                const detailRes = await fetchWithAuth(`${API_URL}/orders/${o.id}`);
+                const detailData = await detailRes.json();
+                if (detailRes.ok && detailData?.success && detailData?.order) {
+                  const hydratedItems = extractOrderItems(detailData.order);
+                  return { ...o, items: hydratedItems };
+                }
+              } catch (e) {
+                console.warn('[REPORTS DEBUG] Failed to hydrate order items for order', o.id, e);
+              }
+              return { ...o, items: existingItems };
+            }));
+            orders = hydrated;
+          }
+
+          const ordersWithItems = orders.filter((o) => Array.isArray(o.items) && o.items.length > 0).length;
+          const totalLineItems = orders.reduce((sum, o) => sum + (Array.isArray(o.items) ? o.items.length : 0), 0);
+
+          if (!useDirectItemSource && orders.length > 0 && totalLineItems === 0) {
+            console.warn('[REPORTS DEBUG] Orders loaded but no line items found after hydration.');
+            try {
+              const itemRes = await fetchWithAuth(`${API_URL}/reports/sales-items?start=${start}&end=${end}`);
+              const itemData = await itemRes.json();
+              if (itemRes.ok && itemData?.success && Array.isArray(itemData.items)) {
+                const itemRows = itemData.items.map((r) => ({
+                  name: r.name || 'Unknown Item',
+                  quantity: Number(r.quantity || 0),
+                  revenue: Number(r.revenue || 0),
+                  cost: Number(r.cost || 0),
+                  category: r.category || 'Uncategorized'
+                }));
+
+                const fallbackItems = itemRows
+                  .reduce((acc, row) => {
+                    const key = row.name;
+                    if (!acc[key]) acc[key] = { name: row.name, quantity: 0, revenue: 0, cost: 0 };
+                    acc[key].quantity += row.quantity;
+                    acc[key].revenue += row.revenue;
+                    acc[key].cost += row.cost;
+                    return acc;
+                  }, {});
+
+                const fallbackCategories = itemRows
+                  .reduce((acc, row) => {
+                    const key = row.category;
+                    if (!acc[key]) acc[key] = { name: row.category, quantity: 0, revenue: 0, cost: 0 };
+                    acc[key].quantity += row.quantity;
+                    acc[key].revenue += row.revenue;
+                    acc[key].cost += row.cost;
+                    return acc;
+                  }, {});
+
+                setItemsData(Object.values(fallbackItems).sort((a, b) => b.quantity - a.quantity));
+                setCategoryData(Object.values(fallbackCategories).sort((a, b) => b.revenue - a.revenue));
+              }
+            } catch (e) {
+              console.warn('[REPORTS DEBUG] sales-items fallback failed.', e);
+            }
+          }
+
           setSalesData(orders);
 
           const itemsMap = {};
@@ -9500,18 +9688,18 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             // Trends
             if (!isRefundedOrVoided) {
               hourlyTrends[hour].orders += 1;
-              hourlyTrends[hour].revenue += Number(o.total_amount || 0);
+              hourlyTrends[hour].revenue += getOrderRevenue(o);
             }
 
             // Group by Channel
             if (!channelMap[channel]) channelMap[channel] = { name: channel, orders: 0, revenue: 0 };
             channelMap[channel].orders += 1;
-            channelMap[channel].revenue += Number(o.total_amount || 0);
+            channelMap[channel].revenue += getOrderRevenue(o);
 
             // Group by Customer
             if (!customerMap[custName]) customerMap[custName] = { name: custName, orders: 0, revenue: 0, lastVisit: o.created_at };
             customerMap[custName].orders += 1;
-            customerMap[custName].revenue += Number(o.total_amount || 0);
+            customerMap[custName].revenue += getOrderRevenue(o);
             if (new Date(o.created_at) > new Date(customerMap[custName].lastVisit)) {
               customerMap[custName].lastVisit = o.created_at;
             }
@@ -9519,10 +9707,10 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             // Returns & Refunds
             if (status === 'refunded') {
               returnStats.refundedCount += 1;
-              returnStats.refundedAmount += Number(o.total_amount || 0);
+              returnStats.refundedAmount += getOrderRevenue(o);
             } else if (status === 'voided') {
               returnStats.voidedCount += 1;
-              returnStats.voidedAmount += Number(o.total_amount || 0);
+              returnStats.voidedAmount += getOrderRevenue(o);
             }
 
             // Discounts & Promos
@@ -9530,18 +9718,18 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             if (disc > 0 && !isRefundedOrVoided) {
               promoStats.totalDiscounts += disc;
               promoStats.discountedOrders += 1;
-              promoStats.promoRevenue += Number(o.total_amount || 0);
+              promoStats.promoRevenue += getOrderRevenue(o);
             }
 
             // Group by Employee
             if (!employeeMap[empName]) employeeMap[empName] = { name: empName, orders: 0, revenue: 0 };
             employeeMap[empName].orders += 1;
-            employeeMap[empName].revenue += Number(o.total_amount || 0);
+            employeeMap[empName].revenue += getOrderRevenue(o);
 
             // Group by Payment Method
             if (!paymentMap[payMethod]) paymentMap[payMethod] = { name: payMethod, orders: 0, revenue: 0 };
             paymentMap[payMethod].orders += 1;
-            paymentMap[payMethod].revenue += Number(o.total_amount || 0);
+            paymentMap[payMethod].revenue += getOrderRevenue(o);
 
             if (items.length === 0) return;
 
@@ -9586,14 +9774,16 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               const itemCost = Number(it.cost || 0) * qty;
 
               // Group by Item
-              if (!itemsMap[nameKey]) itemsMap[nameKey] = { name: nameKey, quantity: 0, revenue: 0 };
+              if (!itemsMap[nameKey]) itemsMap[nameKey] = { name: nameKey, quantity: 0, revenue: 0, cost: 0 };
               itemsMap[nameKey].quantity += qty;
               itemsMap[nameKey].revenue += itemRev;
+              itemsMap[nameKey].cost += itemCost;
 
               // Group by Category
-              if (!categoryMap[catKey]) categoryMap[catKey] = { name: catKey, quantity: 0, revenue: 0 };
+              if (!categoryMap[catKey]) categoryMap[catKey] = { name: catKey, quantity: 0, revenue: 0, cost: 0 };
               categoryMap[catKey].quantity += qty;
               categoryMap[catKey].revenue += itemRev;
+              categoryMap[catKey].cost += itemCost;
             });
           });
 
@@ -9607,6 +9797,49 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           setTrendData(hourlyTrends);
           setPromoData(promoStats);
           setReturnData(returnStats);
+
+          // Direct source of truth for Product Performance / Category Analysis
+          // so these tabs don't depend on nested order->items payload shape.
+          if (activeReport === 'reports-items' || activeReport === 'reports-category') {
+            try {
+              const itemRes = await fetchWithAuth(`${API_URL}/reports/sales-items?start=${start}&end=${end}`);
+              const itemData = await itemRes.json();
+              if (itemRes.ok && itemData?.success && Array.isArray(itemData.items)) {
+                const itemRows = itemData.items.map((r) => ({
+                  name: r.name || 'Unknown Item',
+                  quantity: Number(r.quantity || 0),
+                  revenue: Number(r.revenue || 0),
+                  cost: Number(r.cost || 0),
+                  category: r.category || 'Uncategorized'
+                }));
+
+                const directItems = itemRows.reduce((acc, row) => {
+                  const key = row.name;
+                  if (!acc[key]) acc[key] = { name: row.name, quantity: 0, revenue: 0, cost: 0 };
+                  acc[key].quantity += row.quantity;
+                  acc[key].revenue += row.revenue;
+                  acc[key].cost += row.cost;
+                  return acc;
+                }, {});
+
+                const directCategories = itemRows.reduce((acc, row) => {
+                  const key = row.category;
+                  if (!acc[key]) acc[key] = { name: row.category, quantity: 0, revenue: 0, cost: 0 };
+                  acc[key].quantity += row.quantity;
+                  acc[key].revenue += row.revenue;
+                  acc[key].cost += row.cost;
+                  return acc;
+                }, {});
+
+                setItemsData(Object.values(directItems).sort((a, b) => b.quantity - a.quantity));
+                setCategoryData(Object.values(directCategories).sort((a, b) => b.revenue - a.revenue));
+              } else {
+                console.warn('[REPORTS] sales-items source returned no usable items.', itemData?.error || `HTTP ${itemRes.status}`);
+              }
+            } catch (e) {
+              console.warn('[REPORTS DEBUG] direct sales-items source failed.', e);
+            }
+          }
         }
 
         const reconRes = await fetchWithAuth(`${API_URL}/orders/reconciliation?start=${start}&end=${end}`);
@@ -9637,7 +9870,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     const isRefundedOrVoided = ['voided', 'refunded', 'cancelled'].includes(status);
 
     // 1. Gross = Subtotal of EVERY order attempted (before discount, before tax)
-    const orderSubtotal = Number(o.subtotal || 0);
+    const orderSubtotal = toNum(o.subtotal || getOrderRevenue(o));
     acc.gross += orderSubtotal;
 
     // 2. Separate logic for Active vs Voided
@@ -9646,9 +9879,9 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
       acc.refunds += orderSubtotal;
     } else {
       // For active orders, track discounts and tax
-      acc.discounts += Number(o.discount_amount || 0);
-      acc.tax += Number(o.tax_amount || 0);
-      acc.collection += Number(o.total_amount || 0);
+      acc.discounts += toNum(o.discount_amount);
+      acc.tax += toNum(o.tax_amount);
+      acc.collection += getOrderRevenue(o);
       acc.orders += 1;
     }
     return acc;
@@ -9658,7 +9891,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
   const netSales = totals.gross - totals.discounts - totals.refunds;
   const avg = totals.orders > 0 ? netSales / totals.orders : 0;
   const itemsRevenueTotal = itemsData.reduce((sum, i) => sum + Number(i.revenue || 0), 0);
-  const itemSalesDiff = itemsRevenueTotal - netSales;
+  const itemSalesDiff = itemsRevenueTotal - totals.gross;
   const reportAssistantMessage = reconciliationError
     ? `I couldn't load reconciliation details right now: ${reconciliationError}`
     : reconciliation
@@ -9835,18 +10068,18 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           <div className="space-y-3">
             <ReconciliationAssistant
               message={Math.abs(itemSalesDiff) > 0.01
-                ? `I still see a mismatch of Php ${itemSalesDiff.toFixed(2)} between Item Sales and Sales totals.`
-                : 'Item Sales and Sales totals are perfectly matched for this period.'}
+                ? `I still see a mismatch of Php ${itemSalesDiff.toFixed(2)} between Item Gross Sales and Sales Gross totals.`
+                : 'Item Gross Sales and Sales Gross totals are perfectly matched for this period.'}
               mood={Math.abs(itemSalesDiff) > 0.01 ? 'alert' : 'ok'}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-cyan-500">
-                <p className="text-sm text-gray-500">Item Sales Total</p>
+                <p className="text-sm text-gray-500">Item Sales Total (Gross)</p>
                 <p className="text-2xl font-bold text-cyan-600">Php {itemsRevenueTotal.toFixed(2)}</p>
               </div>
               <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
-                <p className="text-sm text-gray-500">Sales Report Total (Net)</p>
-                <p className="text-2xl font-bold text-blue-600">Php {netSales.toFixed(2)}</p>
+                <p className="text-sm text-gray-500">Sales Report Total (Gross)</p>
+                <p className="text-2xl font-bold text-blue-600">Php {totals.gross.toFixed(2)}</p>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
