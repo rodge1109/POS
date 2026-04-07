@@ -4990,6 +4990,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   const [splitCheckItems, setSplitCheckItems] = useState([]);
   const [tableOrders, setTableOrders] = useState([]);
   const [showOrderSelectModal, setShowOrderSelectModal] = useState(false);
+  const [isTabletOrderPanelOpen, setIsTabletOrderPanelOpen] = useState(false);
 
   // Ready order alerts
   const [readyOrders, setReadyOrders] = useState([]);
@@ -5066,6 +5067,24 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     fetchTables();
     const interval = setInterval(fetchTables, 10000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handleViewport = (event) => {
+      if (event.matches) {
+        setIsTabletOrderPanelOpen(false);
+      }
+    };
+    if (mediaQuery.matches) {
+      setIsTabletOrderPanelOpen(false);
+    }
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleViewport);
+      return () => mediaQuery.removeEventListener('change', handleViewport);
+    }
+    mediaQuery.addListener(handleViewport);
+    return () => mediaQuery.removeListener(handleViewport);
   }, []);
 
   // Fetch check for a table
@@ -5877,11 +5896,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   return (
     <>
       <div className="bg-gray-200 h-full flex flex-col overflow-hidden">
-        <div className="flex flex-col-reverse md:flex-row h-full">
+        <div className="flex flex-col-reverse md:flex-row h-full md:gap-2 lg:gap-0">
           {/* Left Panel - Menu Items */}
-          <div className="w-full md:flex-1 flex flex-col overflow-hidden flex-1">
+          <div className="w-full md:flex-1 md:min-w-0 flex flex-col overflow-hidden flex-1">
             {/* Barcode Scanner Input */}
-            <form onSubmit={handleBarcodeSubmit} className="bg-white pt-5 pb-1.5 px-1.5 md:p-3 flex gap-1 md:gap-2 items-center">
+            <form onSubmit={handleBarcodeSubmit} className="bg-white pt-5 pb-1.5 px-1.5 md:p-2.5 lg:p-3 flex gap-1 md:gap-2 items-center">
               <div className="relative flex-1">
                 <input
                   id="barcode-input"
@@ -5910,10 +5929,19 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h2M4 17h2m12 0h2m-2-10h2M7 4h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3zm5 3.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" />
                 </svg>
               </button>
+              <button
+                type="button"
+                onClick={() => setIsTabletOrderPanelOpen(true)}
+                className="hidden md:inline-flex lg:hidden items-center gap-1 px-2 py-1.5 bg-cyan-600 text-white hover:bg-cyan-700 rounded-md transition-colors text-xs font-semibold"
+                title="Open order panel"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>{cartItems.length}</span>
+              </button>
             </form>
 
             {/* Category Tabs (mobile-friendly scrollable bar) */}
-            <div className="flex bg-gray-100 p-2 md:p-3 overflow-x-auto gap-2 scrollbar-hide border-b border-gray-200">
+            <div className="flex bg-gray-100 p-2 md:p-2.5 lg:p-3 overflow-x-auto gap-2 scrollbar-hide border-b border-gray-200">
               {categories.map(category => (
                 <button
                   key={category}
@@ -5929,19 +5957,19 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
             </div>
 
             {/* Items Grid */}
-            <div className="flex-1 overflow-y-auto p-2 md:p-4 bg-gray-200 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto p-2 md:p-3 lg:p-4 bg-gray-200 scrollbar-hide">
               {isLoading ? (
                 <div className="text-center py-16">
                   <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mb-4"></div>
                   <p className="text-lg text-cyan-600 font-medium">Loading menu...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1 md:gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1 md:gap-2.5 lg:gap-2">
                   {filteredItems.map(item => (
                     <button
                       key={item.id}
                       onClick={() => handleQuickAdd(item)}
-                      className="bg-white hover:bg-gray-50 text-left transition-all hover:shadow-md border border-gray-200 hover:border-cyan-500 group flex overflow-hidden h-16 md:h-24"
+                      className="bg-white hover:bg-gray-50 text-left transition-all hover:shadow-md border border-gray-200 hover:border-cyan-500 group flex overflow-hidden h-16 md:h-28 lg:h-24"
                     >
                       {/* Left Half - Image */}
                       <div className="w-2/5 md:w-1/2 bg-gray-50 flex items-center justify-center p-1 md:p-2 overflow-hidden border-r border-gray-100">
@@ -5989,10 +6017,20 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
             )}
           </div>
 
+          {/* Tablet overlay backdrop */}
+          {isTabletOrderPanelOpen && (
+            <button
+              type="button"
+              className="hidden md:block lg:hidden fixed inset-0 bg-black/30 z-[64]"
+              onClick={() => setIsTabletOrderPanelOpen(false)}
+              aria-label="Close order panel backdrop"
+            />
+          )}
+
           {/* Right Panel - Order Summary */}
-          <div className="w-full md:w-80 lg:w-96 bg-white flex flex-col overflow-hidden h-[52vh] md:h-auto flex-shrink-0">
+          <div className={`w-full md:w-[22rem] lg:w-96 xl:w-[26rem] bg-white flex flex-col overflow-hidden h-[52vh] md:h-[calc(100vh-104px)] lg:h-full flex-shrink-0 md:fixed md:top-[104px] md:right-0 md:z-[65] md:max-w-[92vw] md:border-l md:border-gray-200 md:shadow-2xl md:transition-transform md:duration-300 ${isTabletOrderPanelOpen ? 'md:translate-x-0' : 'md:translate-x-full'} lg:translate-x-0 lg:static lg:top-auto lg:right-auto lg:z-auto lg:shadow-none lg:border-l-0`}>
             {/* Header with Shift Info */}
-            <div className={`${currentShift ? 'bg-cyan-600' : 'bg-yellow-600'} pt-5 pb-2 px-2 md:p-4 flex-shrink-0`}>
+            <div className={`${currentShift ? 'bg-cyan-600' : 'bg-yellow-600'} pt-5 pb-2 px-2 md:p-3 lg:p-4 flex-shrink-0`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   {showTableView ? (
@@ -6010,6 +6048,14 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsTabletOrderPanelOpen(false)}
+                    className="hidden md:inline-flex lg:hidden bg-white/20 hover:bg-white/30 text-white p-1 rounded transition-colors"
+                    title="Close panel"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                   {!showTableView && (
                     <button
                       onClick={() => setShowTableView(true)}
@@ -6050,12 +6096,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               )}
               {/* Shift Running Total - Desktop only */}
               {currentShift && !selectedTable ? (
-                <div className="hidden md:flex justify-between text-cyan-100 text-xs mt-2 pt-2 border-t border-cyan-500">
+                <div className="hidden md:flex justify-between text-cyan-100 text-[11px] lg:text-xs mt-2 pt-2 border-t border-cyan-500">
                   <span>Shift Sales: Php {(currentShift?.running_total || 0).toFixed(2)}</span>
                   <span>{currentShift?.order_count || 0} orders</span>
                 </div>
               ) : !currentShift ? (
-                <div className="hidden md:block text-yellow-100 text-xs mt-2 pt-2 border-t border-yellow-500">
+                <div className="hidden md:block text-yellow-100 text-[11px] lg:text-xs mt-2 pt-2 border-t border-yellow-500">
                   No active shift - Start shift to track sales
                 </div>
               ) : null}
@@ -6196,74 +6242,9 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               )}
             </div>
 
-            {/* Discount UI (hidden on mobile) */}
-            {cartItems.length > 0 && (
-              <div className="hidden md:block bg-white border-t border-gray-200 p-4 flex-shrink-0">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-700">Apply Discount</span>
-                  {discountType && (
-                    <button onClick={resetDiscount} className="text-[10px] md:text-xs text-red-500 hover:text-red-700 font-medium px-2 py-0.5 border border-red-200 rounded">
-                      Clear ✓
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-4 gap-1 md:gap-2 mb-2">
-                  <button
-                    onClick={() => setDiscountType('senior')}
-                    className={`text-[10px] md:text-xs py-1.5 md:py-2 rounded border font-medium transition-colors ${discountType === 'senior' ? 'bg-orange-600 text-white border-orange-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-orange-50 hover:text-orange-600'}`}
-                  >
-                    Senior
-                  </button>
-                  <button
-                    onClick={() => setDiscountType('pwd')}
-                    className={`text-[10px] md:text-xs py-1.5 md:py-2 rounded border font-medium transition-colors ${discountType === 'pwd' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-600'}`}
-                  >
-                    PWD
-                  </button>
-                  <button
-                    onClick={() => setDiscountType('loyalty')}
-                    className={`text-[10px] md:text-xs py-1.5 md:py-2 rounded border font-medium transition-colors ${discountType === 'loyalty' ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-purple-50 hover:text-purple-600'}`}
-                  >
-                    Loyalty
-                  </button>
-                  <button
-                    onClick={() => setDiscountType('custom')}
-                    className={`text-[10px] md:text-xs py-1.5 md:py-2 rounded border font-medium transition-colors ${discountType === 'custom' ? 'bg-gray-800 text-white border-gray-800' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-200'}`}
-                  >
-                    Custom
-                  </button>
-                </div>
-
-                {discountType === 'custom' && (
-                  <div className="flex gap-2 animate-fadeIn mt-2">
-                    <div className="flex-1 relative">
-                      <input
-                        type="number"
-                        placeholder="%"
-                        value={customDiscountPercent}
-                        onChange={(e) => { setCustomDiscountPercent(e.target.value); setCustomDiscountAmount(''); }}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:border-gray-800 focus:outline-none pr-6"
-                      />
-                      <span className="absolute right-2 top-1.5 text-xs text-gray-400">%</span>
-                    </div>
-                    <div className="flex items-center text-gray-400 text-[10px] md:text-xs">OR</div>
-                    <div className="flex-1 relative">
-                      <span className="absolute left-2 top-1.5 text-xs text-gray-400">₱</span>
-                      <input
-                        type="number"
-                        placeholder="Amount"
-                        value={customDiscountAmount}
-                        onChange={(e) => { setCustomDiscountAmount(e.target.value); setCustomDiscountPercent(''); }}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:border-gray-800 focus:outline-none pl-6"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Totals */}
-            <div className="bg-white p-1.5 md:p-4 space-y-0.5 md:space-y-2 border-t border-gray-200 flex-shrink-0">
+            <div className="bg-white p-1.5 md:p-3 lg:p-4 space-y-0.5 md:space-y-2 border-t border-gray-200 flex-shrink-0">
               <div className="flex justify-between text-gray-600 text-[10px] md:text-sm">
                 <span>Subtotal</span>
                 <span>{money(getTotalPrice())}</span>
@@ -6286,7 +6267,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
             {/* Action Buttons */}
             {!showTableView && (
-              <div className="p-1.5 md:p-4 space-y-1 md:space-y-2 bg-white border-t border-gray-100 flex-shrink-0">
+              <div className="p-1.5 md:p-3 lg:p-4 space-y-1 md:space-y-2 bg-white border-t border-gray-100 flex-shrink-0">
                 {/* Main action button - always use live status from the tables list */}
                 {(() => {
                   const liveTable = tables?.find(t => t.id?.toString() === selectedTable?.id?.toString());
@@ -6325,17 +6306,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 })()}
 
                 {cartItems.length > 0 && !selectedTable ? (
-                  /* Items in cart but no table selected - show a specific 'Save to Table' prompt */
-                  <div className="hidden md:block space-y-2">
-                    <button
-                      onClick={() => setShowTableView(true)}
-                      className="w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all bg-indigo-100 text-indigo-700 border-2 border-dashed border-indigo-300 hover:bg-indigo-200"
-                    >
-                      SELECT TABLE TO SAVE ORDER
-                    </button>
+                  /* Items in cart but no table selected */
+                  <div className="hidden md:block">
                     <button
                       onClick={handlePaymentWithShiftCheck}
-                      className="w-full py-3 md:py-5 rounded-xl font-black text-xs md:text-lg transition-all bg-cyan-600 text-white hover:bg-cyan-700 shadow-md"
+                      className="w-full py-3 md:py-4 rounded-xl font-black text-xs md:text-lg transition-all bg-cyan-600 text-white hover:bg-cyan-700 shadow-md"
                     >
                       CHARGE {money(total)} (NO TABLE)
                     </button>
@@ -6386,8 +6361,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         </div>
 
         {showPaymentModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-10 font-dashboard">
-            <div className="w-full max-w-[34rem] h-full md:h-auto md:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-6 lg:p-10 font-dashboard">
+            <div className="w-full max-w-[34rem] md:max-w-[40rem] h-full md:h-[92vh] lg:h-auto md:max-h-[92vh] lg:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
               {/* Green Header */}
               <div className="bg-cyan-600 text-white px-5 py-4 flex-shrink-0">
                 <div className="flex justify-between items-center">
@@ -9464,6 +9439,8 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
   const [trendData, setTrendData] = useState([]);
   const [promoData, setPromoData] = useState({ totalDiscounts: 0, discountedOrders: 0, promoRevenue: 0 });
   const [returnData, setReturnData] = useState({ refundedCount: 0, refundedAmount: 0, voidedCount: 0, voidedAmount: 0 });
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityModule, setActivityModule] = useState('all');
   const [emailLoading, setEmailLoading] = useState(false);
   const toNum = (v) => {
     const n = Number(v);
@@ -9550,7 +9527,8 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     { id: 'reports-promos', name: '9. Discounts & Promos', icon: '🎟️' },
     { id: 'reports-returns', name: '10. Returns & Refunds', icon: '🔄' },
     { id: 'reports-employees', name: '11. Staff Performance', icon: '👥' },
-    { id: 'reports-channels', name: '12. Channel Breakdown', icon: '🌐' }
+    { id: 'reports-channels', name: '12. Channel Breakdown', icon: '🌐' },
+    { id: 'reports-logs', name: '13. Activity Logs', icon: '🧾' }
   ];
 
   useEffect(() => {
@@ -9578,6 +9556,37 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           start = toDateStr(first);
           end = toDateStr(today);
         }
+
+        if (activeReport === 'reports-logs') {
+          const params = new URLSearchParams({
+            start,
+            end,
+            limit: '500',
+            module: activityModule || 'all'
+          });
+          const logsRes = await fetchWithAuth(`${API_URL}/reports/activity-logs?${params.toString()}`);
+          const logsData = await logsRes.json();
+          if (logsRes.ok && logsData?.success) {
+            setActivityLogs(Array.isArray(logsData.logs) ? logsData.logs : []);
+          } else {
+            setActivityLogs([]);
+          }
+          setSalesData([]);
+          setItemsData([]);
+          setCategoryData([]);
+          setEmployeeData([]);
+          setPaymentData([]);
+          setCustomerData([]);
+          setChannelData([]);
+          setTrendData([]);
+          setPromoData({ totalDiscounts: 0, discountedOrders: 0, promoRevenue: 0 });
+          setReturnData({ refundedCount: 0, refundedAmount: 0, voidedCount: 0, voidedAmount: 0 });
+          setReconciliation(null);
+          setReconciliationMismatches([]);
+          setReconciliationError('');
+          return;
+        }
+
         const useDirectItemSource = activeReport === 'reports-items' || activeReport === 'reports-category';
         const needsOrderItems = !useDirectItemSource && (activeReport === 'reports-profit' || activeReport === 'reports-inventory');
         const ordersUrl = `${API_URL}/orders?limit=1000${needsOrderItems ? '&include_items=true' : ''}`;
@@ -9864,7 +9873,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
       }
     };
     run();
-  }, [activeReport, dateRange, startDate, endDate]);
+  }, [activeReport, dateRange, startDate, endDate, activityModule]);
 
   const totals = salesData.reduce((acc, o) => {
     const status = (o.order_status || '').toLowerCase();
@@ -10352,6 +10361,64 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
                       <td className="px-4 py-3 text-sm text-right text-gray-500">{((c.revenue / (netSales || 1)) * 100).toFixed(1)}%</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeReport === 'reports-logs' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Module</label>
+                <select
+                  value={activityModule}
+                  onChange={(e) => setActivityModule(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white"
+                >
+                  <option value="all">All Modules</option>
+                  <option value="orders">Orders</option>
+                  <option value="inventory">Inventory</option>
+                  <option value="shifts">Shifts</option>
+                  <option value="schedules">Schedules</option>
+                </select>
+              </div>
+              <div className="text-sm text-gray-500">
+                {activityLogs.length} event{activityLogs.length === 1 ? '' : 's'} in selected range
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full font-data-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-sm">Time</th>
+                    <th className="text-left px-4 py-3 text-sm">Module</th>
+                    <th className="text-left px-4 py-3 text-sm">Action</th>
+                    <th className="text-left px-4 py-3 text-sm">Reference</th>
+                    <th className="text-left px-4 py-3 text-sm">Actor</th>
+                    <th className="text-left px-4 py-3 text-sm">Details</th>
+                    <th className="text-right px-4 py-3 text-sm">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {activityLogs.map((row, idx) => (
+                    <tr key={`${row.occurred_at}-${row.module}-${idx}`} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-700">{new Date(row.occurred_at).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm uppercase text-gray-500">{row.module}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-800">{row.action}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{row.reference || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{row.actor || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{row.details || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-right text-cyan-700">{row.amount != null ? `Php ${Number(row.amount).toFixed(2)}` : '-'}</td>
+                    </tr>
+                  ))}
+                  {activityLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400 italic">No activity found for this range and module.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

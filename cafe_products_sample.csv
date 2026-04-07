@@ -1,0 +1,27 @@
+﻿name,category,price,sku,barcode,stock_quantity,low_stock_threshold,description,image,active,popular,send_to_k,cost
+Espresso,Hot Coffee,110.00,CAF-ESP-001,480000000001,120,20,"Single shot espresso",,true,true,true,32.00
+Double Espresso,Hot Coffee,140.00,CAF-ESP-002,480000000002,90,20,"Double shot espresso",,true,false,true,45.00
+Americano,Hot Coffee,130.00,CAF-HOT-001,480000000003,110,20,"Espresso with hot water",,true,true,true,35.00
+Cappuccino,Hot Coffee,165.00,CAF-HOT-002,480000000004,95,15,"Espresso with steamed milk foam",,true,true,true,52.00
+Cafe Latte,Hot Coffee,175.00,CAF-HOT-003,480000000005,100,15,"Espresso with steamed milk",,true,true,true,55.00
+Mocha,Hot Coffee,185.00,CAF-HOT-004,480000000006,80,15,"Espresso with chocolate and milk",,true,false,true,60.00
+Caramel Macchiato,Hot Coffee,195.00,CAF-HOT-005,480000000007,70,12,"Vanilla milk with espresso and caramel",,true,true,true,68.00
+Flat White,Hot Coffee,170.00,CAF-HOT-006,480000000008,75,12,"Velvety milk and ristretto espresso",,true,false,true,54.00
+Hot Chocolate,Non-Coffee,150.00,CAF-NCF-001,480000000009,60,10,"Rich cocoa drink",,true,false,true,48.00
+Matcha Latte,Non-Coffee,180.00,CAF-NCF-002,480000000010,55,10,"Premium matcha and milk",,true,true,true,62.00
+Iced Americano,Cold Coffee,145.00,CAF-CLD-001,480000000011,120,20,"Espresso with cold water and ice",,true,true,true,38.00
+Iced Latte,Cold Coffee,185.00,CAF-CLD-002,480000000012,110,18,"Espresso milk and ice",,true,true,true,58.00
+Iced Mocha,Cold Coffee,195.00,CAF-CLD-003,480000000013,85,15,"Chocolate espresso milk and ice",,true,false,true,65.00
+Cold Brew,Cold Coffee,170.00,CAF-CLD-004,480000000014,65,12,"Slow-steeped coffee served cold",,true,true,true,50.00
+Strawberry Frappe,Blended,210.00,CAF-BLD-001,480000000015,50,10,"Blended strawberry cream drink",,true,false,true,78.00
+Java Chip Frappe,Blended,220.00,CAF-BLD-002,480000000016,45,8,"Blended coffee chocolate chips",,true,true,true,82.00
+Blueberry Cheesecake,Pastry,165.00,CAF-PAS-001,480000000017,24,6,"Slice of blueberry cheesecake",,true,true,false,72.00
+Croissant Butter,Pastry,95.00,CAF-PAS-002,480000000018,36,8,"Buttery flaky croissant",,true,true,false,38.00
+Chocolate Muffin,Pastry,105.00,CAF-PAS-003,480000000019,30,8,"Moist chocolate muffin",,true,false,false,42.00
+Banana Bread Slice,Pastry,90.00,CAF-PAS-004,480000000020,28,6,"Classic banana bread slice",,true,false,false,34.00
+Ham and Cheese Sandwich,Savory,185.00,CAF-SAV-001,480000000021,20,5,"Toasted ham and cheese sandwich",,true,true,true,88.00
+Chicken Pesto Panini,Savory,210.00,CAF-SAV-002,480000000022,18,5,"Grilled panini with chicken pesto",,true,false,true,102.00
+Caesar Salad,Savory,195.00,CAF-SAV-003,480000000023,15,4,"Romaine croutons parmesan dressing",,true,false,true,96.00
+Mineral Water,Bottled,45.00,CAF-BTL-001,480000000024,80,20,"500ml bottled water",,true,false,false,18.00
+Sparkling Water,Bottled,65.00,CAF-BTL-002,480000000025,60,15,"330ml sparkling water",,true,false,false,26.00
+Orange Juice,Bottled,85.00,CAF-BTL-003,480000000026,40,10,"250ml orange juice",,true,false,false,34.00

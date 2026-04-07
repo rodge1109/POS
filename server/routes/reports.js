@@ -77,4 +77,163 @@ router.get('/sales-items', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/activity-logs
+ * Unified operational timeline from orders, inventory, shifts, and schedules.
+ */
+router.get('/activity-logs', async (req, res) => {
+  try {
+    const { start, end, limit = 200, module = 'all' } = req.query;
+    const company_id = req.company_id;
+
+    const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500);
+    const params = [company_id];
+    let p = params.length;
+
+    let orderDateSql = '';
+    let inventoryDateSql = '';
+    let shiftDateSql = '';
+    let scheduleDateSql = '';
+
+    if (start) {
+      params.push(start);
+      p += 1;
+      orderDateSql += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${p}`;
+      inventoryDateSql += ` AND (it.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${p}`;
+      shiftDateSql += ` AND (s.start_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${p}`;
+      scheduleDateSql += ` AND sch.shift_date >= $${p}`;
+    }
+    if (end) {
+      params.push(end);
+      p += 1;
+      orderDateSql += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${p}`;
+      inventoryDateSql += ` AND (it.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${p}`;
+      shiftDateSql += ` AND (s.start_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${p}`;
+      scheduleDateSql += ` AND sch.shift_date <= $${p}`;
+    }
+
+    const moduleFilter = String(module || 'all').toLowerCase();
+    const allowOrder = moduleFilter === 'all' || moduleFilter === 'orders';
+    const allowInventory = moduleFilter === 'all' || moduleFilter === 'inventory';
+    const allowShift = moduleFilter === 'all' || moduleFilter === 'shifts';
+    const allowSchedule = moduleFilter === 'all' || moduleFilter === 'schedules';
+
+    const unions = [];
+
+    if (allowOrder) {
+      unions.push(`
+        SELECT
+          o.created_at AS occurred_at,
+          'orders'::text AS module,
+          CASE
+            WHEN LOWER(COALESCE(o.order_status, '')) IN ('voided','refunded','cancelled') THEN ('Order ' || COALESCE(o.order_status, 'Updated'))
+            ELSE 'Order Recorded'
+          END AS action,
+          COALESCE(o.order_number, '#' || o.id::text) AS reference,
+          COALESCE(e.name, 'System/Online') AS actor,
+          COALESCE(o.service_type, o.order_type, 'n/a') AS details,
+          COALESCE(o.total_amount, 0)::float AS amount
+        FROM orders o
+        LEFT JOIN shifts s ON s.id = o.shift_id AND s.company_id = o.company_id
+        LEFT JOIN employees e ON e.id = s.employee_id AND e.company_id = s.company_id
+        WHERE o.company_id = $1
+          ${orderDateSql}
+      `);
+    }
+
+    if (allowInventory) {
+      unions.push(`
+        SELECT
+          it.created_at AS occurred_at,
+          'inventory'::text AS module,
+          CASE
+            WHEN LOWER(COALESCE(it.transaction_type, '')) = 'receive' THEN 'Stock Received'
+            WHEN LOWER(COALESCE(it.transaction_type, '')) = 'order_deduction' THEN 'Order Deduction'
+            WHEN LOWER(COALESCE(it.transaction_type, '')) = 'product_deduction' THEN 'Product Deduction'
+            ELSE 'Stock Adjustment'
+          END AS action,
+          COALESCE(p.name, i.name, 'Unknown Item') AS reference,
+          COALESCE(it.created_by, 'system') AS actor,
+          CONCAT('Qty ', COALESCE(it.quantity_change, 0), ' -> Bal ', COALESCE(it.quantity_after, 0)) AS details,
+          NULL::float AS amount
+        FROM inventory_transactions it
+        LEFT JOIN ingredients i ON i.id = it.ingredient_id AND i.company_id = it.company_id
+        LEFT JOIN products p ON p.id = it.product_id AND p.company_id = it.company_id
+        WHERE it.company_id = $1
+          ${inventoryDateSql}
+      `);
+    }
+
+    if (allowShift) {
+      unions.push(`
+        SELECT
+          s.start_time AS occurred_at,
+          'shifts'::text AS module,
+          CASE WHEN s.status = 'closed' THEN 'Shift Closed' ELSE 'Shift Started' END AS action,
+          'Shift #' || s.id::text AS reference,
+          COALESCE(e.name, 'Unknown Staff') AS actor,
+          CONCAT('Opening: ', COALESCE(s.opening_cash, 0), ' | Closing: ', COALESCE(s.closing_cash, 0)) AS details,
+          COALESCE(s.cash_variance, 0)::float AS amount
+        FROM shifts s
+        LEFT JOIN employees e ON e.id = s.employee_id AND e.company_id = s.company_id
+        WHERE s.company_id = $1
+          ${shiftDateSql}
+      `);
+    }
+
+    const scheduleTableCheck = await pool.query(
+      `SELECT to_regclass('public.employee_schedules')::text AS tbl`
+    );
+    const hasScheduleTable = Boolean(scheduleTableCheck.rows?.[0]?.tbl);
+
+    if (allowSchedule && hasScheduleTable) {
+      unions.push(`
+        SELECT
+          (sch.shift_date::timestamp + sch.start_time) AS occurred_at,
+          'schedules'::text AS module,
+          CASE
+            WHEN sch.status = 'cancelled' THEN 'Schedule Cancelled'
+            WHEN sch.status = 'published' THEN 'Schedule Published'
+            ELSE 'Schedule Drafted'
+          END AS action,
+          COALESCE(emp.name, 'Unknown Staff') AS reference,
+          COALESCE(creator.name, 'System') AS actor,
+          CONCAT(
+            TO_CHAR(sch.shift_date, 'YYYY-MM-DD'),
+            ' ',
+            TO_CHAR(sch.start_time, 'HH24:MI'),
+            '-',
+            TO_CHAR(sch.end_time, 'HH24:MI')
+          ) AS details,
+          NULL::float AS amount
+        FROM employee_schedules sch
+        LEFT JOIN employees emp ON emp.id = sch.employee_id AND emp.company_id = sch.company_id
+        LEFT JOIN employees creator ON creator.id = sch.created_by AND creator.company_id = sch.company_id
+        WHERE sch.company_id = $1
+          ${scheduleDateSql}
+      `);
+    }
+
+    if (unions.length === 0) {
+      return res.json({ success: true, logs: [] });
+    }
+
+    params.push(maxLimit);
+    const finalQuery = `
+      SELECT *
+      FROM (
+        ${unions.join(' UNION ALL ')}
+      ) logs
+      ORDER BY occurred_at DESC
+      LIMIT $${params.length}
+    `;
+
+    const result = await pool.query(finalQuery, params);
+    res.json({ success: true, logs: result.rows });
+  } catch (error) {
+    console.error('Error fetching activity logs:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch activity logs' });
+  }
+});
+
 export default router;
