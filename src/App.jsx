@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
+import React, { useState, createContext, useContext, useEffect, useRef, useMemo } from 'react';
 import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail } from 'lucide-react';
 // Fallback alias to avoid missing icon errors in dynamic builds
 const Settings2 = Settings;
@@ -711,6 +711,7 @@ export default function App() {
                       setCurrentShift(null);
                     }
                   }}
+                  onRefreshProducts={fetchProducts}
                 />
                 {showShiftStartModal && (
                   <ShiftStartModal
@@ -1852,23 +1853,40 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             avgServiceTime
           });
 
-          // Group sales by date for chart (last 7 days or based on timeframe)
-          const dateMap = {};
-          const daysToShow = timeframe === 'today' ? 1 : timeframe === 'week' ? 7 : timeframe === 'month' ? 30 : 12;
+          // Sales trend aggregation: hourly for "today", date/month buckets for other ranges.
+          const daysToShow = timeframe === 'today' ? 24 : timeframe === 'week' ? 7 : timeframe === 'month' ? 30 : 12;
+          let labels = [];
+          let chartData = [];
 
-          filteredOrders.forEach(order => {
-            const date = new Date(order.created_at);
-            const dateKey = timeframe === 'year'
-              ? date.toLocaleString('en-US', { month: 'short', year: '2-digit' })
-              : date.toLocaleDateString();
-            dateMap[dateKey] = (dateMap[dateKey] || 0) + getOrderRevenue(order);
-          });
+          if (timeframe === 'today') {
+            const hourMap = new Array(24).fill(0);
+            filteredOrders.forEach((order) => {
+              const dt = new Date(order.created_at);
+              const hour = dt.getHours();
+              if (hour >= 0 && hour <= 23) {
+                hourMap[hour] += getOrderRevenue(order);
+              }
+            });
+            labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+            chartData = hourMap.map((v) => convertAmount(v));
+          } else {
+            const dateMap = {};
 
-          const sortedDates = Object.keys(dateMap).sort();
-          const chartData = sortedDates.slice(-daysToShow).map(d => convertAmount(dateMap[d]));
+            filteredOrders.forEach(order => {
+              const date = new Date(order.created_at);
+              const dateKey = timeframe === 'year'
+                ? date.toLocaleString('en-US', { month: 'short', year: '2-digit' })
+                : date.toLocaleDateString();
+              dateMap[dateKey] = (dateMap[dateKey] || 0) + getOrderRevenue(order);
+            });
+
+            const sortedDates = Object.keys(dateMap).sort();
+            labels = sortedDates.slice(-daysToShow);
+            chartData = labels.map(d => convertAmount(dateMap[d]));
+          }
 
           setSalesData({
-            labels: sortedDates.slice(-daysToShow),
+            labels,
             datasets: [{
               label: timeframe === 'today' ? `Hourly Revenue (${currency})` : `Daily Revenue (${currency})`,
               data: chartData,
@@ -2126,7 +2144,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             </div>
             {/* Key Metrics - Professional Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-6 border-t-4 border-t-cyan-600 hover:shadow-xl transition-shadow">
+              <div className="bg-gray-100 rounded-xl p-6 border border-gray-300">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">Total Sales</p>
                   <span className="text-2xl">💰</span>
@@ -2135,7 +2153,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 <p className="text-cyan-600 text-sm font-semibold">📈 Period Total</p>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-6 border-t-4 border-t-blue-600 hover:shadow-xl transition-shadow">
+              <div className="bg-gray-100 rounded-xl p-6 border border-gray-300">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">Transactions</p>
                   <span className="text-2xl">📦</span>
@@ -2144,7 +2162,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 <p className="text-blue-600 text-sm font-semibold">📊 Total Orders</p>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-6 border-t-4 border-t-purple-600 hover:shadow-xl transition-shadow">
+              <div className="bg-gray-100 rounded-xl p-6 border border-gray-300">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">Avg Order Value</p>
                   <span className="text-2xl">💵</span>
@@ -2153,7 +2171,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 <p className="text-purple-600 text-sm font-semibold">💳 Per Transaction</p>
               </div>
 
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-6 border-t-4 border-t-orange-600 hover:shadow-xl transition-shadow">
+              <div className="bg-gray-100 rounded-xl p-6 border border-gray-300">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">Avg Items/Order</p>
                   <span className="text-2xl">🛒</span>
@@ -2166,7 +2184,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             {/* Professional Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Sales Trend Chart */}
-              <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+              <div className="lg:col-span-2 bg-gray-100 rounded-xl p-8 border border-gray-300">
                 <h3 className="text-xl font-bold text-gray-900 mb-1">📈 Sales Trend</h3>
                 <p className="text-cyan-600 text-sm font-bold mb-1">🚀 Are we growing?</p>
                 <p className="text-gray-500 text-xs mb-6">Daily revenue analysis over time ({currency})</p>
@@ -2210,7 +2228,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
               </div>
 
               {/* Revenue by Category Doughnut */}
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+              <div className="bg-gray-100 rounded-xl p-8 border border-gray-300">
                 <h3 className="text-xl font-bold text-gray-900 mb-1">🎯 Revenue by Category</h3>
                 <p className="text-blue-600 text-sm font-bold mb-1">📊 What's driving sales?</p>
                 <p className="text-gray-500 text-xs mb-6">Category breakdown of total revenue</p>
@@ -2242,7 +2260,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             </div>
 
             {/* Profit Analysis Chart */}
-            <div className="mt-8 bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+            <div className="mt-8 bg-gray-100 rounded-xl p-8 border border-gray-300">
               <h3 className="text-xl font-bold text-gray-900 mb-1">📑 Profit & Margin Analysis</h3>
               <p className="text-emerald-600 text-sm font-bold mb-1">💰 Are we making money?</p>
               <p className="text-gray-500 text-xs mb-6">Comparative Revenue vs Cost Analysis ({currency})</p>
@@ -2274,7 +2292,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             {/* Charts Row 2: Service Speed & Peak Times */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
               {/* Service Speed Chart */}
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+              <div className="bg-gray-100 rounded-xl p-8 border border-gray-300">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-1">⏱️ Service Speed Trend</h3>
@@ -2309,7 +2327,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
               </div>
 
               {/* Peak Times Bar Chart */}
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+              <div className="bg-gray-100 rounded-xl p-8 border border-gray-300">
                 <h3 className="text-xl font-bold text-gray-900 mb-1">🔥 Order Peak Times</h3>
                 <p className="text-blue-600 text-sm font-bold mb-1">🕒 When is the rush?</p>
                 <p className="text-gray-500 text-xs mb-6">Hourly order distribution (24h period)</p>
@@ -2339,7 +2357,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             </div>
 
             {/* Customer Insights Row */}
-            <div className="mt-8 bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow border border-gray-100">
+            <div className="mt-8 bg-gray-100 rounded-xl p-8 border border-gray-300">
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-1">👥 Customer Insights</h3>
                 <p className="text-purple-600 text-sm font-bold mb-1">🔍 Who are we serving?</p>
@@ -2348,7 +2366,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Acquisition Card */}
-                <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-white border border-purple-100">
+                <div className="p-6 rounded-xl bg-gray-100 border border-gray-300">
                   <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-4">Acquisition</p>
                   <div className="flex items-end justify-between">
                     <div>
@@ -2367,7 +2385,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 </div>
 
                 {/* CAC Card */}
-                <div className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100">
+                <div className="p-6 rounded-xl bg-gray-100 border border-gray-300">
                   <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-4">Unit Acquisition Proxy (CAC)</p>
                   <p className="text-3xl font-black text-gray-900">{formatCurrency(customerMetrics?.cac || 0)}</p>
                   <p className="text-xs text-gray-500 font-bold mt-1">Discount cost per new user</p>
@@ -2377,7 +2395,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 </div>
 
                 {/* LTV Card */}
-                <div className="p-6 rounded-xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100">
+                <div className="p-6 rounded-xl bg-gray-100 border border-gray-300">
                   <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-4">Lifetime Value (LTV)</p>
                   <p className="text-3xl font-black text-gray-900">{formatCurrency(customerMetrics?.ltv || 0)}</p>
                   <p className="text-xs text-gray-500 font-bold mt-1">Avg. spend per customer</p>
@@ -2387,7 +2405,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 </div>
 
                 {/* Retention Card */}
-                <div className="p-6 rounded-xl bg-gradient-to-br from-orange-50 to-white border border-orange-100">
+                <div className="p-6 rounded-xl bg-gray-100 border border-gray-300">
                   <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mb-4">Retention Rate</p>
                   <p className="text-3xl font-black text-gray-900">{customerMetrics?.retention || 0}%</p>
                   <p className="text-xs text-gray-500 font-bold mt-1">Returning base percentage</p>
@@ -2399,9 +2417,9 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             </div>
 
             {/* Product Performance Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top Products */}
-              <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+              <div className="bg-gray-100 rounded-xl p-8 border border-gray-300">
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-1">🏆 Top Performing Products</h3>
                   <p className="text-cyan-600 text-sm font-bold">🌟 Our Best Sellers</p>
@@ -2409,7 +2427,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 {topProducts.length > 0 ? (
                   <div className="space-y-4">
                     {topProducts.map((prod, idx) => (
-                      <div key={idx} className="p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 hover:border-cyan-600 hover:shadow-md transition-all">
+                      <div key={idx} className="p-4 bg-gray-100 rounded-lg border border-gray-300">
                         <div className="flex items-center justify-between mb-2">
                           <div>
                             <div className="text-sm font-bold text-gray-600">#{idx + 1}</div>
@@ -2437,7 +2455,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
               </div>
 
               {/* Low Performing Products */}
-              <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+              <div className="bg-gray-100 rounded-xl p-8 border border-gray-300">
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-1">⚠️ Low Performing Products</h3>
                   <p className="text-orange-600 text-sm font-bold">📉 Items needing attention</p>
@@ -2445,7 +2463,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                 {lowProducts.length > 0 ? (
                   <div className="space-y-4">
                     {lowProducts.map((prod, idx) => (
-                      <div key={idx} className="p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 hover:border-orange-600 hover:shadow-md transition-all">
+                      <div key={idx} className="p-4 bg-gray-100 rounded-lg border border-gray-300">
                         <div className="flex items-center justify-between mb-2">
                           <div>
                             <div className="text-sm font-bold text-gray-600 text-orange-600">Bottom #{lowProducts.length - idx}</div>
@@ -2474,23 +2492,23 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             </div>
 
             {/* Smart Recommendations - Moved to full width */}
-            <div className="mt-8 bg-gradient-to-br from-blue-50 via-green-50 to-emerald-50 rounded-xl shadow-lg p-8 border-2 border-cyan-200">
+            <div className="mt-8 bg-gray-100 rounded-xl p-8 border border-gray-300">
               <h3 className="text-xl font-bold text-gray-900 mb-2">💡 Smart Recommendations</h3>
               <p className="text-gray-600 text-sm mb-6">AI-powered business insights</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-white rounded-lg border-l-4 border-l-cyan-600 shadow-sm hover:shadow-md transition-all">
+                <div className="p-4 bg-gray-100 rounded-lg border border-gray-300">
                   <p className="font-bold text-gray-900">✅ Inventory Alert</p>
                   <p className="text-sm text-gray-600 mt-1">{lowProducts.length > 0 ? `⚠️ Consider reviewing "${lowProducts[0].name}" menu placement.` : '📊 All items healthy.'}</p>
                 </div>
-                <div className="p-4 bg-white rounded-lg border-l-4 border-l-blue-600 shadow-sm hover:shadow-md transition-all">
+                <div className="p-4 bg-gray-100 rounded-lg border border-gray-300">
                   <p className="font-bold text-gray-900">✅ Best Seller Insight</p>
                   <p className="text-sm text-gray-600 mt-1">{topProducts.length > 0 ? `📍 "${topProducts[0].name}" is your primary engine.` : '📊 Data updates real-time.'}</p>
                 </div>
-                <div className="p-4 bg-white rounded-lg border-l-4 border-l-purple-600 shadow-sm hover:shadow-md transition-all">
+                <div className="p-4 bg-gray-100 rounded-lg border border-gray-300">
                   <p className="font-bold text-gray-900">✅ Premium Upsell</p>
                   <p className="text-sm text-gray-600 mt-1">{metrics?.avgOrderValue > 50 ? '🚀 High AOV - Introduce premium bundles' : '📈 Focus on add-on suggestions'}</p>
                 </div>
-                <div className="p-4 bg-white rounded-lg border-l-4 border-l-orange-600 shadow-sm hover:shadow-md transition-all">
+                <div className="p-4 bg-gray-100 rounded-lg border border-gray-300">
                   <p className="font-bold text-gray-900">✅ Operation Speed</p>
                   <p className="text-sm text-gray-600 mt-1">{metrics?.avgServiceTime < 15 ? '✨ Excellent service speed!' : '⚠️ Kitchen prep optimization recommended'}</p>
                 </div>
@@ -2499,10 +2517,10 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
 
 
             {/* Business Intelligence Insights */}
-            <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-600 rounded-xl p-8 shadow-lg">
+            <div className="mt-8 bg-gray-100 rounded-xl p-8 border border-gray-300">
               <h3 className="text-xl font-bold text-gray-900 mb-6">📊 Business Intelligence Insights</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white rounded-lg p-6 border border-blue-200">
+                <div className="bg-gray-100 rounded-lg p-6 border border-gray-300">
                   <p className="font-bold text-gray-900 mb-4 text-lg">📈 Performance Metrics</p>
                   <ul className="space-y-3 text-sm text-gray-700">
                     <li className="flex items-center gap-2">
@@ -2527,7 +2545,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
                     </li>
                   </ul>
                 </div>
-                <div className="bg-white rounded-lg p-6 border border-indigo-200">
+                <div className="bg-gray-100 rounded-lg p-6 border border-gray-300">
                   <p className="font-bold text-gray-900 mb-4 text-lg">🎯 Actionable Insights</p>
                   <ul className="space-y-3 text-sm text-gray-700">
                     <li className="flex items-center gap-2">
@@ -4908,7 +4926,7 @@ function ShiftReportModal({ report, onClose }) {
 }
 
 // POS (Point of Sale) Page
-function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode }) {
+function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts, categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode }) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -4944,6 +4962,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   const [successOrderNumber, setSuccessOrderNumber] = useState('');
   const [successChange, setSuccessChange] = useState(0);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isRefreshingStock, setIsRefreshingStock] = useState(false);
 
   // Discount state
   const [discountType, setDiscountType] = useState(null); // 'senior', 'pwd', 'loyalty', 'custom'
@@ -5031,34 +5050,6 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     const interval = setInterval(checkReadyOrders, 10000);
     return () => clearInterval(interval);
   }, [knownReadyIds]);
-
-  // Auto-print logic when success overlay is shown
-  useEffect(() => {
-    if (showSuccessOverlay && lastOrderData) {
-      const handleAutoPrint = async () => {
-        // Use sysConfig state since it's in the App scope
-        const cfg = sysConfig || {};
-        // 1. Kitchen Slip
-        if (cfg.printer_auto_kitchen === 'true') {
-          setPrintMode('kitchen');
-          await new Promise(r => setTimeout(r, 600)); // Render delay
-          window.print();
-        }
-
-        // 2. Customer Receipt
-        if (cfg.printer_auto_receipt === 'true') {
-          setPrintMode('receipt');
-          await new Promise(r => setTimeout(r, 800)); // Render delay
-          window.print();
-        }
-      };
-
-      const timer = setTimeout(() => {
-        handleAutoPrint();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccessOverlay]);
 
   // Fetch tables
   const fetchTables = async () => {
@@ -5832,8 +5823,15 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         setShowPaymentModal(false);
         setShowSuccessOverlay(true);
 
-        // Refresh shift sales
-        if (onRefreshShift) onRefreshShift();
+        setIsRefreshingStock(true);
+        try {
+          // Refresh shift sales
+          if (onRefreshShift) await onRefreshShift();
+          // Refresh product stocks so Inventory view reflects latest standalone/composite deductions
+          if (onRefreshProducts) await onRefreshProducts();
+        } finally {
+          setIsRefreshingStock(false);
+        }
 
         // Clear cart and reset
         clearCart();
@@ -7107,6 +7105,9 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               </div>
               <h2 className="text-xl md:text-2xl font-bold mb-1 text-white">{successMessage || 'Payment Successful!'}</h2>
               <p className="text-cyan-100 text-sm md:text-base mb-1">Order: {successOrderNumber}</p>
+              {isRefreshingStock && (
+                <p className="text-cyan-100 text-xs md:text-sm mt-1 animate-pulse">Refreshing stock...</p>
+              )}
               {successChange > 0 && (
                 <p className="text-white text-lg md:text-xl font-bold mt-1">Change: {money(successChange)}</p>
               )}
@@ -11971,6 +11972,15 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     { id: 'inventory-receive', name: 'Receive' },
   ];
 
+  const recipeCountByProductId = useMemo(() => {
+    const map = {};
+    (recipes || []).forEach((r) => {
+      const key = String(r.id);
+      map[key] = Number(r.ingredient_count || 0);
+    });
+    return map;
+  }, [recipes]);
+
   useEffect(() => {
     console.log('[InventoryPage] useEffect triggered, currentView:', currentView);
     const regularProducts = menuData.filter(p => !p.isCombo);
@@ -11981,7 +11991,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     if (viewsNeedingIngredients.includes(currentView)) {
       console.log('[InventoryPage] Loading ingredients for view:', currentView);
       fetchIngredients();
-      if (currentView.startsWith('inventory-recipes')) {
+      if (currentView === 'inventory-stock' || currentView.startsWith('inventory-recipes')) {
         console.log('[InventoryPage] Also loading recipes');
         fetchRecipes();
       }
@@ -12393,7 +12403,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
       return name.includes(term) || cat.includes(term);
     })
     .filter(p => {
-      const hasRecipe = (p.ingredient_count || 0) > 0;
+      const hasRecipe = ((recipeCountByProductId[String(p.id)] ?? Number(p.ingredient_count || 0)) > 0);
       if (trackingFilter === 'Standalone') return !hasRecipe;
       if (trackingFilter === 'Composite') return hasRecipe;
       return true;
@@ -12504,7 +12514,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               </thead>
               <tbody>
                 {filteredProducts.map((product, idx) => {
-                  const hasRecipe = product.ingredient_count > 0;
+                  const hasRecipe = ((recipeCountByProductId[String(product.id)] ?? Number(product.ingredient_count || 0)) > 0);
                   const isLow = !hasRecipe && (product.stock_quantity || 0) <= (product.low_stock_threshold || 10);
                   const isExpanded = expandedLedgerId?.id === product.id && expandedLedgerId?.type === 'product';
                   return (
@@ -13583,6 +13593,42 @@ function StaffPage({ currentView, setCurrentPage }) {
   const [empPermissions, setEmpPermissions] = useState([]);
   const [permSaving, setPermSaving] = useState(false);
   const [permMsg, setPermMsg] = useState({ type: '', text: '' });
+  const [schedules, setSchedules] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+  const [scheduleForm, setScheduleForm] = useState({
+    employee_id: '',
+    shift_date: '',
+    start_time: '09:00',
+    end_time: '18:00',
+    break_minutes: 60,
+    status: 'published',
+    notes: ''
+  });
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [timesheetRows, setTimesheetRows] = useState([]);
+  const [timesheetLoading, setTimesheetLoading] = useState(false);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [timesheetRange, setTimesheetRange] = useState({
+    start_date: new Date(Date.now() - (6 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
+    end_date: todayIso
+  });
+  const [scheduleTemplates, setScheduleTemplates] = useState([]);
+  const [templateForm, setTemplateForm] = useState({
+    employee_id: '',
+    day_of_week: 1,
+    start_time: '09:00',
+    end_time: '18:00',
+    break_minutes: 60,
+    notes: ''
+  });
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [scheduleMetrics, setScheduleMetrics] = useState({
+    summary: { shifts_count: 0, total_hours: 0, avg_hours_per_shift: 0 },
+    by_day: [],
+    by_employee: []
+  });
+  const [scheduleActionsLoading, setScheduleActionsLoading] = useState(false);
 
   const views = [
     { id: 'staff-employees', name: 'Employees' },
@@ -13590,6 +13636,24 @@ function StaffPage({ currentView, setCurrentPage }) {
     { id: 'staff-timesheet', name: 'Time Tracking' },
     { id: 'staff-permissions', name: 'Permissions' },
   ];
+
+  const dayOptions = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' },
+  ];
+
+  const getMondayDate = (dateString) => {
+    const date = new Date(`${dateString}T00:00:00`);
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    date.setDate(date.getDate() + diff);
+    return date.toISOString().slice(0, 10);
+  };
 
   const allPossiblePermissions = [
     { id: 'pos', label: 'Terminal / Checkout', group: 'Operations' },
@@ -13609,12 +13673,32 @@ function StaffPage({ currentView, setCurrentPage }) {
   }, []);
 
   useEffect(() => {
+    if (currentView === 'staff-schedules') {
+      refreshScheduleWorkspace();
+    } else if (currentView === 'staff-timesheet') {
+      fetchTimesheet();
+    }
+  }, [currentView]);
+
+  useEffect(() => {
     if (selectedEmpForPerms) {
       setEmpPermissions(selectedEmpForPerms.permissions || []);
     } else {
       setEmpPermissions([]);
     }
   }, [selectedEmpForPerms]);
+
+  useEffect(() => {
+    if (!scheduleForm.employee_id && employees.length > 0) {
+      setScheduleForm(prev => ({ ...prev, employee_id: String(employees[0].id) }));
+    }
+  }, [employees, scheduleForm.employee_id]);
+
+  useEffect(() => {
+    if (!templateForm.employee_id && employees.length > 0) {
+      setTemplateForm(prev => ({ ...prev, employee_id: String(employees[0].id) }));
+    }
+  }, [employees, templateForm.employee_id]);
 
   const fetchEmployees = async () => {
     try {
@@ -13631,6 +13715,225 @@ function StaffPage({ currentView, setCurrentPage }) {
       console.error('Error fetching employees:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSchedules = async () => {
+    setScheduleLoading(true);
+    setScheduleError('');
+    try {
+      const params = new URLSearchParams({
+        start_date: timesheetRange.start_date,
+        end_date: timesheetRange.end_date
+      });
+      const response = await fetchWithAuth(`${API_URL}/schedules?${params.toString()}`);
+      const data = await response.json();
+      if (data.success) {
+        setSchedules(data.schedules || []);
+      } else {
+        setScheduleError(data.error || 'Failed to load schedules');
+      }
+    } catch (error) {
+      console.error('Error loading schedules:', error);
+      setScheduleError('Failed to load schedules');
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const fetchScheduleTemplates = async () => {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/schedules/templates`);
+      const data = await response.json();
+      if (data.success) {
+        setScheduleTemplates(data.templates || []);
+      }
+    } catch (error) {
+      console.error('Error loading schedule templates:', error);
+    }
+  };
+
+  const fetchScheduleMetrics = async () => {
+    try {
+      const params = new URLSearchParams({
+        start_date: timesheetRange.start_date,
+        end_date: timesheetRange.end_date
+      });
+      const response = await fetchWithAuth(`${API_URL}/schedules/metrics?${params.toString()}`);
+      const data = await response.json();
+      if (data.success) {
+        setScheduleMetrics(data.metrics || {
+          summary: { shifts_count: 0, total_hours: 0, avg_hours_per_shift: 0 },
+          by_day: [],
+          by_employee: []
+        });
+      }
+    } catch (error) {
+      console.error('Error loading schedule metrics:', error);
+    }
+  };
+
+  const refreshScheduleWorkspace = async () => {
+    await Promise.all([
+      fetchSchedules(),
+      fetchScheduleTemplates(),
+      fetchScheduleMetrics()
+    ]);
+  };
+
+  const fetchTimesheet = async () => {
+    setTimesheetLoading(true);
+    try {
+      const params = new URLSearchParams({
+        start_date: timesheetRange.start_date,
+        end_date: timesheetRange.end_date,
+        limit: '200'
+      });
+      const response = await fetchWithAuth(`${API_URL}/shifts?${params.toString()}`);
+      const data = await response.json();
+      if (data.success) {
+        setTimesheetRows(data?.data?.shifts || []);
+      } else {
+        setTimesheetRows([]);
+      }
+    } catch (error) {
+      console.error('Error loading timesheet:', error);
+      setTimesheetRows([]);
+    } finally {
+      setTimesheetLoading(false);
+    }
+  };
+
+  const handleCreateSchedule = async (e) => {
+    e.preventDefault();
+    setScheduleSaving(true);
+    setScheduleError('');
+    try {
+      const response = await fetchWithAuth(`${API_URL}/schedules`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...scheduleForm,
+          employee_id: Number(scheduleForm.employee_id),
+          break_minutes: Number(scheduleForm.break_minutes) || 0
+        })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setScheduleError(data.error || 'Failed to create schedule');
+        return;
+      }
+      setScheduleForm(prev => ({ ...prev, notes: '' }));
+      await refreshScheduleWorkspace();
+    } catch (error) {
+      console.error('Error creating schedule:', error);
+      setScheduleError('Failed to create schedule');
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  const handleCancelSchedule = async (id) => {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/schedules/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!data.success) {
+        setScheduleError(data.error || 'Failed to cancel schedule');
+        return;
+      }
+      refreshScheduleWorkspace();
+    } catch (error) {
+      console.error('Error cancelling schedule:', error);
+      setScheduleError('Failed to cancel schedule');
+    }
+  };
+
+  const handleCreateTemplate = async (e) => {
+    e.preventDefault();
+    setTemplateSaving(true);
+    setScheduleError('');
+    try {
+      const response = await fetchWithAuth(`${API_URL}/schedules/templates`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...templateForm,
+          employee_id: Number(templateForm.employee_id),
+          day_of_week: Number(templateForm.day_of_week),
+          break_minutes: Number(templateForm.break_minutes) || 0
+        })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setScheduleError(data.error || 'Failed to save template');
+        return;
+      }
+      setTemplateForm(prev => ({ ...prev, notes: '' }));
+      await fetchScheduleTemplates();
+    } catch (error) {
+      console.error('Error creating schedule template:', error);
+      setScheduleError('Failed to save template');
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id) => {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/schedules/templates/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!data.success) {
+        setScheduleError(data.error || 'Failed to delete template');
+        return;
+      }
+      fetchScheduleTemplates();
+    } catch (error) {
+      console.error('Error deleting schedule template:', error);
+      setScheduleError('Failed to delete template');
+    }
+  };
+
+  const handleApplyTemplates = async () => {
+    setScheduleActionsLoading(true);
+    setScheduleError('');
+    try {
+      const week_start = getMondayDate(timesheetRange.start_date);
+      const response = await fetchWithAuth(`${API_URL}/schedules/templates/apply`, {
+        method: 'POST',
+        body: JSON.stringify({ week_start, status: 'scheduled' })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setScheduleError(data.error || 'Failed to apply templates');
+        return;
+      }
+      await refreshScheduleWorkspace();
+    } catch (error) {
+      console.error('Error applying templates:', error);
+      setScheduleError('Failed to apply templates');
+    } finally {
+      setScheduleActionsLoading(false);
+    }
+  };
+
+  const handlePublishWeek = async () => {
+    setScheduleActionsLoading(true);
+    setScheduleError('');
+    try {
+      const week_start = getMondayDate(timesheetRange.start_date);
+      const response = await fetchWithAuth(`${API_URL}/schedules/publish-week`, {
+        method: 'POST',
+        body: JSON.stringify({ week_start })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setScheduleError(data.error || 'Failed to publish this week');
+        return;
+      }
+      await refreshScheduleWorkspace();
+    } catch (error) {
+      console.error('Error publishing week:', error);
+      setScheduleError('Failed to publish this week');
+    } finally {
+      setScheduleActionsLoading(false);
     }
   };
 
@@ -13859,13 +14162,348 @@ function StaffPage({ currentView, setCurrentPage }) {
           </div>
         )}
 
-        {(currentView === 'staff-schedules' || currentView === 'staff-timesheet') && (
-          <div className="bg-white rounded-xl shadow-sm p-20 text-center border border-gray-100">
-            <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-6 h-6 text-amber-500" />
+        {currentView === 'staff-schedules' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Scheduled Shifts</p>
+                <p className="text-2xl font-black text-gray-900 mt-1">{Number(scheduleMetrics?.summary?.shifts_count || 0)}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Labor Hours</p>
+                <p className="text-2xl font-black text-cyan-700 mt-1">{Number(scheduleMetrics?.summary?.total_hours || 0).toFixed(2)}h</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Hours / Shift</p>
+                <p className="text-2xl font-black text-gray-900 mt-1">{Number(scheduleMetrics?.summary?.avg_hours_per_shift || 0).toFixed(2)}h</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Top Scheduled Staff</p>
+                <p className="text-base font-bold text-gray-800 mt-2 truncate">{scheduleMetrics?.by_employee?.[0]?.employee_name || '-'}</p>
+                <p className="text-xs text-gray-500">{Number(scheduleMetrics?.by_employee?.[0]?.total_hours || 0).toFixed(2)}h</p>
+              </div>
             </div>
-            <h3 className="font-bold text-gray-800 text-base mb-1">{views.find(v => v.id === currentView)?.name}</h3>
-            <p className="text-gray-500 text-sm">Deployment scheduled for next iteration (V3.2).</p>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-1 space-y-6">
+                <div className="bg-white rounded-xl border border-gray-100 p-5">
+                  <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-4">Assign Shift</h3>
+                  <form onSubmit={handleCreateSchedule} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Employee</label>
+                      <select
+                        required
+                        value={scheduleForm.employee_id}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, employee_id: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      >
+                        <option value="" disabled>Select employee</option>
+                        {employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={scheduleForm.shift_date}
+                          onChange={(e) => setScheduleForm(prev => ({ ...prev, shift_date: e.target.value }))}
+                          className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Break (min)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={scheduleForm.break_minutes}
+                          onChange={(e) => setScheduleForm(prev => ({ ...prev, break_minutes: e.target.value }))}
+                          className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Start</label>
+                        <input
+                          type="time"
+                          required
+                          value={scheduleForm.start_time}
+                          onChange={(e) => setScheduleForm(prev => ({ ...prev, start_time: e.target.value }))}
+                          className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">End</label>
+                        <input
+                          type="time"
+                          required
+                          value={scheduleForm.end_time}
+                          onChange={(e) => setScheduleForm(prev => ({ ...prev, end_time: e.target.value }))}
+                          className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
+                      <select
+                        value={scheduleForm.status}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, status: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      >
+                        <option value="published">Published</option>
+                        <option value="scheduled">Draft</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Notes</label>
+                      <textarea
+                        rows={2}
+                        value={scheduleForm.notes}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, notes: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm resize-none"
+                        placeholder="Optional notes"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={scheduleSaving}
+                      className="w-full py-2.5 rounded-lg bg-cyan-600 text-white text-sm font-bold disabled:opacity-50"
+                    >
+                      {scheduleSaving ? 'Saving...' : 'Save Schedule'}
+                    </button>
+                  </form>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-100 p-5">
+                  <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-4">Weekly Template</h3>
+                  <form onSubmit={handleCreateTemplate} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Employee</label>
+                      <select
+                        required
+                        value={templateForm.employee_id}
+                        onChange={(e) => setTemplateForm(prev => ({ ...prev, employee_id: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      >
+                        <option value="" disabled>Select employee</option>
+                        {employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Day</label>
+                      <select
+                        value={templateForm.day_of_week}
+                        onChange={(e) => setTemplateForm(prev => ({ ...prev, day_of_week: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      >
+                        {dayOptions.map(d => (
+                          <option key={d.value} value={d.value}>{d.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="time"
+                        value={templateForm.start_time}
+                        onChange={(e) => setTemplateForm(prev => ({ ...prev, start_time: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      />
+                      <input
+                        type="time"
+                        value={templateForm.end_time}
+                        onChange={(e) => setTemplateForm(prev => ({ ...prev, end_time: e.target.value }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      />
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={templateForm.break_minutes}
+                      onChange={(e) => setTemplateForm(prev => ({ ...prev, break_minutes: e.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                      placeholder="Break minutes"
+                    />
+                    <button
+                      type="submit"
+                      disabled={templateSaving}
+                      className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-sm font-bold disabled:opacity-50"
+                    >
+                      {templateSaving ? 'Saving...' : 'Save Template'}
+                    </button>
+                  </form>
+
+                  <div className="mt-4 border-t border-gray-100 pt-3 space-y-2 max-h-44 overflow-auto">
+                    {scheduleTemplates.length === 0 ? (
+                      <p className="text-xs text-gray-500">No templates yet.</p>
+                    ) : scheduleTemplates.map(t => (
+                      <div key={t.id} className="text-xs border border-gray-200 rounded-lg p-2 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-gray-700">{t.employee_name} · {dayOptions.find(d => d.value === Number(t.day_of_week))?.label}</p>
+                          <p className="text-gray-500">{String(t.start_time).slice(0, 5)} - {String(t.end_time).slice(0, 5)} ({Number(t.break_minutes || 0)}m)</p>
+                        </div>
+                        <button onClick={() => handleDeleteTemplate(t.id)} className="text-red-600 font-bold">Delete</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {scheduleError && <p className="text-xs font-semibold text-red-600">{scheduleError}</p>}
+              </div>
+
+              <div className="xl:col-span-2 bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">From</label>
+                    <input
+                      type="date"
+                      value={timesheetRange.start_date}
+                      onChange={(e) => setTimesheetRange(prev => ({ ...prev, start_date: e.target.value }))}
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">To</label>
+                    <input
+                      type="date"
+                      value={timesheetRange.end_date}
+                      onChange={(e) => setTimesheetRange(prev => ({ ...prev, end_date: e.target.value }))}
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={refreshScheduleWorkspace}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    onClick={handleApplyTemplates}
+                    disabled={scheduleActionsLoading}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold disabled:opacity-50"
+                  >
+                    Apply Templates To Week
+                  </button>
+                  <button
+                    onClick={handlePublishWeek}
+                    disabled={scheduleActionsLoading}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold disabled:opacity-50"
+                  >
+                    Publish Week
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full font-data-table">
+                    <thead className="bg-gray-50/80">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Date</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Employee</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Shift</th>
+                        <th className="text-right px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Hours</th>
+                        <th className="text-center px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Status</th>
+                        <th className="text-center px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {scheduleLoading ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">Loading schedules...</td></tr>
+                      ) : schedules.length === 0 ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">No schedules found in selected range.</td></tr>
+                      ) : schedules.map(row => (
+                        <tr key={row.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-700">{new Date(`${row.shift_date}T00:00:00`).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-800">{row.employee_name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{String(row.start_time).slice(0, 5)} - {String(row.end_time).slice(0, 5)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-700">{Number(row.scheduled_hours || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${row.status === 'published' ? 'bg-emerald-100 text-emerald-700' : row.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {row.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {row.status !== 'cancelled' ? (
+                              <button
+                                onClick={() => handleCancelSchedule(row.id)}
+                                className="text-xs font-bold text-red-600 hover:underline"
+                              >
+                                Cancel
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentView === 'staff-timesheet' && (
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex flex-wrap items-end gap-2">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">From</label>
+                <input
+                  type="date"
+                  value={timesheetRange.start_date}
+                  onChange={(e) => setTimesheetRange(prev => ({ ...prev, start_date: e.target.value }))}
+                  className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">To</label>
+                <input
+                  type="date"
+                  value={timesheetRange.end_date}
+                  onChange={(e) => setTimesheetRange(prev => ({ ...prev, end_date: e.target.value }))}
+                  className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+              </div>
+              <button onClick={fetchTimesheet} className="px-4 py-2 rounded-lg bg-gray-100 text-sm font-bold text-gray-700 hover:bg-gray-200">Refresh</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full font-data-table">
+                <thead className="bg-gray-50/80">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Employee</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Start</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">End</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Orders</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Sales</th>
+                    <th className="text-center px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {timesheetLoading ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">Loading time tracking...</td></tr>
+                  ) : timesheetRows.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">No shift records in selected range.</td></tr>
+                  ) : timesheetRows.map(row => (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-800">{row.employee_name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{new Date(row.start_time).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{row.end_time ? new Date(row.end_time).toLocaleString() : '-'}</td>
+                      <td className="px-4 py-3 text-sm text-right text-gray-700">{row.order_count || 0}</td>
+                      <td className="px-4 py-3 text-sm text-right text-gray-700">Php {Number(row.total_sales || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${row.status === 'active' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

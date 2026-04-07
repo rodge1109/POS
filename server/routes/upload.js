@@ -16,16 +16,27 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing file data' });
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    const inferSupabaseUrlFromDb = () => {
+      const dbUrl = process.env.DATABASE_URL || '';
+      const match = dbUrl.match(/postgres\.([a-z0-9-]+):/i);
+      return match ? `https://${match[1]}.supabase.co` : '';
+    };
 
-    if (!supabaseUrl || !supabaseKey) {
-      return res.status(500).json({ success: false, error: 'Supabase storage not configured' });
-    }
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || inferSupabaseUrlFromDb();
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
     // Clean base64 data if it includes a data URL prefix
     const base64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
+    const resolvedContentType = contentType || 'image/png';
     const buffer = Buffer.from(base64, 'base64');
+
+    // Strict mode: uploads must be stored in Supabase Storage.
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in server .env'
+      });
+    }
 
     // Create a unique filename to avoid collisions
     const bucketName = 'product-images';
@@ -35,12 +46,12 @@ router.post('/', async (req, res) => {
     const response = await axios.post(uploadUrl, buffer, {
       headers: {
         'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': contentType || 'image/png',
+        'Content-Type': resolvedContentType,
         'x-upsert': 'true'
       }
     });
 
-    if (response.status !== 200) {
+    if (![200, 201].includes(response.status)) {
       throw new Error(response.data.message || 'Upload failed');
     }
 
