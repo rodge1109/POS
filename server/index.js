@@ -90,14 +90,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date(), env: isRender ? 'render' : 'local' });
 });
 
-// Catch-all for React (Express 5 syntax)
-app.get('/*', (req, res, next) => {
+// Final Catch-all Middleware (Replaces app.get('/*'))
+// This handles React routing and missing static files without Express 5 syntax errors
+app.use((req, res, next) => {
+  // If it's an API route that wasn't handled, pass to 404/error handler
   if (req.path.startsWith('/api')) return next();
+  
+  // Try to serve index.html for React routing
   if (staticPath && fs.existsSync(path.join(staticPath, 'index.html'))) {
     return res.sendFile(path.join(staticPath, 'index.html'));
   }
+  
+  // Fallback if no static files exist at all
   res.status(200).send('POS Server Live');
 });
+
 
 // Error handling
 app.use((err, req, res, next) => {
