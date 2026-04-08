@@ -28,7 +28,14 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+// Required for Cloudflare/Render to handle headers correctly
+app.set('trust proxy', 1);
+
+const isRender = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL);
+// Simplified port resolution: Render always provides PORT
+const PORT = Number(process.env.PORT) || 10000;
+const HOST = '0.0.0.0'; 
 
 // Middleware
 app.use(cors({
@@ -45,15 +52,23 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true in production with HTTPS
+    secure: isRender, // Use secure cookies in production (Render)
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: isRender ? 'none' : 'lax', // Needed for cross-domain cookies if applicable
     maxAge: 8 * 60 * 60 * 1000 // 8 hours
   }
 }));
 
+// Health check endpoint (Check this first)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    env: isRender ? 'production' : 'development'
+  });
+});
+
 // Serve built frontend (if present) for root and non-API routes
-// Check common locations: project root `dist` and relative `../dist`
 const distCandidates = [
   path.resolve(process.cwd(), 'dist'),
   path.resolve(__dirname, '../dist')
@@ -65,31 +80,19 @@ for (const p of distCandidates) {
     break;
   }
 }
+
 if (staticPath) {
   app.use(express.static(staticPath));
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(staticPath, 'index.html'));
-  });
   console.log('Serving static assets from', staticPath);
 } else {
-  console.warn('Static assets not found in any of:', distCandidates.join(', '));
+  console.warn('Static assets not found. Root will return 200 health status.');
 }
 
-// Apply middleware for protected routes
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/settings/public', settingsRoutes);
 
-// Custom middleware to skip verifyToken for specific routes
-const optionalTokenRoutes = ['/api/customers/login', '/api/customers/register'];
-
-app.use((req, res, next) => {
-  if (optionalTokenRoutes.includes(req.path)) {
-    return next();
-  }
-  next();
-});
-
+// ... rest of the app.use calls ...
 app.use('/api/products', verifyToken, productsRoutes);
 app.use('/api/combos', verifyToken, combosRoutes);
 app.use('/api/categories', verifyToken, categoriesRoutes);
@@ -98,25 +101,8 @@ app.use('/api/orders', verifyToken, ordersRoutes);
 app.use('/api/shifts', verifyToken, shiftsRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
 app.use('/api/customers', (req, res, next) => {
-  // If it's a login or register route, we allow no token
-  if (optionalTokenRoutes.includes(req.originalUrl)) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) return next(); // Proceed without token (public mode)
-    
-    // If token exists, try to verify to get company_id context
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
-      req.user = decoded;
-      req.company_id = decoded.company_id;
-      return next();
-    } catch (err) {
-      console.error('Optional token verify error:', err.message);
-      // If token is invalid, we still allow public registration if no token was required
-      return next(); 
-    }
-  }
+  const optionalTokenRoutes = ['/api/customers/login', '/api/customers/register'];
+  if (optionalTokenRoutes.includes(req.originalUrl)) return next();
   return verifyToken(req, res, next);
 }, customersRoutes);
 app.use('/api/inventory', verifyToken, inventoryRoutes);
@@ -125,27 +111,30 @@ app.use('/api/upload', verifyToken, uploadRoutes);
 app.use('/api/reports', verifyToken, reportsRoutes);
 app.use('/api/schedules', verifyToken, schedulesRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+// Catch-all for React routing or basic status
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  if (staticPath && fs.existsSync(path.join(staticPath, 'index.html'))) {
+    return res.sendFile(path.join(staticPath, 'index.html'));
+  }
+  res.status(200).send('POS Server Active (Static frontend not found)');
 });
-
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, error: 'Something went wrong!' });
+  console.error('[Global Error]', err.stack);
+  res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
-const HOST = process.env.HOST || '0.0.0.0';
-
 app.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
-  console.log(`Health check: /api/health`);
+  console.log(`\n🚀 Server live at http://${HOST}:${PORT}`);
+  console.log(`🌍 Environment: ${isRender ? 'RENDER' : 'LOCAL'}`);
+  console.log(`🛠  Port: ${PORT} (from env: ${process.env.PORT || 'default'})`);
+  
   try {
     startScheduler();
   } catch (err) {
-    // Keep web server alive even if scheduler setup fails.
     console.error('[Scheduler] Startup failed:', err?.message || err);
   }
 });
+
