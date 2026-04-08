@@ -33,9 +33,8 @@ const app = express();
 app.set('trust proxy', 1);
 
 const isRender = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL);
-// FORCE prioritize process.env.PORT. If missing, use 10000 (Render default).
-const PORT = Number(process.env.PORT) || 10000;
-const HOST = '0.0.0.0'; 
+// Standardize on 10000 for Render if no PORT is provided
+const PORT = process.env.PORT || 10000;
 
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
@@ -112,13 +111,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n🚀 SERVER STARTUP SUCCESS`);
-  console.log(`📡 Listening on: http://${HOST}:${PORT}`);
+  console.log(`📡 Listening on Port: ${PORT}`);
   console.log(`🌍 Mode: ${isRender ? 'Render' : 'Local'}`);
   
   try { startScheduler(); } catch (err) { console.error('[Scheduler] Error:', err.message); }
 });
+
+// Cloudflare/Proxy connection hardening
+server.keepAliveTimeout = 65000; // Ensure it's slightly higher than Cloudflare's 60s
+server.headersTimeout = 66000;
 
 
 

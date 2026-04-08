@@ -5710,7 +5710,29 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     setCustomDiscountAmount('');
   };
 
+  const playTypewriterClick = () => {
+    try {
+      const audio = new Audio('https://www.soundjay.com/communication/typewriter-key-1.mp3');
+      audio.volume = 0.3;
+      audio.play().catch(() => {
+        // Fallback to synth if URL fails
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(150, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.1);
+      });
+    } catch (e) {}
+  };
+
   const handleAmountKeypadInput = (key) => {
+    playTypewriterClick();
     setAmountReceived((prev) => {
       const current = String(prev || '');
       if (key === 'clear') return '';
@@ -6389,318 +6411,236 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         </div>
 
         {showPaymentModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-6 lg:p-10 font-dashboard">
-            <div className="w-full max-w-[34rem] md:max-w-[calc(40rem-150px)] h-full md:h-[92vh] lg:h-auto md:max-h-[92vh] lg:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-6 lg:p-10 font-dashboard">
+            <div className="w-full max-w-5xl h-full md:h-[92vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
               {/* Green Header */}
-              <div className="bg-cyan-600 text-white px-5 py-4 flex-shrink-0">
+              <div className="bg-cyan-600 text-white px-6 py-5 flex-shrink-0">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-xl font-black tracking-tight uppercase">Process Payment</h2>
-                    <p className="text-cyan-100 text-[10px] font-bold opacity-80">COMPLETE TRANSACTION • ORDER #{cartItems.length > 0 ? (Date.now() % 10000) : '0000'}</p>
+                    <h2 className="text-2xl font-black tracking-tight uppercase">Process Payment</h2>
+                    <p className="text-cyan-100 text-[11px] font-bold opacity-80 uppercase tracking-widest">
+                      Complete Transaction • Order #{cartItems.length > 0 ? (Date.now() % 10000) : '0000'}
+                    </p>
                   </div>
                   <button
                     onClick={() => setShowPaymentModal(false)}
-                    className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-all"
+                    className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-all active:scale-95"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-7 h-7" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 md:grid md:grid-cols-[150px_minmax(0,1fr)]">
-                <div className={`hidden md:flex flex-col border-r border-gray-100 bg-gray-50 p-2 gap-2 ${paymentMethod === 'cash' ? '' : 'opacity-50'}`}>
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-1 py-1">Numeric Keypad</div>
-                  <div className="grid grid-cols-3 gap-1.5">
+              <div className="flex-1 min-h-0 md:grid md:grid-cols-[1fr_300px]">
+                {/* Left Column: Details (Scrollable) */}
+                <div className="overflow-y-auto scrollbar-hide flex flex-col p-4 md:p-6 space-y-4 pb-24">
+                  {/* Amount Summary - ALWAYS AT TOP */}
+                  <div className="bg-cyan-50 border-b-4 border-cyan-200 p-4 rounded-2xl shadow-md flex-shrink-0 mb-2 transform scale-100 group">
+                    <div className="flex justify-between items-center text-[9px] font-black text-cyan-700/60 uppercase tracking-[0.2em] mb-1">
+                      <span>Transaction Summary</span>
+                      <span className="bg-white px-2 py-0.5 rounded-full text-cyan-600">Items: {cartItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-black text-gray-800 text-sm uppercase tracking-tight">Amount Due</span>
+                      <span className="font-black text-cyan-600 text-5xl tracking-tighter leading-none pulse-subtle">{money(total)}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Grid */}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Service Type */}
+                    <div className="space-y-3">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Service Type</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: 'dine-in', label: 'DINE', Icon: UtensilsCrossed },
+                          { value: 'pick-up', label: 'PICKUP', Icon: ShoppingBag },
+                          { value: 'delivery', label: 'DELIVERY', Icon: Truck }
+                        ].map(type => (
+                          <button
+                            key={type.value}
+                            onClick={() => setServiceType(type.value)}
+                            className={`py-4 font-black transition-all rounded-2xl border-2 flex flex-col items-center gap-1.5 ${serviceType === type.value
+                              ? 'bg-cyan-600 text-white border-cyan-600 shadow-lg -translate-y-0.5'
+                              : 'bg-white text-gray-400 border-gray-100 hover:border-cyan-300 hover:bg-green-50'
+                              }`}
+                          >
+                            <type.Icon className="w-5 h-5" />
+                            <span className="text-[10px] tracking-tight">{type.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Payment Method */}
+                    <div className="space-y-3">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Payment Method</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['cash', 'gcash', 'card', 'credit'].map(method => (
+                          <button
+                            key={method}
+                            onClick={() => setPaymentMethod(method)}
+                            className={`py-4 font-black text-[11px] tracking-widest transition-all rounded-2xl border-2 uppercase ${paymentMethod === method
+                              ? method === 'credit' ? 'bg-orange-600 text-white border-orange-600 shadow-lg' : 'bg-cyan-600 text-white border-cyan-600 shadow-lg'
+                              : 'bg-white text-gray-400 border-gray-100 hover:border-cyan-300 hover:bg-green-50'
+                              }`}
+                          >
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Discounts Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Discounts & Offers</label>
+                      {discountType && (
+                        <button onClick={resetDiscount} className="text-[10px] text-red-500 font-black bg-red-50 px-3 py-1 rounded-xl border border-red-100 uppercase transition-all hover:bg-red-100">Clear</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <button onClick={() => setDiscountType('senior')} className={`py-3 text-[10px] font-black rounded-2xl border-2 transition-all uppercase ${discountType === 'senior' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-orange-400'}`}>Senior</button>
+                      <button onClick={() => setDiscountType('pwd')} className={`py-3 text-[10px] font-black rounded-2xl border-2 transition-all uppercase ${discountType === 'pwd' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-blue-400'}`}>PWD</button>
+                      <button onClick={() => setDiscountType('loyalty')} className={`py-3 text-[10px] font-black rounded-2xl border-2 transition-all uppercase ${discountType === 'loyalty' ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-purple-400'}`}>Loyalty</button>
+                      <button onClick={() => setDiscountType('custom')} className={`py-3 text-[10px] font-black rounded-2xl border-2 transition-all uppercase ${discountType === 'custom' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-800'}`}>Custom</button>
+                    </div>
+                    {discountType === 'custom' && (
+                      <div className="flex gap-3 animate-fadeIn">
+                        <div className="flex-1 relative">
+                          <input type="number" placeholder="Percent" value={customDiscountPercent} onChange={(e) => { setCustomDiscountPercent(e.target.value); setCustomDiscountAmount(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pr-10 bg-gray-50" />
+                          <span className="absolute right-4 top-3 font-black text-gray-400">%</span>
+                        </div>
+                        <div className="flex-1 relative">
+                          <span className="absolute left-4 top-3 font-black text-gray-400">₱</span>
+                          <input type="number" placeholder="Amount" value={customDiscountAmount} onChange={(e) => { setCustomDiscountAmount(e.target.value); setCustomDiscountPercent(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pl-10 bg-gray-50" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                   {/* Cash Tendered & Change Section */}
+                   {paymentMethod === 'cash' && (
+                    <div className="pt-4 border-t-2 border-gray-100 animate-fadeIn">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white border-2 border-gray-100 p-2 px-3 rounded-2xl shadow-sm flex flex-col min-h-[100px] justify-center">
+                          <label className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                            <span>Cash Tendered</span>
+                            {amountReceived && <button onClick={() => setAmountReceived('')} className="text-cyan-600 hover:text-cyan-700">Clear</button>}
+                          </label>
+                          <div className="flex-1 relative flex items-center justify-center min-h-[60px] overflow-hidden group cursor-text">
+                            {/* Visual Display - Even more compact */}
+                            <div className="absolute inset-0 flex items-center justify-center font-black text-cyan-600 text-[52px] pointer-events-none transition-all">
+                              {amountReceived ? amountReceived : <span className="opacity-20">0.00</span>}
+                            </div>
+                            
+                            {/* Hidden Input for Keyboard Support */}
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={amountReceived}
+                              onChange={(e) => setAmountReceived(e.target.value.replace(/[^0-9.]/g, ''))}
+                              className="w-full h-full bg-transparent border-none outline-none text-transparent caret-cyan-600 text-[52px] text-center"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+
+                        <div className="bg-cyan-600 text-white p-2 px-3 rounded-2xl shadow-lg flex flex-col justify-center min-h-[100px]">
+                          <label className="block text-[9px] font-black text-cyan-100 uppercase tracking-widest opacity-80">Change Due</label>
+                          <div className="flex items-center justify-center flex-1">
+                            <span className="font-black text-[52px] tracking-tighter leading-none">₱ {(parseFloat(amountReceived) - total > 0 ? parseFloat(amountReceived) - total : 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Search - Even more Compact */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Customer</label>
+                    {selectedCustomer ? (
+                      <div className="bg-cyan-50 border-2 border-cyan-100 p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-sm">
+                            {selectedCustomer.name.substring(0,2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-black text-gray-900 text-sm leading-none">{selectedCustomer.name}</p>
+                            <p className="text-[11px] text-gray-500 font-bold mt-1 uppercase tracking-tight">{selectedCustomer.loyalty_tier} • {selectedCustomer.loyalty_points} Points</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setSelectedCustomer(null)} className="p-2 hover:bg-white rounded-full text-red-500 transition-all">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          placeholder="Search loyalty members..."
+                          className="w-full pl-12 pr-4 py-4 border-2 border-gray-100 rounded-2xl focus:outline-none focus:border-cyan-500 text-sm font-bold bg-gray-50 uppercase tracking-tight"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Keypad (Calculator) */}
+                <div className={`flex flex-col border-l border-gray-100 bg-gray-50/50 p-6 gap-6 ${paymentMethod === 'cash' ? '' : 'opacity-30 grayscale pointer-events-none'}`}>
+                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] text-center mt-2">Numpad Entry</div>
+                  
+                  <div className="grid grid-cols-3 gap-3 flex-1">
                     {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
                       <button
                         key={key}
                         type="button"
                         onClick={() => handleAmountKeypadInput(key)}
                         disabled={paymentMethod !== 'cash'}
-                        className="h-11 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50 transition-colors disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-700"
+                        className="flex items-center justify-center bg-white border-b-4 border-gray-200 rounded-2xl text-2xl font-black text-gray-800 shadow-lg hover:border-cyan-600 hover:text-cyan-600 transition-all active:translate-y-1 active:border-b-0 disabled:cursor-not-allowed h-full min-h-[70px]"
                       >
-                        {key === 'backspace' ? '⌫' : key}
+                        {key === 'backspace' ? <span className="text-red-500">⌫</span> : key}
                       </button>
                     ))}
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 mt-auto">
+
+                  <div className="grid grid-cols-2 gap-3 mb-2">
                     <button
                       type="button"
                       onClick={() => handleAmountKeypadInput('clear')}
-                      disabled={paymentMethod !== 'cash'}
-                      className="h-10 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors disabled:cursor-not-allowed"
+                      className="h-16 bg-white border-b-4 border-red-200 rounded-2xl font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-all active:translate-y-1 active:border-b-0"
                     >
                       Clear
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAmountKeypadInput('00')}
-                      disabled={paymentMethod !== 'cash'}
-                      className="h-10 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50 transition-colors disabled:cursor-not-allowed"
+                      className="h-16 bg-white border-b-4 border-gray-200 rounded-2xl font-black text-gray-800 text-xl hover:border-cyan-600 hover:text-cyan-600 transition-all active:translate-y-1 active:border-b-0"
                     >
                       00
                     </button>
                   </div>
-                </div>
 
-                <div className="overflow-y-auto scrollbar-hide p-3 md:p-4 space-y-3 pb-20">
-                {/* Order Summary */}
-                <div className="bg-green-50 border border-cyan-100 p-2 rounded-lg">
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-gray-500">Items in Cart</span>
-                    <span className="font-medium">{cartItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-0.5 pt-0.5 border-t border-cyan-200">
-                    <span className="font-bold text-gray-800 text-[10px]">Amount Due</span>
-                    <span className="font-bold text-cyan-600 text-xl">{money(total)}</span>
-                  </div>
-                </div>
-
-                {/* Service Type */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Service Type</label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { value: 'dine-in', label: 'DINE-IN', Icon: UtensilsCrossed },
-                      { value: 'pick-up', label: 'PICK-UP', Icon: ShoppingBag },
-                      { value: 'delivery', label: 'DELIVERY', Icon: Truck }
-                    ].map(type => (
-                      <button
-                        key={type.value}
-                        onClick={() => setServiceType(type.value)}
-                        className={`py-2 font-medium text-xs transition-all rounded-lg border-2 flex flex-col items-center gap-0.5 ${serviceType === type.value
-                          ? 'bg-cyan-600 text-white border-cyan-600'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-cyan-400 hover:bg-green-50'
-                          }`}
-                      >
-                        <type.Icon className="w-4 h-4" />
-                        <span className="text-[10px]">{type.label}</span>
-                      </button>
-                    ))}
+                  <div className="mt-auto space-y-3">
+                    <button
+                      id="complete-payment-btn"
+                      onClick={processPayment}
+                      className="w-full py-6 bg-cyan-600 text-white rounded-2xl font-black text-xl hover:bg-cyan-700 shadow-xl transition-all active:scale-95 uppercase tracking-widest"
+                    >
+                      COMPLETE & PRINT
+                    </button>
+                    <button
+                      onClick={() => setShowPaymentModal(false)}
+                      className="w-full py-4 border-2 border-gray-100 rounded-2xl font-black text-gray-400 hover:bg-gray-50 uppercase tracking-widest transition-all text-xs"
+                    >
+                      Cancel Transaction
+                    </button>
                   </div>
                 </div>
-
-                {/* Payment Method */}
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-tight">Payment Method</label>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {['cash', 'gcash', 'card', 'credit'].map(method => (
-                      <button
-                        key={method}
-                        onClick={() => setPaymentMethod(method)}
-                        className={`py-1.5 font-bold text-[10px] transition-all rounded-lg border-2 ${paymentMethod === method
-                          ? method === 'credit' ? 'bg-orange-500 text-white border-orange-500' : 'bg-cyan-600 text-white border-cyan-600'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-cyan-400 hover:bg-green-50'
-                          }`}
-                      >
-                        {method.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Discount Options for Quick Checkout */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-medium text-gray-500">Apply Discount</label>
-                    {discountType && (
-                      <button onClick={resetDiscount} className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded border border-red-100">Clear</button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    <button onClick={() => setDiscountType('senior')} className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${discountType === 'senior' ? 'bg-orange-600 text-white border-orange-600' : 'bg-gray-50 text-gray-600 border-gray-300 hover:border-orange-400 hover:text-orange-600'}`}>Senior</button>
-                    <button onClick={() => setDiscountType('pwd')} className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${discountType === 'pwd' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'}`}>PWD</button>
-                    <button onClick={() => setDiscountType('loyalty')} className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${discountType === 'loyalty' ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-300 hover:border-purple-400 hover:text-purple-600'}`}>Loyalty</button>
-                    <button onClick={() => setDiscountType('custom')} className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${discountType === 'custom' ? 'bg-gray-800 text-white border-gray-800' : 'bg-gray-50 text-gray-600 border-gray-300 hover:border-gray-800 hover:text-gray-800'}`}>Custom</button>
-                  </div>
-                  {discountType === 'custom' && (
-                    <div className="flex gap-2 animate-fadeIn mt-1.5">
-                      <div className="flex-1 relative">
-                        <input type="number" placeholder="%" value={customDiscountPercent} onChange={(e) => { setCustomDiscountPercent(e.target.value); setCustomDiscountAmount(''); }} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:border-cyan-500 focus:outline-none pr-6" />
-                        <span className="absolute right-2 top-1.5 text-xs text-gray-400">%</span>
-                      </div>
-                      <div className="flex items-center text-gray-400 text-[10px] md:text-xs">OR</div>
-                      <div className="flex-1 relative">
-                        <span className="absolute left-2 top-1.5 text-xs text-gray-400">₱</span>
-                        <input type="number" placeholder="Amount" value={customDiscountAmount} onChange={(e) => { setCustomDiscountAmount(e.target.value); setCustomDiscountPercent(''); }} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:border-cyan-500 focus:outline-none pl-6" />
-                      </div>
-                    </div>
-                  )}
-                  {discountAmount > 0 && (
-                    <div className="mt-1.5 text-right text-xs text-cyan-600 font-bold">
-                      - Php {discountAmount.toFixed(2)} applied
-                    </div>
-                  )}
-                </div>
-
-                {/* Customer Selection - Linked to Loyalty/Points */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-medium text-gray-500">Customer (Points / Credit)</label>
-                    {selectedCustomer && (
-                      <div className="flex items-center gap-1">
-                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${selectedCustomer.loyalty_tier === 'Diamond' ? 'bg-cyan-100 text-cyan-700' :
-                          selectedCustomer.loyalty_tier === 'Gold' ? 'bg-amber-100 text-amber-700' :
-                            selectedCustomer.loyalty_tier === 'Silver' ? 'bg-gray-100 text-gray-700' :
-                              'bg-orange-100 text-orange-700'
-                          }`}>
-                          {selectedCustomer.loyalty_tier}
-                        </span>
-                        <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 font-bold">
-                          {selectedCustomer.loyalty_points} PTS
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {selectedCustomer ? (
-                    <div className={`${paymentMethod === 'credit' ? 'bg-orange-50 border-orange-200' : 'bg-cyan-50 border-cyan-100'} border p-2 rounded-xl transition-colors`}>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] ${paymentMethod === 'credit' ? 'bg-orange-200 text-orange-700' : 'bg-cyan-200 text-cyan-700'}`}>
-                            {selectedCustomer.name.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800 text-xs leading-tight">{selectedCustomer.name}</p>
-                            <p className="text-[9px] text-gray-400 font-medium">{selectedCustomer.phone}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedCustomer(null);
-                            if (discountType === 'loyalty') setDiscountType(null);
-                          }}
-                          className="p-1 hover:bg-white/50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        {isSearchingCustomer ? (
-                          <div className="w-3.5 h-3.5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <Search className="w-3.5 h-3.5" />
-                        )}
-                      </div>
-                        <input
-                          type="text"
-                          value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          placeholder="Search customer..."
-                          className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-cyan-500 text-xs transition-all bg-gray-50/50 uppercase font-bold"
-                        />
-                      {customerSearchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl mt-2 z-[60] overflow-hidden animate-scaleIn">
-                          {customerSearchResults.map(c => (
-                            <button
-                              key={c.id}
-                              onClick={() => {
-                                setSelectedCustomer(c);
-                                setCustomerSearch('');
-                                setCustomerSearchResults([]);
-                                // Automatically apply loyalty discount if they have one
-                                if (Number(c.loyalty_discount) > 0) {
-                                  setDiscountType('loyalty');
-                                }
-                              }}
-                              className="w-full text-left px-4 py-3 hover:bg-cyan-50 transition-colors border-b border-gray-50 last:border-0 group"
-                            >
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="font-bold text-gray-800 text-sm group-hover:text-cyan-700">{c.name}</p>
-                                  <p className="text-xs text-gray-500">{c.phone}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{c.loyalty_tier}</p>
-                                  <p className="text-[10px] text-gray-400 font-bold">{c.loyalty_points} PTS</p>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {customerSearch.length >= 2 && customerSearchResults.length === 0 && !isSearchingCustomer && (
-                        <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-2 z-[60] p-4 text-center animate-scaleIn">
-                          <p className="text-xs text-gray-500">No customers found for "{customerSearch}"</p>
-                          <button
-                            onClick={() => setCurrentPage('customers')}
-                            className="mt-2 text-xs font-bold text-cyan-600 hover:text-cyan-700"
-                          >
-                            + Add New Customer
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Amount Input for Cash */}
-                {paymentMethod === 'cash' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Amount Received (Php)</label>
-                    <div className="relative bg-white border-2 border-cyan-500 rounded-lg overflow-hidden">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={amountReceived}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9.]/g, '');
-                          setAmountReceived(value);
-                        }}
-                        placeholder="0.00"
-                        className="w-full bg-transparent border-none outline-none font-bold text-center text-cyan-600 appearance-none payment-amount-input"
-                        style={{ padding: '8px', height: '56px', fontSize: '1.75rem' }}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            document.getElementById('complete-payment-btn')?.focus();
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="grid grid-cols-5 gap-1 mt-2">
-                      {quickAmounts.map(amount => (
-                        <button
-                          key={amount}
-                          onClick={() => setAmountReceived(amount.toString())}
-                          className="bg-gray-100 text-gray-700 py-1.5 rounded font-medium text-xs hover:bg-cyan-100 hover:text-cyan-700 transition-colors"
-                        >
-                          {amount}
-                        </button>
-                      ))}
-                    </div>
-                    {parseFloat(amountReceived) >= total && (
-                      <div className="bg-cyan-50 border-2 border-cyan-500 p-2 md:p-3 rounded-lg mt-2 shadow-sm animate-bounce-in">
-                        <div className="flex justify-between items-center font-black">
-                          <span className="text-cyan-800 text-xs uppercase tracking-widest">Return Change:</span>
-                          <span className="text-cyan-600 text-2xl md:text-3xl">₱ {(parseFloat(amountReceived) - total).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                </div>
-              </div>
-
-              {/* Action Buttons - Fixed at bottom of modal */}
-              <div className="p-3 bg-white border-t border-gray-100 flex gap-2 flex-shrink-0">
-                <button
-                  onClick={() => setShowPaymentModal(false)}
-                  className="px-4 py-3 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors font-bold text-xs uppercase tracking-wide"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="complete-payment-btn"
-                  onClick={processPayment}
-                  className="flex-1 py-3 bg-cyan-600 text-white rounded-lg font-black text-sm hover:bg-cyan-700 transition-all shadow-lg active:scale-95 uppercase tracking-wider"
-                >
-                  Process & Print Receipt
-                </button>
               </div>
             </div>
           </div>
@@ -8756,14 +8696,16 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
             className={`absolute bg-white rounded-xl shadow-2xl w-[min(32rem,calc(100vw-2rem))] max-h-[calc(100vh-16px)] overflow-hidden flex flex-col ${isDraggingProductModal ? 'cursor-grabbing' : ''}`}
             style={{ left: `${productModalPos.x}px`, top: `${productModalPos.y}px` }}
           >
-            <div className="h-1 w-full bg-cyan-600 rounded-t-xl"></div>
-            <div
-              onMouseDown={startProductModalDrag}
-              className={`p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white select-none ${isDraggingProductModal ? 'cursor-grabbing' : 'cursor-move'}`}
+            <div 
+              className="p-6 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10 cursor-grab active:cursor-grabbing"
+              onMouseDown={handleProductModalMouseDown}
             >
-              <h2 className="text-xl font-bold text-gray-800">
-                {editingProduct ? 'Edit Product' : 'Add New Product'}
-              </h2>
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {editingProduct ? 'Edit Product' : 'Add New Product'}
+                </h2>
+                <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-bold">Product Information & Inventory</p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -9042,8 +8984,8 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                     </label>
                   </div>
                 </div>
-
               </div>
+
               <div className="sticky bottom-0 z-10 flex gap-3 p-6 pt-4 border-t border-gray-200 bg-white">
                 <button
                   type="button"
