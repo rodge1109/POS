@@ -13,6 +13,13 @@ const generateOrderNumber = () => {
 
 const toCents = (value) => Math.round((Number(value) || 0) * 100);
 const fromCents = (value) => Number((value / 100).toFixed(2));
+const DEFAULT_TIMEZONE = 'Asia/Manila';
+const sanitizeTimezone = (tzRaw) => {
+  const tz = String(tzRaw || '').trim();
+  if (!tz) return DEFAULT_TIMEZONE;
+  if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_\-+]+)+$/.test(tz)) return DEFAULT_TIMEZONE;
+  return tz.replace(/'/g, "''");
+};
 
 // GET all orders
 router.get('/', async (req, res) => {
@@ -28,6 +35,8 @@ router.get('/', async (req, res) => {
       offset = 0
     } = req.query;
 
+    const tz = sanitizeTimezone(req.query.tz);
+    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
     let query = `
       SELECT o.*, c.name as customer_name, c.phone as customer_phone, e.name as employee_name,
         (SELECT COUNT(*) FROM order_item_adjustments WHERE order_id = o.id AND company_id = $1) as adjustment_count
@@ -51,12 +60,12 @@ router.get('/', async (req, res) => {
 
     if (start) {
       params.push(start);
-      query += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${params.length}`;
+      query += ` AND ${orderDateExpr} >= $${params.length}`;
     }
 
     if (end) {
       params.push(end);
-      query += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${params.length}`;
+      query += ` AND ${orderDateExpr} <= $${params.length}`;
     }
 
     if (include_adjustments === 'true') {
@@ -167,6 +176,8 @@ router.get('/kitchen', async (req, res) => {
 router.get('/kitchen-report', async (req, res) => {
   try {
     const { date, limit = 100, offset = 0 } = req.query;
+    const tz = sanitizeTimezone(req.query.tz);
+    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
     let where = `o.order_status IN ('received', 'preparing', 'completed', 'open', 'paid')
       AND EXISTS (
         SELECT 1 FROM order_items oi
@@ -177,7 +188,7 @@ router.get('/kitchen-report', async (req, res) => {
     const params = [req.company_id];
     if (date) {
       params.push(date);
-      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $${params.length}`;
+      where += ` AND ${orderDateExpr} = $${params.length}`;
     }
     params.push(limit, offset);
 
@@ -221,16 +232,18 @@ router.get('/kitchen-report', async (req, res) => {
 router.get('/reconciliation', async (req, res) => {
   try {
     const { start, end } = req.query;
+    const tz = sanitizeTimezone(req.query.tz);
+    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
     const params = [req.company_id];
     let where = 'o.company_id = $1';
 
     if (start) {
       params.push(start);
-      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${params.length}`;
+      where += ` AND ${orderDateExpr} >= $${params.length}`;
     }
     if (end) {
       params.push(end);
-      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${params.length}`;
+      where += ` AND ${orderDateExpr} <= $${params.length}`;
     }
 
     const result = await pool.query(
@@ -663,13 +676,29 @@ router.put('/:id/status', async (req, res) => {
 
     params.push(String(id));
     params.push(String(req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207')); // Safe string casting
-    const result = await pool.query(
-      `UPDATE orders SET ${updates.join(', ')} 
-       WHERE id::text = $${params.length - 1}::text 
-       AND (company_id::text = $${params.length}::text OR company_id::text IN ('d6797595-412e-4b3b-8378-4442a397d207', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
-       RETURNING id, order_number, order_status, payment_status, customer_id, service_type`,
-      params
-    );
+    let result;
+    try {
+      result = await pool.query(
+        `UPDATE orders SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+         WHERE id::text = $${params.length - 1}::text 
+         AND (company_id::text = $${params.length}::text OR company_id::text IN ('d6797595-412e-4b3b-8378-4442a397d207', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
+         RETURNING id, order_number, order_status, payment_status, customer_id, service_type, updated_at`,
+        params
+      );
+    } catch (updateErr) {
+      // Backward-compat for older schemas that don't have orders.updated_at.
+      if (updateErr?.code === '42703' && String(updateErr.message || '').toLowerCase().includes('updated_at')) {
+        result = await pool.query(
+          `UPDATE orders SET ${updates.join(', ')}
+           WHERE id::text = $${params.length - 1}::text 
+           AND (company_id::text = $${params.length}::text OR company_id::text IN ('d6797595-412e-4b3b-8378-4442a397d207', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
+           RETURNING id, order_number, order_status, payment_status, customer_id, service_type, created_at`,
+          params
+        );
+      } else {
+        throw updateErr;
+      }
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Order not found' });

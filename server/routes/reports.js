@@ -3,6 +3,13 @@ import { sendCustomReport } from '../services/emailReports.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
+const DEFAULT_TIMEZONE = 'Asia/Manila';
+const sanitizeTimezone = (tzRaw) => {
+  const tz = String(tzRaw || '').trim();
+  if (!tz) return DEFAULT_TIMEZONE;
+  if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_\-+]+)+$/.test(tz)) return DEFAULT_TIMEZONE;
+  return tz.replace(/'/g, "''");
+};
 
 /**
  * POST /api/reports/email
@@ -33,6 +40,8 @@ router.post('/email', async (req, res) => {
 router.get('/sales-items', async (req, res) => {
   try {
     const { start, end } = req.query;
+    const tz = sanitizeTimezone(req.query.tz);
+    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
     const company_id = req.company_id;
 
     const params = [company_id];
@@ -44,11 +53,11 @@ router.get('/sales-items', async (req, res) => {
 
     if (start) {
       params.push(start);
-      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${params.length}`;
+      where += ` AND ${orderDateExpr} >= $${params.length}`;
     }
     if (end) {
       params.push(end);
-      where += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${params.length}`;
+      where += ` AND ${orderDateExpr} <= $${params.length}`;
     }
 
     const result = await pool.query(
@@ -84,6 +93,10 @@ router.get('/sales-items', async (req, res) => {
 router.get('/activity-logs', async (req, res) => {
   try {
     const { start, end, limit = 200, module = 'all' } = req.query;
+    const tz = sanitizeTimezone(req.query.tz);
+    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const inventoryDateExpr = `(it.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const shiftDateExpr = `(s.start_time AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
     const company_id = req.company_id;
 
     const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500);
@@ -98,17 +111,17 @@ router.get('/activity-logs', async (req, res) => {
     if (start) {
       params.push(start);
       p += 1;
-      orderDateSql += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${p}`;
-      inventoryDateSql += ` AND (it.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${p}`;
-      shiftDateSql += ` AND (s.start_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= $${p}`;
+      orderDateSql += ` AND ${orderDateExpr} >= $${p}`;
+      inventoryDateSql += ` AND ${inventoryDateExpr} >= $${p}`;
+      shiftDateSql += ` AND ${shiftDateExpr} >= $${p}`;
       scheduleDateSql += ` AND sch.shift_date >= $${p}`;
     }
     if (end) {
       params.push(end);
       p += 1;
-      orderDateSql += ` AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${p}`;
-      inventoryDateSql += ` AND (it.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${p}`;
-      shiftDateSql += ` AND (s.start_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date <= $${p}`;
+      orderDateSql += ` AND ${orderDateExpr} <= $${p}`;
+      inventoryDateSql += ` AND ${inventoryDateExpr} <= $${p}`;
+      shiftDateSql += ` AND ${shiftDateExpr} <= $${p}`;
       scheduleDateSql += ` AND sch.shift_date <= $${p}`;
     }
 

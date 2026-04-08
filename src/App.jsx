@@ -34,6 +34,20 @@ const formatCurrency = (amount, code = 'PHP') => {
   const value = Number(amount) || 0;
   return `${getCurrencySymbol(code)}${value.toFixed(2)}`;
 };
+const toLocalDateInputValue = (dateLike = new Date()) => {
+  const d = new Date(dateLike);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const getClientTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Manila';
+  } catch {
+    return 'Asia/Manila';
+  }
+};
 
 // Register Chart.js components
 ChartJS.register(
@@ -1718,11 +1732,7 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
         }
 
         // Use local date strings for backend filtering
-        const toDateStr = (date) => {
-          const d = new Date(date);
-          const offset = d.getTimezoneOffset() * 60000;
-          return new Date(d.getTime() - offset).toISOString().split('T')[0];
-        };
+        const toDateStr = (date) => toLocalDateInputValue(date);
 
         const startStr = toDateStr(startDate);
         const endStr = timeframe === 'today' ? startStr : toDateStr(today);
@@ -5700,6 +5710,24 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     setCustomDiscountAmount('');
   };
 
+  const handleAmountKeypadInput = (key) => {
+    setAmountReceived((prev) => {
+      const current = String(prev || '');
+      if (key === 'clear') return '';
+      if (key === 'backspace') return current.slice(0, -1);
+      if (key === '.') {
+        if (current.includes('.')) return current;
+        return current ? `${current}.` : '0.';
+      }
+      if (key === '00') {
+        if (!current || current === '0') return '0';
+        return `${current}00`;
+      }
+      if (!/^\d$/.test(key)) return current;
+      return current === '0' ? key : `${current}${key}`;
+    });
+  };
+
   const playRegisterBeep = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -5987,7 +6015,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                       </div>
                       {/* Right Half - Description */}
                       <div className="w-3/5 md:w-1/2 p-1 md:p-2 flex flex-col justify-center">
-                        <h3 className="text-gray-800 font-semibold text-xs md:text-sm leading-tight mb-0.5 md:mb-1 line-clamp-2">{item.name}</h3>
+                        <h3 className="text-gray-800 font-semibold text-xs md:text-sm leading-[1.3] md:leading-[1.35] mb-0.5 md:mb-1 line-clamp-2 min-h-[2.4em] md:min-h-[2.7em]">{item.name}</h3>
                         <p className="text-gray-500 text-[10px] md:text-xs line-clamp-1 md:line-clamp-2 hidden md:block">{item.description || item.category}</p>
                       </div>
                     </button>
@@ -6362,7 +6390,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
         {showPaymentModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-6 lg:p-10 font-dashboard">
-            <div className="w-full max-w-[34rem] md:max-w-[40rem] h-full md:h-[92vh] lg:h-auto md:max-h-[92vh] lg:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
+            <div className="w-full max-w-[34rem] md:max-w-[calc(40rem-150px)] h-full md:h-[92vh] lg:h-auto md:max-h-[92vh] lg:max-h-[90vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
               {/* Green Header */}
               <div className="bg-cyan-600 text-white px-5 py-4 flex-shrink-0">
                 <div className="flex justify-between items-center">
@@ -6379,7 +6407,43 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-3 md:p-4 space-y-3 pb-20">
+              <div className="flex-1 min-h-0 md:grid md:grid-cols-[150px_minmax(0,1fr)]">
+                <div className={`hidden md:flex flex-col border-r border-gray-100 bg-gray-50 p-2 gap-2 ${paymentMethod === 'cash' ? '' : 'opacity-50'}`}>
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-1 py-1">Numeric Keypad</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => handleAmountKeypadInput(key)}
+                        disabled={paymentMethod !== 'cash'}
+                        className="h-11 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50 transition-colors disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-700"
+                      >
+                        {key === 'backspace' ? '⌫' : key}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 mt-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleAmountKeypadInput('clear')}
+                      disabled={paymentMethod !== 'cash'}
+                      className="h-10 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors disabled:cursor-not-allowed"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAmountKeypadInput('00')}
+                      disabled={paymentMethod !== 'cash'}
+                      className="h-10 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50 transition-colors disabled:cursor-not-allowed"
+                    >
+                      00
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto scrollbar-hide p-3 md:p-4 space-y-3 pb-20">
                 {/* Order Summary */}
                 <div className="bg-green-50 border border-cyan-100 p-2 rounded-lg">
                   <div className="flex justify-between items-center text-[10px]">
@@ -6619,7 +6683,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                     )}
                   </div>
                 )}
-
+                </div>
               </div>
 
               {/* Action Buttons - Fixed at bottom of modal */}
@@ -7224,6 +7288,9 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   const [priceAdjustValue, setPriceAdjustValue] = useState('');
   const [pricingSaving, setPricingSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [productSaving, setProductSaving] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [bulkDeleteState, setBulkDeleteState] = useState({ running: false, total: 0, done: 0, current: '' });
 
   const handlePhotoUpload = async (file, type = 'product') => {
     if (!file) return;
@@ -7342,6 +7409,11 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    const validIds = new Set(regularProducts.map(p => String(p.id)));
+    setSelectedProductIds(prev => prev.filter(id => validIds.has(String(id))));
+  }, [menuData]);
+
   // Calculate low stock count from products
   useEffect(() => {
     const count = menuData.filter(p => !p.isCombo && p.stock_quantity <= p.low_stock_threshold).length;
@@ -7363,6 +7435,8 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+  const isAllFilteredSelected = filteredProducts.length > 0 &&
+    filteredProducts.every(p => selectedProductIds.includes(String(p.id)));
 
   // Combo handlers
   const openAddComboModal = () => {
@@ -7573,6 +7647,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (productSaving) return;
 
     const payload = {
       name: formData.name,
@@ -7591,6 +7666,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       cost: parseFloat(formData.cost) || 0
     };
 
+    setProductSaving(true);
     try {
       const url = editingProduct
         ? `${API_URL}/products/${editingProduct.id}`
@@ -7613,6 +7689,8 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Error saving product');
+    } finally {
+      setProductSaving(false);
     }
   };
 
@@ -7634,6 +7712,64 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('Error deleting product');
+    }
+  };
+
+  const toggleProductSelection = (productId) => {
+    const id = String(productId);
+    setSelectedProductIds(prev => (
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    ));
+  };
+
+  const toggleSelectAllFiltered = () => {
+    if (isAllFilteredSelected) {
+      const filteredIds = new Set(filteredProducts.map(p => String(p.id)));
+      setSelectedProductIds(prev => prev.filter(id => !filteredIds.has(id)));
+      return;
+    }
+    const filteredIds = filteredProducts.map(p => String(p.id));
+    setSelectedProductIds(prev => Array.from(new Set([...prev, ...filteredIds])));
+  };
+
+  const handleBulkDelete = async () => {
+    const targets = regularProducts.filter(p => selectedProductIds.includes(String(p.id)));
+    if (targets.length === 0) {
+      alert('No products selected.');
+      return;
+    }
+    if (!confirm(`Delete ${targets.length} selected product(s)? This cannot be undone.`)) return;
+
+    setBulkDeleteState({ running: true, total: targets.length, done: 0, current: '' });
+    let success = 0;
+    const failures = [];
+
+    for (let i = 0; i < targets.length; i++) {
+      const product = targets[i];
+      setBulkDeleteState({ running: true, total: targets.length, done: i, current: product.name });
+      try {
+        const response = await fetchWithAuth(`${API_URL}/products/${product.id}`, { method: 'DELETE' });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result.success) {
+          success += 1;
+        } else {
+          failures.push(`${product.name}: ${result.error || 'delete failed'}`);
+        }
+      } catch (error) {
+        failures.push(`${product.name}: ${error.message}`);
+      }
+    }
+
+    setBulkDeleteState({ running: true, total: targets.length, done: targets.length, current: '' });
+    await refreshProducts();
+    setSelectedProductIds([]);
+    setBulkDeleteState({ running: false, total: 0, done: 0, current: '' });
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 5).join('\n');
+      alert(`Bulk delete done.\nDeleted: ${success}\nFailed: ${failures.length}\n\n${preview}`);
+    } else {
+      alert(`Bulk delete complete. Deleted ${success} product(s).`);
     }
   };
 
@@ -8061,6 +8197,18 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                   >
                     {csvImporting ? 'Importing...' : 'Upload CSV'}
                   </button>
+                  {selectedProductIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleteState.running}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {bulkDeleteState.running
+                        ? `Deleting ${bulkDeleteState.done}/${bulkDeleteState.total}...`
+                        : `Delete Selected (${selectedProductIds.length})`}
+                    </button>
+                  )}
                 </>
               )}
               {activeTab === 'products' && (
@@ -8107,6 +8255,23 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
 
         {activeTab === 'products' && (
           <>
+            {bulkDeleteState.running && (
+              <div className="bg-white rounded-lg shadow-sm p-4 mb-4 border border-cyan-100">
+                <div className="flex items-center justify-between mb-2 text-sm">
+                  <span className="font-medium text-cyan-700">
+                    Deleting products... {bulkDeleteState.done}/{bulkDeleteState.total}
+                  </span>
+                  <span className="text-gray-500 truncate ml-3 max-w-[60%]">{bulkDeleteState.current}</span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-cyan-600 transition-all"
+                    style={{ width: `${bulkDeleteState.total ? (bulkDeleteState.done / bulkDeleteState.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm p-4 mb-4 flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
@@ -8136,6 +8301,15 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                 <table className="w-full font-data-table">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
+                      <th className="text-center px-3 py-3 text-sm font-semibold text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={isAllFilteredSelected}
+                          onChange={toggleSelectAllFiltered}
+                          className="w-4 h-4 accent-cyan-600 cursor-pointer"
+                          title="Select all in current filter"
+                        />
+                      </th>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">Product</th>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">Category</th>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">Price</th>
@@ -8148,6 +8322,15 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                   <tbody className="divide-y divide-gray-200">
                     {filteredProducts.map(product => (
                       <tr key={product.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.includes(String(product.id))}
+                            onChange={() => toggleProductSelection(product.id)}
+                            className="w-4 h-4 accent-cyan-600 cursor-pointer"
+                            title={`Select ${product.name}`}
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
@@ -8219,7 +8402,8 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                             </button>
                             <button
                               onClick={() => handleDelete(product)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              disabled={bulkDeleteState.running}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Delete"
                             >
                               <Trash2 className="w-5 h-5" />
@@ -8230,7 +8414,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                     ))}
                     {filteredProducts.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                           No products found
                         </td>
                       </tr>
@@ -8587,6 +8771,17 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                 <X className="w-6 h-6" />
               </button>
             </div>
+            {productSaving && (
+              <div className="px-6 py-2 bg-cyan-50 border-b border-cyan-100">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-cyan-700 font-medium">Saving product...</span>
+                  <span className="text-cyan-600">Please wait</span>
+                </div>
+                <div className="w-full h-1.5 bg-cyan-100 rounded-full overflow-hidden">
+                  <div className="h-full w-1/2 bg-cyan-600 animate-pulse"></div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
               <div className="p-6 grid grid-cols-2 gap-4 overflow-y-auto scrollbar-hide min-h-0 bg-white">
@@ -8853,15 +9048,17 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={productSaving}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors font-medium"
+                  disabled={productSaving}
+                  className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingProduct ? 'Update Product' : 'Create Product'}
+                  {productSaving ? 'Saving...' : (editingProduct ? 'Update Product' : 'Create Product')}
                 </button>
               </div>
             </form>
@@ -9423,8 +9620,8 @@ function CustomersPage({ setCurrentPage }) {
 // Inventory Reports Section Component
 function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
   const [dateRange, setDateRange] = useState('week');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(toLocalDateInputValue(new Date()));
+  const [endDate, setEndDate] = useState(toLocalDateInputValue(new Date()));
   const [salesData, setSalesData] = useState([]);
   const [itemsData, setItemsData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -9471,11 +9668,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     let start = startDate;
     let end = endDate;
     const today = new Date();
-    const toDateStr = (date) => {
-      const d = new Date(date);
-      const offset = d.getTimezoneOffset() * 60000;
-      return new Date(d.getTime() - offset).toISOString().split('T')[0];
-    };
+    const toDateStr = (date) => toLocalDateInputValue(date);
 
     if (dateRange === 'today') {
       start = end = toDateStr(today);
@@ -9535,11 +9728,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     const run = async () => {
       setLoading(true);
       try {
-        const toDateStr = (date) => {
-          const d = new Date(date);
-          const offset = d.getTimezoneOffset() * 60000;
-          return new Date(d.getTime() - offset).toISOString().split('T')[0];
-        };
+        const toDateStr = (date) => toLocalDateInputValue(date);
 
         const today = new Date();
         let start = startDate;
@@ -9562,7 +9751,8 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             start,
             end,
             limit: '500',
-            module: activityModule || 'all'
+            module: activityModule || 'all',
+            tz: getClientTimezone()
           });
           const logsRes = await fetchWithAuth(`${API_URL}/reports/activity-logs?${params.toString()}`);
           const logsData = await logsRes.json();
@@ -9631,7 +9821,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           if (!useDirectItemSource && orders.length > 0 && totalLineItems === 0) {
             console.warn('[REPORTS DEBUG] Orders loaded but no line items found after hydration.');
             try {
-              const itemRes = await fetchWithAuth(`${API_URL}/reports/sales-items?start=${start}&end=${end}`);
+              const itemRes = await fetchWithAuth(`${API_URL}/reports/sales-items?start=${start}&end=${end}&tz=${encodeURIComponent(getClientTimezone())}`);
               const itemData = await itemRes.json();
               if (itemRes.ok && itemData?.success && Array.isArray(itemData.items)) {
                 const itemRows = itemData.items.map((r) => ({
@@ -9812,7 +10002,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           // so these tabs don't depend on nested order->items payload shape.
           if (activeReport === 'reports-items' || activeReport === 'reports-category') {
             try {
-              const itemRes = await fetchWithAuth(`${API_URL}/reports/sales-items?start=${start}&end=${end}`);
+              const itemRes = await fetchWithAuth(`${API_URL}/reports/sales-items?start=${start}&end=${end}&tz=${encodeURIComponent(getClientTimezone())}`);
               const itemData = await itemRes.json();
               if (itemRes.ok && itemData?.success && Array.isArray(itemData.items)) {
                 const itemRows = itemData.items.map((r) => ({
@@ -9852,7 +10042,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
           }
         }
 
-        const reconRes = await fetchWithAuth(`${API_URL}/orders/reconciliation?start=${start}&end=${end}`);
+        const reconRes = await fetchWithAuth(`${API_URL}/orders/reconciliation?start=${start}&end=${end}&tz=${encodeURIComponent(getClientTimezone())}`);
         const reconData = await reconRes.json().catch(() => ({}));
         if (reconRes.ok && reconData.success) {
           setReconciliation(reconData.reconciliation || null);
@@ -10695,7 +10885,7 @@ function InventoryReportsSection({ dateRange, setDateRange, startDate, setStartD
   );
 }
 const Ticket = ({ order, formatTimer, getUrgency, updateOrderStatus }) => {
-  const urgency = getUrgency(order.created_at);
+  const urgency = getUrgency(order);
   const isPreparing = String(order.order_status || '').toLowerCase().startsWith('preparing');
   const [doneItems, setDoneItems] = useState(new Set());
 
@@ -10722,7 +10912,7 @@ const Ticket = ({ order, formatTimer, getUrgency, updateOrderStatus }) => {
         <div className="flex items-center justify-between gap-1">
           <span className="text-white font-bold text-xs truncate">#{order.order_number}</span>
           <span className={`font-mono font-bold text-sm flex-shrink-0 ${urgency === 'critical' ? 'text-white' : 'text-white/90'}`}>
-            {formatTimer(order.created_at)}
+            {formatTimer(order)}
           </span>
         </div>
       </div>
@@ -10805,6 +10995,7 @@ function KitchenDisplayPage() {
   const [orders, setOrders] = useState([]);
   const [now, setNow] = useState(Date.now());
   const [completedTimes, setCompletedTimes] = useState([]);
+  const [prepStartedAtByOrder, setPrepStartedAtByOrder] = useState({});
   const [audioEnabled, setAudioEnabled] = useState(false);
   const lastOrderIdsRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -10865,6 +11056,21 @@ function KitchenDisplayPage() {
         }
         lastOrderIdsRef.current = currentNewIds;
         setOrders(data.orders);
+        setPrepStartedAtByOrder(prev => {
+          const activePreparingIds = new Set(
+            (data.orders || [])
+              .filter(o => String(o.order_status || '').toLowerCase().startsWith('preparing'))
+              .map(o => o.id)
+          );
+          const next = {};
+          Object.keys(prev).forEach((id) => {
+            const key = Number.isNaN(Number(id)) ? id : Number(id);
+            if (activePreparingIds.has(key) || activePreparingIds.has(String(id))) {
+              next[id] = prev[id];
+            }
+          });
+          return next;
+        });
       }
     } catch (err) {
       console.error('Error fetching kitchen orders:', err);
@@ -10884,6 +11090,18 @@ function KitchenDisplayPage() {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
+      if (newStatus === 'preparing') {
+        const nowIso = new Date().toISOString();
+        setPrepStartedAtByOrder(prev => ({ ...prev, [orderId]: Date.now() }));
+        setOrders(prev => prev.map(o => (
+          o.id === orderId ? { ...o, order_status: 'preparing', updated_at: nowIso } : o
+        )));
+      } else if (newStatus === 'completed') {
+        setOrders(prev => prev.map(o => (
+          o.id === orderId ? { ...o, order_status: 'completed' } : o
+        )));
+      }
+
       const res = await fetchWithAuth(`${API_URL}/orders/${orderId}/status`, {
         method: 'PUT',
         body: JSON.stringify({ order_status: newStatus })
@@ -10893,30 +11111,50 @@ function KitchenDisplayPage() {
         if (newStatus === 'completed') {
           const order = orders.find(o => o.id === orderId);
           if (order) {
-            const prepTime = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 1000);
+            const localPrepStart = prepStartedAtByOrder[orderId];
+            const prepAnchor = localPrepStart || order.updated_at || order.created_at;
+            const prepTime = Math.max(0, Math.floor((Date.now() - new Date(prepAnchor).getTime()) / 1000));
             setCompletedTimes(prev => [...prev.slice(-19), prepTime]);
           }
+          setPrepStartedAtByOrder(prev => {
+            const next = { ...prev };
+            delete next[orderId];
+            return next;
+          });
         }
         fetchKitchenOrders();
       } else {
         alert('BACKEND_REJECTED: ' + (data.error || JSON.stringify(data)));
         console.error('Update Rejection:', data);
+        fetchKitchenOrders();
       }
     } catch (err) {
       alert('NETWORK_FETCH_CRASH: ' + err.message);
       console.error('Update Error:', err);
+      fetchKitchenOrders();
     }
   };
 
-  const formatTimer = (dateStr) => {
-    const diff = Math.max(0, Math.floor((now - new Date(dateStr).getTime()) / 1000));
+  const getPrepAnchor = (order) => {
+    return prepStartedAtByOrder[order?.id] || order?.updated_at || order?.created_at;
+  };
+
+  const formatTimer = (order) => {
+    const status = String(order?.order_status || '').toLowerCase();
+    const isPreparing = status.startsWith('preparing');
+    if (!isPreparing) return '00:00';
+    const anchor = getPrepAnchor(order);
+    const diff = Math.max(0, Math.floor((now - new Date(anchor).getTime()) / 1000));
     const mins = Math.floor(diff / 60);
     const secs = diff % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const getUrgency = (dateStr) => {
-    const diff = Math.floor((now - new Date(dateStr).getTime()) / 1000);
+  const getUrgency = (order) => {
+    const status = String(order?.order_status || '').toLowerCase();
+    if (!status.startsWith('preparing')) return 'normal';
+    const anchor = getPrepAnchor(order);
+    const diff = Math.floor((now - new Date(anchor).getTime()) / 1000);
     if (diff > 300) return 'critical';
     if (diff > 180) return 'warning';
     return 'normal';
@@ -11026,14 +11264,14 @@ function KitchenReportPage() {
   const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(toLocalDateInputValue(new Date()));
 
   useEffect(() => { fetchReport(); }, [date]);
 
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const res = await fetchWithAuth(`${API_URL}/orders/kitchen-report?date=${date}&limit=200`);
+      const res = await fetchWithAuth(`${API_URL}/orders/kitchen-report?date=${date}&limit=200&tz=${encodeURIComponent(getClientTimezone())}`);
       const data = await res.json();
       if (data.success) setOrders(data.orders);
     } catch (e) {
@@ -11175,7 +11413,7 @@ function OrdersPage({ currentView, setCurrentPage }) {
         setOrders(filtered);
       }
 
-      const reconResponse = await fetchWithAuth(`${API_URL}/orders/reconciliation`);
+      const reconResponse = await fetchWithAuth(`${API_URL}/orders/reconciliation?tz=${encodeURIComponent(getClientTimezone())}`);
       const recon = await reconResponse.json().catch(() => ({}));
       if (reconResponse.ok && recon.success) {
         setOrdersReconciliation(recon.reconciliation || null);
@@ -13675,9 +13913,9 @@ function StaffPage({ currentView, setCurrentPage }) {
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [timesheetRows, setTimesheetRows] = useState([]);
   const [timesheetLoading, setTimesheetLoading] = useState(false);
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = toLocalDateInputValue(new Date());
   const [timesheetRange, setTimesheetRange] = useState({
-    start_date: new Date(Date.now() - (6 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
+    start_date: toLocalDateInputValue(new Date(Date.now() - (6 * 24 * 60 * 60 * 1000))),
     end_date: todayIso
   });
   const [scheduleTemplates, setScheduleTemplates] = useState([]);
@@ -13719,7 +13957,7 @@ function StaffPage({ currentView, setCurrentPage }) {
     const day = date.getDay();
     const diff = day === 0 ? -6 : 1 - day;
     date.setDate(date.getDate() + diff);
-    return date.toISOString().slice(0, 10);
+    return toLocalDateInputValue(date);
   };
 
   const allPossiblePermissions = [

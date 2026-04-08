@@ -6,6 +6,7 @@ const router = express.Router();
 let ensured = false;
 const ensureModifiersTable = async () => {
   if (ensured) return;
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS modifiers (
       id SERIAL PRIMARY KEY,
@@ -15,13 +16,56 @@ const ensureModifiersTable = async () => {
       active BOOLEAN NOT NULL DEFAULT true,
       company_id UUID REFERENCES companies(id),
       created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT modifiers_type_check CHECK (type IN ('addon', 'option')),
-      CONSTRAINT modifiers_company_name_unique UNIQUE (company_id, name)
+      updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Backward-compatible hardening for older deployments.
+  await pool.query(`ALTER TABLE modifiers ADD COLUMN IF NOT EXISTS type VARCHAR(30) NOT NULL DEFAULT 'addon'`);
+  await pool.query(`ALTER TABLE modifiers ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE modifiers ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`);
+  await pool.query(`ALTER TABLE modifiers ADD COLUMN IF NOT EXISTS company_id UUID`);
+  await pool.query(`ALTER TABLE modifiers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE modifiers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP`);
+
+  await pool.query(`UPDATE modifiers SET active = true WHERE active IS NULL`);
+  await pool.query(`UPDATE modifiers SET type = 'addon' WHERE type IS NULL OR type = ''`);
+  await pool.query(`UPDATE modifiers SET price = 0 WHERE price IS NULL`);
+
+  // Add/repair constraints safely.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'modifiers_type_check'
+      ) THEN
+        ALTER TABLE modifiers
+        ADD CONSTRAINT modifiers_type_check CHECK (type IN ('addon', 'option'));
+      END IF;
+    END $$;
+  `);
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'modifiers_company_name_unique'
+      ) THEN
+        ALTER TABLE modifiers
+        ADD CONSTRAINT modifiers_company_name_unique UNIQUE (company_id, name);
+      END IF;
+    EXCEPTION WHEN duplicate_table THEN
+      NULL;
+    WHEN duplicate_object THEN
+      NULL;
+    END $$;
+  `);
+
   ensured = true;
 };
+
 
 router.get('/', async (req, res) => {
   try {
@@ -29,8 +73,8 @@ router.get('/', async (req, res) => {
     const { all } = req.query;
     const result = await pool.query(
       all === 'true'
-        ? 'SELECT * FROM modifiers WHERE company_id = $1 ORDER BY name ASC'
-        : 'SELECT * FROM modifiers WHERE active = true AND company_id = $1 ORDER BY name ASC',
+        ? 'SELECT * FROM modifiers WHERE company_id = $1 OR company_id IS NULL ORDER BY name ASC'
+        : 'SELECT * FROM modifiers WHERE active = true AND (company_id = $1 OR company_id IS NULL) ORDER BY name ASC',
       [req.company_id]
     );
     res.json({ success: true, modifiers: result.rows });

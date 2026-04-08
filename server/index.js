@@ -137,8 +137,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: 'Something went wrong!' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`API available at http://localhost:${PORT}/api`);
-  startScheduler();
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
+  console.log(`Health check: /api/health`);
+  try {
+    startScheduler();
+  } catch (err) {
+    // Keep web server alive even if scheduler setup fails.
+    console.error('[Scheduler] Startup failed:', err?.message || err);
+  }
 });

@@ -1,0 +1,1523 @@
+﻿<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="Products">
+    <Table>
+      <Row>
+        <Cell><Data ss:Type="String">name</Data></Cell>
+        <Cell><Data ss:Type="String">category</Data></Cell>
+        <Cell><Data ss:Type="String">price</Data></Cell>
+        <Cell><Data ss:Type="String">sku</Data></Cell>
+        <Cell><Data ss:Type="String">barcode</Data></Cell>
+        <Cell><Data ss:Type="String">stock_quantity</Data></Cell>
+        <Cell><Data ss:Type="String">low_stock_threshold</Data></Cell>
+        <Cell><Data ss:Type="String">description</Data></Cell>
+        <Cell><Data ss:Type="String">image</Data></Cell>
+        <Cell><Data ss:Type="String">active</Data></Cell>
+        <Cell><Data ss:Type="String">popular</Data></Cell>
+        <Cell><Data ss:Type="String">send_to_k</Data></Cell>
+        <Cell><Data ss:Type="String">cost</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Mineral Water Small</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">25.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-001</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000001</Data></Cell>
+        <Cell><Data ss:Type="String">22</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">17.22</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cola Softdrink Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">39.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-002</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000002</Data></Cell>
+        <Cell><Data ss:Type="String">29</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">27.97</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Orange Juice Drink Large</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">53.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-003</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000003</Data></Cell>
+        <Cell><Data ss:Type="String">36</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">39.83</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Iced Tea Lemon Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">66.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-004</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000004</Data></Cell>
+        <Cell><Data ss:Type="String">43</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">52.77</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Coffee 3in1 Small</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">80.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-005</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000005</Data></Cell>
+        <Cell><Data ss:Type="String">50</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">50.72</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Energy Drink Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">94.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-006</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000006</Data></Cell>
+        <Cell><Data ss:Type="String">57</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">63.11</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Chocolate Milk Large</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">107.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-007</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000007</Data></Cell>
+        <Cell><Data ss:Type="String">64</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">76.61</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Malted Drink Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">121.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-008</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000008</Data></Cell>
+        <Cell><Data ss:Type="String">71</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">91.20</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Soda Water Small</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">135.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-009</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000009</Data></Cell>
+        <Cell><Data ss:Type="String">78</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">106.89</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Fruit Soda Regular</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">149.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-010</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000010</Data></Cell>
+        <Cell><Data ss:Type="String">85</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">93.87</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Potato Chips Large</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">162.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-011</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000011</Data></Cell>
+        <Cell><Data ss:Type="String">92</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">109.01</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Corn Chips Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">176.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-012</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000012</Data></Cell>
+        <Cell><Data ss:Type="String">99</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">125.24</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Salted Crackers Small</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">190.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-013</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000013</Data></Cell>
+        <Cell><Data ss:Type="String">106</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">142.57</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Chocolate Wafer Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">203.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-014</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000014</Data></Cell>
+        <Cell><Data ss:Type="String">113</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">161.00</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Peanut Snack Large</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">217.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-015</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000015</Data></Cell>
+        <Cell><Data ss:Type="String">120</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">137.02</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cheese Puffs Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">231.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-016</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000016</Data></Cell>
+        <Cell><Data ss:Type="String">127</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">154.90</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Rice Crackers Small</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">244.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-017</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000017</Data></Cell>
+        <Cell><Data ss:Type="String">134</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">173.88</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Biscuits Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">258.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-018</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000018</Data></Cell>
+        <Cell><Data ss:Type="String">141</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">193.95</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Gummy Candy Large</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">272.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-019</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000019</Data></Cell>
+        <Cell><Data ss:Type="String">148</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">215.12</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Mint Candy Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">286.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-020</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000020</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">180.18</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Chicken Noodles Small</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">299.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-021</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000021</Data></Cell>
+        <Cell><Data ss:Type="String">22</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">200.80</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Beef Noodles Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">25.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-022</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000022</Data></Cell>
+        <Cell><Data ss:Type="String">29</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">18.03</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Seafood Noodles Large</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">39.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-023</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000023</Data></Cell>
+        <Cell><Data ss:Type="String">36</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">29.33</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Spicy Noodles Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">52.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-024</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000024</Data></Cell>
+        <Cell><Data ss:Type="String">43</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">41.71</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cup Noodles Small</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">66.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-025</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000025</Data></Cell>
+        <Cell><Data ss:Type="String">50</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">41.90</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Pancit Canton Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">80.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-026</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000026</Data></Cell>
+        <Cell><Data ss:Type="String">57</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">53.73</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Sotanghon Soup Large</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">93.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-027</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000027</Data></Cell>
+        <Cell><Data ss:Type="String">64</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">66.67</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Mami Noodles Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">107.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-028</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000028</Data></Cell>
+        <Cell><Data ss:Type="String">71</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">80.70</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Ramen Pack Small</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">121.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-029</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000029</Data></Cell>
+        <Cell><Data ss:Type="String">78</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">95.83</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Rice Vermicelli Regular</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">135.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-030</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000030</Data></Cell>
+        <Cell><Data ss:Type="String">85</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">85.05</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Sardines Tomato Large</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">148.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-031</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000031</Data></Cell>
+        <Cell><Data ss:Type="String">92</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">99.63</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Tuna Flakes Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">162.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-032</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000032</Data></Cell>
+        <Cell><Data ss:Type="String">99</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">115.30</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Corned Beef Small</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">176.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-033</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000033</Data></Cell>
+        <Cell><Data ss:Type="String">106</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">132.07</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Luncheon Meat Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">189.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-034</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000034</Data></Cell>
+        <Cell><Data ss:Type="String">113</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">149.94</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Baked Beans Large</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">203.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-035</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000035</Data></Cell>
+        <Cell><Data ss:Type="String">120</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">128.21</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Mushroom Can Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">217.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-036</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000036</Data></Cell>
+        <Cell><Data ss:Type="String">127</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">145.52</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Fruit Cocktail Small</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">230.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-037</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000037</Data></Cell>
+        <Cell><Data ss:Type="String">134</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">163.94</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Evaporated Milk Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">244.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-038</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000038</Data></Cell>
+        <Cell><Data ss:Type="String">141</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">183.45</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Condensed Milk Large</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">258.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-039</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000039</Data></Cell>
+        <Cell><Data ss:Type="String">148</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">204.06</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Green Peas Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">272.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-040</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000040</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">171.36</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Soy Sauce Small</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">285.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-041</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000041</Data></Cell>
+        <Cell><Data ss:Type="String">22</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">191.42</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Vinegar Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">299.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-042</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000042</Data></Cell>
+        <Cell><Data ss:Type="String">29</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">212.57</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Fish Sauce Large</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">25.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-043</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000043</Data></Cell>
+        <Cell><Data ss:Type="String">36</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">18.83</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Banana Ketchup Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">38.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-044</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000044</Data></Cell>
+        <Cell><Data ss:Type="String">43</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">30.65</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Tomato Ketchup Small</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">52.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-045</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000045</Data></Cell>
+        <Cell><Data ss:Type="String">50</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">33.08</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Chili Sauce Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">66.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-046</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000046</Data></Cell>
+        <Cell><Data ss:Type="String">57</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">44.35</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Oyster Sauce Large</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">79.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-047</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000047</Data></Cell>
+        <Cell><Data ss:Type="String">64</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">56.73</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cooking Oil Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">93.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-048</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000048</Data></Cell>
+        <Cell><Data ss:Type="String">71</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">70.20</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Rock Salt Small</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">107.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-049</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000049</Data></Cell>
+        <Cell><Data ss:Type="String">78</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">84.77</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Brown Sugar Regular</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">121.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-050</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000050</Data></Cell>
+        <Cell><Data ss:Type="String">85</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">76.23</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Laundry Powder Large</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">134.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-051</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000051</Data></Cell>
+        <Cell><Data ss:Type="String">92</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">90.25</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Dishwashing Liquid Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">148.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-052</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000052</Data></Cell>
+        <Cell><Data ss:Type="String">99</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">105.36</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Bleach Small</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">162.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-053</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000053</Data></Cell>
+        <Cell><Data ss:Type="String">106</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">121.57</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Fabric Conditioner Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">175.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-054</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000054</Data></Cell>
+        <Cell><Data ss:Type="String">113</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">138.88</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Toilet Cleaner Large</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">189.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-055</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000055</Data></Cell>
+        <Cell><Data ss:Type="String">120</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">119.38</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Air Freshener Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">203.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-056</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000056</Data></Cell>
+        <Cell><Data ss:Type="String">127</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">136.14</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Scouring Pad Small</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">216.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-057</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000057</Data></Cell>
+        <Cell><Data ss:Type="String">134</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">154.00</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Trash Bags Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">230.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-058</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000058</Data></Cell>
+        <Cell><Data ss:Type="String">141</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">172.95</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Aluminum Foil Large</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">244.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-059</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000059</Data></Cell>
+        <Cell><Data ss:Type="String">148</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">193.00</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Paper Towels Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">258.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-060</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000060</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">162.54</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Shampoo Sachet Small</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">271.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-061</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000061</Data></Cell>
+        <Cell><Data ss:Type="String">22</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">182.04</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Bath Soap Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">285.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-062</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000062</Data></Cell>
+        <Cell><Data ss:Type="String">29</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">202.63</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Toothpaste Large</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">299.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-063</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000063</Data></Cell>
+        <Cell><Data ss:Type="String">36</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">224.32</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Toothbrush Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">24.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-064</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000064</Data></Cell>
+        <Cell><Data ss:Type="String">43</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">19.59</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Body Lotion Small</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">38.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-065</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000065</Data></Cell>
+        <Cell><Data ss:Type="String">50</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">24.26</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Deodorant Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">52.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-066</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000066</Data></Cell>
+        <Cell><Data ss:Type="String">57</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">34.97</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cotton Buds Large</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">65.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-067</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000067</Data></Cell>
+        <Cell><Data ss:Type="String">64</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">46.79</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Rubbing Alcohol Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">79.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-068</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000068</Data></Cell>
+        <Cell><Data ss:Type="String">71</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">59.70</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Face Mask Small</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">93.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-069</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000069</Data></Cell>
+        <Cell><Data ss:Type="String">78</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">73.71</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Hand Sanitizer Regular</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">107.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-070</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000070</Data></Cell>
+        <Cell><Data ss:Type="String">85</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">67.41</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Pandesal Pack Large</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">120.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-071</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000071</Data></Cell>
+        <Cell><Data ss:Type="String">92</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">80.87</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Loaf Bread Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">134.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-072</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000072</Data></Cell>
+        <Cell><Data ss:Type="String">99</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">95.42</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Ensaymada Small</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">148.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-073</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000073</Data></Cell>
+        <Cell><Data ss:Type="String">106</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">111.07</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Bread Sticks Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">161.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-074</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000074</Data></Cell>
+        <Cell><Data ss:Type="String">113</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">127.82</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Chocolate Bread Large</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">175.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-075</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000075</Data></Cell>
+        <Cell><Data ss:Type="String">120</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">110.56</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Garlic Bread Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">189.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-076</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000076</Data></Cell>
+        <Cell><Data ss:Type="String">127</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">126.76</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cheese Bread Small</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">202.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-077</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000077</Data></Cell>
+        <Cell><Data ss:Type="String">134</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">144.06</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Mini Donut Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">216.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-078</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000078</Data></Cell>
+        <Cell><Data ss:Type="String">141</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">162.45</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Muffin Large</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">230.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-079</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000079</Data></Cell>
+        <Cell><Data ss:Type="String">148</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">181.94</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cupcake Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">244.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-080</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000080</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">153.72</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Fresh Milk Small</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">257.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-081</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000081</Data></Cell>
+        <Cell><Data ss:Type="String">22</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">172.66</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Yogurt Drink Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">271.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-082</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000082</Data></Cell>
+        <Cell><Data ss:Type="String">29</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">192.69</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Cheese Spread Large</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">285.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-083</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000083</Data></Cell>
+        <Cell><Data ss:Type="String">36</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">213.82</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Butter Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">298.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-084</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000084</Data></Cell>
+        <Cell><Data ss:Type="String">43</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">236.05</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Margarine Small</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">24.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-085</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000085</Data></Cell>
+        <Cell><Data ss:Type="String">50</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">15.44</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Chocolate Drink Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">38.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-086</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000086</Data></Cell>
+        <Cell><Data ss:Type="String">57</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">25.59</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Creamer Large</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">51.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-087</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000087</Data></Cell>
+        <Cell><Data ss:Type="String">64</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">36.85</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Eggs Tray Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">65.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-088</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000088</Data></Cell>
+        <Cell><Data ss:Type="String">71</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">49.20</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Mayonnaise Small</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">79.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-089</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000089</Data></Cell>
+        <Cell><Data ss:Type="String">78</Data></Cell>
+        <Cell><Data ss:Type="String">10</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">62.65</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Sandwich Spread Regular</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">93.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-090</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000090</Data></Cell>
+        <Cell><Data ss:Type="String">85</Data></Cell>
+        <Cell><Data ss:Type="String">11</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">58.59</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Ballpen Blue Large</Data></Cell>
+        <Cell><Data ss:Type="String">Beverages</Data></Cell>
+        <Cell><Data ss:Type="String">106.70</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BEV-091</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000091</Data></Cell>
+        <Cell><Data ss:Type="String">92</Data></Cell>
+        <Cell><Data ss:Type="String">12</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling beverages for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">71.49</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Notebook Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Snacks</Data></Cell>
+        <Cell><Data ss:Type="String">120.40</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SNK-092</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000092</Data></Cell>
+        <Cell><Data ss:Type="String">99</Data></Cell>
+        <Cell><Data ss:Type="String">13</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling snacks for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">85.48</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Pencil Small</Data></Cell>
+        <Cell><Data ss:Type="String">Instant Noodles</Data></Cell>
+        <Cell><Data ss:Type="String">134.10</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-NOD-093</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000093</Data></Cell>
+        <Cell><Data ss:Type="String">106</Data></Cell>
+        <Cell><Data ss:Type="String">14</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling instant noodles for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">100.57</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Eraser Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Canned Goods</Data></Cell>
+        <Cell><Data ss:Type="String">147.80</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CND-094</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000094</Data></Cell>
+        <Cell><Data ss:Type="String">113</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling canned goods for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">116.76</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Sharpener Large</Data></Cell>
+        <Cell><Data ss:Type="String">Condiments</Data></Cell>
+        <Cell><Data ss:Type="String">161.50</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-CDM-095</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000095</Data></Cell>
+        <Cell><Data ss:Type="String">120</Data></Cell>
+        <Cell><Data ss:Type="String">16</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling condiments for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">101.74</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Glue Stick Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">Household Supplies</Data></Cell>
+        <Cell><Data ss:Type="String">175.20</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-HHS-096</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000096</Data></Cell>
+        <Cell><Data ss:Type="String">127</Data></Cell>
+        <Cell><Data ss:Type="String">5</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling household supplies for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">117.38</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Tape Roll Small</Data></Cell>
+        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+        <Cell><Data ss:Type="String">188.90</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-PCR-097</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000097</Data></Cell>
+        <Cell><Data ss:Type="String">134</Data></Cell>
+        <Cell><Data ss:Type="String">6</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling personal care for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">134.12</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Bond Paper Regular</Data></Cell>
+        <Cell><Data ss:Type="String">Bread and Bakery</Data></Cell>
+        <Cell><Data ss:Type="String">202.60</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-BRD-098</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000098</Data></Cell>
+        <Cell><Data ss:Type="String">141</Data></Cell>
+        <Cell><Data ss:Type="String">7</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling bread and bakery for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">151.95</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Index Card Large</Data></Cell>
+        <Cell><Data ss:Type="String">Dairy and Chilled</Data></Cell>
+        <Cell><Data ss:Type="String">216.30</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-DRY-099</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000099</Data></Cell>
+        <Cell><Data ss:Type="String">148</Data></Cell>
+        <Cell><Data ss:Type="String">8</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling dairy and chilled for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">170.88</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data ss:Type="String">Marker Pen Family Pack</Data></Cell>
+        <Cell><Data ss:Type="String">School and Office</Data></Cell>
+        <Cell><Data ss:Type="String">230.00</Data></Cell>
+        <Cell><Data ss:Type="String">CAF-SCH-100</Data></Cell>
+        <Cell><Data ss:Type="String">4800000000100</Data></Cell>
+        <Cell><Data ss:Type="String">15</Data></Cell>
+        <Cell><Data ss:Type="String">9</Data></Cell>
+        <Cell><Data ss:Type="String">Fast-selling school and office for sari-sari daily operations</Data></Cell>
+        <Cell><Data ss:Type="String"></Data></Cell>
+        <Cell><Data ss:Type="String">true</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">false</Data></Cell>
+        <Cell><Data ss:Type="String">144.90</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+</Workbook>
