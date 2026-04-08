@@ -33,15 +33,12 @@ const app = express();
 app.set('trust proxy', 1);
 
 const isRender = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL);
-// Simplified port resolution: Render always provides PORT
+// FORCE prioritize process.env.PORT. If missing, use 10000 (Render default).
 const PORT = Number(process.env.PORT) || 10000;
 const HOST = '0.0.0.0'; 
 
 // Middleware
-app.use(cors({
-  origin: true, 
-  credentials: true
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -52,47 +49,24 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: isRender, // Use secure cookies in production (Render)
+    secure: isRender,
     httpOnly: true,
-    sameSite: isRender ? 'none' : 'lax', // Needed for cross-domain cookies if applicable
-    maxAge: 8 * 60 * 60 * 1000 // 8 hours
+    sameSite: isRender ? 'none' : 'lax',
+    maxAge: 8 * 60 * 60 * 1000 
   }
 }));
 
-// Health check endpoint (Check this first)
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    env: isRender ? 'production' : 'development'
-  });
-});
-
-// Serve built frontend (if present) for root and non-API routes
-const distCandidates = [
-  path.resolve(process.cwd(), 'dist'),
-  path.resolve(__dirname, '../dist')
-];
+// Serve built frontend
+const distCandidates = [path.resolve(process.cwd(), 'dist'), path.resolve(__dirname, '../dist')];
 let staticPath = null;
-for (const p of distCandidates) {
-  if (fs.existsSync(p)) {
-    staticPath = p;
-    break;
-  }
-}
+for (const p of distCandidates) { if (fs.existsSync(p)) { staticPath = p; break; } }
+if (staticPath) { app.use(express.static(staticPath)); }
 
-if (staticPath) {
-  app.use(express.static(staticPath));
-  console.log('Serving static assets from', staticPath);
-} else {
-  console.warn('Static assets not found. Root will return 200 health status.');
-}
-
-// Routes
+// Public Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/settings/public', settingsRoutes);
 
-// ... rest of the app.use calls ...
+// Protected Routes
 app.use('/api/products', verifyToken, productsRoutes);
 app.use('/api/combos', verifyToken, combosRoutes);
 app.use('/api/categories', verifyToken, categoriesRoutes);
@@ -111,30 +85,33 @@ app.use('/api/upload', verifyToken, uploadRoutes);
 app.use('/api/reports', verifyToken, reportsRoutes);
 app.use('/api/schedules', verifyToken, schedulesRoutes);
 
-// Catch-all for React routing or basic status
-app.get('*', (req, res, next) => {
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date(), env: isRender ? 'render' : 'local' });
+});
+
+// Catch-all for React (Express 5 syntax)
+app.get('/*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   if (staticPath && fs.existsSync(path.join(staticPath, 'index.html'))) {
     return res.sendFile(path.join(staticPath, 'index.html'));
   }
-  res.status(200).send('POS Server Active (Static frontend not found)');
+  res.status(200).send('POS Server Live');
 });
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
-  console.error('[Global Error]', err.stack);
+  console.error('[Error]', err.stack);
   res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`\n🚀 Server live at http://${HOST}:${PORT}`);
-  console.log(`🌍 Environment: ${isRender ? 'RENDER' : 'LOCAL'}`);
-  console.log(`🛠  Port: ${PORT} (from env: ${process.env.PORT || 'default'})`);
+  console.log(`\n🚀 SERVER STARTUP SUCCESS`);
+  console.log(`📡 Listening on: http://${HOST}:${PORT}`);
+  console.log(`🌍 Mode: ${isRender ? 'Render' : 'Local'}`);
   
-  try {
-    startScheduler();
-  } catch (err) {
-    console.error('[Scheduler] Startup failed:', err?.message || err);
-  }
+  try { startScheduler(); } catch (err) { console.error('[Scheduler] Error:', err.message); }
 });
+
+
 
