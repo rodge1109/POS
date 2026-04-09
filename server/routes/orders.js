@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { deductInventoryForOrder } from '../services/inventoryService.js';
+import { recordSalesTransaction, recordCOGSTransaction } from '../services/accountingService.js';
 
 const router = express.Router();
 
@@ -135,7 +136,7 @@ router.get('/kitchen', async (req, res) => {
       LEFT JOIN customers c ON o.customer_id::text = c.id::text
       LEFT JOIN tables t ON o.table_id::text = t.id::text
       WHERE o.order_status IN ('received', 'preparing', 'open', 'paid', 'pending', 'preparing-', 'completed')
-        AND (o.company_id::text = COALESCE($1, 'invalid')::text OR o.company_id::text IN ('e7643a28-bb00-40e5-87cd-15cd4c7457fc', 'd6797595-412e-4b3b-8378-4442a397d207'))
+        AND (o.company_id::text = COALESCE($1, 'invalid')::text OR o.company_id::text IN ('e7643a28-bb00-40e5-87cd-15cd4c7457fc', '562b9f65-608f-455f-8340-ba9a2811b936'))
       ORDER BY
         CASE o.order_status WHEN 'received' THEN 1 WHEN 'open' THEN 2 WHEN 'preparing' THEN 3 ELSE 4 END,
         o.created_at ASC
@@ -150,7 +151,7 @@ router.get('/kitchen', async (req, res) => {
          FROM order_items oi
          LEFT JOIN products p ON oi.product_id::text = p.id::text
          WHERE oi.order_id::text = ANY($1::text[])
-           AND (oi.company_id::text = COALESCE($2, 'invalid')::text OR oi.company_id::text IN ('e7643a28-bb00-40e5-87cd-15cd4c7457fc', 'd6797595-412e-4b3b-8378-4442a397d207'))
+           AND (oi.company_id::text = COALESCE($2, 'invalid')::text OR oi.company_id::text IN ('e7643a28-bb00-40e5-87cd-15cd4c7457fc', '562b9f65-608f-455f-8340-ba9a2811b936'))
          ORDER BY oi.id`,
         [orderIds.map(id => String(id)), req.company_id]
       );
@@ -350,7 +351,7 @@ router.get('/:id', async (req, res) => {
               c.city as customer_city, c.barangay as customer_barangay
        FROM orders o
        LEFT JOIN customers c ON o.customer_id::text = c.id::text
-       WHERE o.id::text = $1::text AND (o.company_id::text = $2::text OR o.company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')`,
+       WHERE o.id::text = $1::text AND (o.company_id::text = $2::text OR o.company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
       [id, req.company_id]
     );
 
@@ -367,7 +368,7 @@ router.get('/:id', async (req, res) => {
        LEFT JOIN products p ON oi.product_id = p.id
        LEFT JOIN product_sizes ps ON oi.product_id = ps.product_id AND oi.size_name = ps.size_name
        WHERE oi.order_id::text = $1::text
-         AND (oi.company_id::text = $2::text OR oi.company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')
+         AND (oi.company_id::text = $2::text OR oi.company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')
        ORDER BY oi.id`,
       [id, req.company_id]
     );
@@ -637,6 +638,26 @@ router.post('/', async (req, res) => {
 
     await client.query('COMMIT');
 
+    /*
+    // Automated Accounting Deactivated
+    try {
+      const accountingClient = await pool.connect();
+      try {
+        await accountingClient.query('BEGIN');
+        await recordSalesTransaction(accountingClient, req.company_id, order);
+        await recordCOGSTransaction(accountingClient, req.company_id, order, items);
+        await accountingClient.query('COMMIT');
+      } catch (accErr) {
+        await accountingClient.query('ROLLBACK');
+        console.error('Accounting Entry Failed:', accErr);
+      } finally {
+        accountingClient.release();
+      }
+    } catch (e) {
+      console.error('Accounting Connection Failed:', e);
+    }
+    */
+
     res.status(201).json({
       success: true,
       orderNumber: order.order_number,
@@ -675,13 +696,13 @@ router.put('/:id/status', async (req, res) => {
     }
 
     params.push(String(id));
-    params.push(String(req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207')); // Safe string casting
+    params.push(String(req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936')); // Safe string casting
     let result;
     try {
       result = await pool.query(
         `UPDATE orders SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
          WHERE id::text = $${params.length - 1}::text 
-         AND (company_id::text = $${params.length}::text OR company_id::text IN ('d6797595-412e-4b3b-8378-4442a397d207', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
+         AND (company_id::text = $${params.length}::text OR company_id::text IN ('562b9f65-608f-455f-8340-ba9a2811b936', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
          RETURNING id, order_number, order_status, payment_status, customer_id, service_type, updated_at`,
         params
       );
@@ -691,7 +712,7 @@ router.put('/:id/status', async (req, res) => {
         result = await pool.query(
           `UPDATE orders SET ${updates.join(', ')}
            WHERE id::text = $${params.length - 1}::text 
-           AND (company_id::text = $${params.length}::text OR company_id::text IN ('d6797595-412e-4b3b-8378-4442a397d207', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
+           AND (company_id::text = $${params.length}::text OR company_id::text IN ('562b9f65-608f-455f-8340-ba9a2811b936', 'e7643a28-bb00-40e5-87cd-15cd4c7457fc')) 
            RETURNING id, order_number, order_status, payment_status, customer_id, service_type, created_at`,
           params
         );
@@ -710,7 +731,7 @@ router.put('/:id/status', async (req, res) => {
     if (order_status === 'completed' && updatedOrder.customer_id) {
       try {
         const customerResult = await pool.query(
-          'SELECT player_id, name FROM customers WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+          'SELECT player_id, name FROM customers WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
           [updatedOrder.customer_id, req.company_id]
         );
         const customer = customerResult.rows[0];
@@ -766,7 +787,7 @@ router.post('/:orderId/items/:itemId/adjust', async (req, res) => {
 
     // Get the order item
     const itemResult = await client.query(
-      'SELECT * FROM order_items WHERE id::text = $1::text AND order_id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+      'SELECT * FROM order_items WHERE id::text = $1::text AND order_id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
       [itemId, orderId, req.company_id]
     );
     if (itemResult.rows.length === 0) {
@@ -782,7 +803,7 @@ router.post('/:orderId/items/:itemId/adjust', async (req, res) => {
     // Update item status
     const newStatus = type === 'void' ? 'voided' : 'comped';
     await client.query(
-      'UPDATE order_items SET status = $1 WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+      'UPDATE order_items SET status = $1 WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
       [newStatus, itemId, req.company_id]
     );
 
@@ -811,14 +832,14 @@ router.post('/:orderId/items/:itemId/adjust', async (req, res) => {
     const newTotal = newSubtotal + newTax;
 
     await client.query(
-      'UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+      'UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
       [newSubtotal, newTax, newTotal, orderId, req.company_id]
     );
 
     await client.query('COMMIT');
 
     // Return updated order with items
-    const orderItemsResult = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, req.company_id]);
+    const orderItemsResult = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, req.company_id]);
 
     res.json({
       success: true,

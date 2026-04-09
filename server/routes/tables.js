@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { recordSalesTransaction, recordCOGSTransaction } from '../services/accountingService.js';
 
 const router = express.Router();
 
@@ -16,10 +17,10 @@ router.get('/', async (req, res) => {
       SELECT t.*,
         o.order_number, o.total_amount as order_total,
         o.created_at as order_opened_at,
-        (SELECT COUNT(*) FROM order_items WHERE order_id::text = t.current_order_id::text AND (company_id::text = t.company_id::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')) as item_count
+        (SELECT COUNT(*) FROM order_items WHERE order_id::text = t.current_order_id::text AND (company_id::text = t.company_id::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')) as item_count
       FROM tables t
       LEFT JOIN orders o ON t.current_order_id::text = o.id::text AND t.company_id::text = o.company_id::text
-      WHERE (t.company_id::text = COALESCE($1, 'invalid')::text OR t.company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')
+      WHERE (t.company_id::text = COALESCE($1, 'invalid')::text OR t.company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')
       ORDER BY 
         CASE 
           WHEN t.table_number::text ~ '^[0-9]+$' THEN t.table_number::text::int 
@@ -44,8 +45,8 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid status' });
     }
     const result = await pool.query(
-      'UPDATE tables SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') RETURNING *',
-      [status, id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'UPDATE tables SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\') RETURNING *',
+      [status, id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Table not found' });
@@ -68,8 +69,8 @@ router.post('/:id/open-check', async (req, res) => {
 
     // Lock the table row to prevent race conditions - use a fallback for table_number
     const tableResult = await client.query(
-      'SELECT * FROM tables WHERE (id::text = $1::text OR table_number::text = $1::text) AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') FOR UPDATE',
-      [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'SELECT * FROM tables WHERE (id::text = $1::text OR table_number::text = $1::text) AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\') FOR UPDATE',
+      [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     if (tableResult.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -108,7 +109,7 @@ router.post('/:id/open-check', async (req, res) => {
         totalAmount, 
         shift_id ? parseInt(shift_id) : null,
         table.id, 
-        req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207'
+        req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936'
       ]
     );
     const order = orderResult.rows[0];
@@ -124,36 +125,55 @@ router.post('/:id/open-check', async (req, res) => {
           ? parseInt(item.id.replace('combo-', ''))
           : item.id;
         const comboItemsResult = await client.query(
-          'SELECT product_id, quantity FROM combo_items WHERE combo_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-          [comboId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+          'SELECT product_id, quantity FROM combo_items WHERE combo_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+          [comboId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
         );
         for (const ci of comboItemsResult.rows) {
           await client.query(
-            'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-            [ci.quantity * item.quantity, ci.product_id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+            'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+            [ci.quantity * item.quantity, ci.product_id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
           );
         }
       } else {
         productId = item.product_id || item.id;
         await client.query(
-          'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-          [item.quantity, productId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+          'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+          [item.quantity, productId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
         );
       }
 
     await client.query(
       `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
        VALUES ($1::text, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::uuid)`,
-      [order.id, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      [order.id, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
   }
 
   await client.query(
-    'UPDATE tables SET status = $1, current_order_id = $2::text, updated_at = CURRENT_TIMESTAMP WHERE id::text = $3::text AND (company_id::text = $4::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-    ['occupied', order.id, table.id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+    'UPDATE tables SET status = $1, current_order_id = $2::text, updated_at = CURRENT_TIMESTAMP WHERE id::text = $3::text AND (company_id::text = $4::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+    ['occupied', order.id, table.id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
   );
 
     await client.query('COMMIT');
+
+    /* 
+    // Automated Accounting Deactivated in favor of Manual Daily Posting
+    try {
+      const accountingClient = await pool.connect();
+      try {
+        await accountingClient.query('BEGIN');
+        await recordCOGSTransaction(accountingClient, req.company_id, order, items);
+        await accountingClient.query('COMMIT');
+      } catch (accErr) {
+        await accountingClient.query('ROLLBACK');
+        console.error('Accounting Entry Failed (Table Open Check):', accErr);
+      } finally {
+        accountingClient.release();
+      }
+    } catch (e) {
+      console.error('Accounting Connection Failed:', e);
+    }
+    */
 
     res.status(201).json({
       success: true,
@@ -183,7 +203,7 @@ router.post('/:id/add-items', async (req, res) => {
 
     await client.query('BEGIN');
 
-    const tableResult = await client.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const tableResult = await client.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (tableResult.rows.length === 0 || !tableResult.rows[0].current_order_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'No open check on this table' });
@@ -192,7 +212,7 @@ router.post('/:id/add-items', async (req, res) => {
     const orderId = tableResult.rows[0].current_order_id;
 
     // Verify order is still open
-    const orderCheck = await client.query('SELECT * FROM orders WHERE id::text = $1::text AND order_status = $2 AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, 'open', req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const orderCheck = await client.query('SELECT * FROM orders WHERE id::text = $1::text AND order_status = $2 AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, 'open', req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (orderCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'Check is not open' });
@@ -209,34 +229,34 @@ router.post('/:id/add-items', async (req, res) => {
           ? parseInt(item.id.replace('combo-', ''))
           : item.id;
         const comboItemsResult = await client.query(
-          'SELECT product_id, quantity FROM combo_items WHERE combo_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-          [comboId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+          'SELECT product_id, quantity FROM combo_items WHERE combo_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+          [comboId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
         );
         for (const ci of comboItemsResult.rows) {
           await client.query(
-            'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-            [ci.quantity * item.quantity, ci.product_id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+            'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+            [ci.quantity * item.quantity, ci.product_id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
           );
         }
       } else {
         productId = item.product_id || item.id;
         await client.query(
-          'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-          [item.quantity, productId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+          'UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+          [item.quantity, productId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
         );
       }
 
       await client.query(
         `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
          VALUES ($1::text, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::uuid)`,
-        [orderId, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+        [orderId, productId, comboId, isCombo, item.name, item.selectedSize || null, item.quantity, item.price || item.unit_price, (item.price || item.unit_price) * item.quantity, item.notes || null, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
     }
 
     // Recalculate order totals from all items
     const totalsResult = await client.query(
-      'SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-      [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+      [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     const newSubtotal = parseFloat(totalsResult.rows[0].subtotal || 0);
     const newTax = isNaN(newSubtotal) ? 0 : newSubtotal * 0.12;
@@ -248,15 +268,35 @@ router.post('/:id/add-items', async (req, res) => {
     }
 
     await client.query(
-      'UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-      [newSubtotal, newTax, newTotal, orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+      [newSubtotal, newTax, newTotal, orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
 
     await client.query('COMMIT');
 
     // Fetch updated order with items
-    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
-    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
+    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
+
+    /*
+    // Automated Accounting Deactivated
+    try {
+      const accountingClient = await pool.connect();
+      try {
+        await accountingClient.query('BEGIN');
+        const orderData = updatedOrder.rows[0];
+        await recordCOGSTransaction(accountingClient, req.company_id, orderData, items);
+        await accountingClient.query('COMMIT');
+      } catch (accErr) {
+        await accountingClient.query('ROLLBACK');
+        console.error('Accounting Entry Failed (Table Add Items):', accErr);
+      } finally {
+        accountingClient.release();
+      }
+    } catch (e) {
+      console.error('Accounting Connection Failed:', e);
+    }
+    */
 
     res.json({
       success: true,
@@ -277,8 +317,8 @@ router.get('/:id/check', async (req, res) => {
     const { id } = req.params;
 
     const tableResult = await pool.query(
-      'SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-      [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+      [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
 
     if (tableResult.rows.length === 0 || !tableResult.rows[0].current_order_id) {
@@ -286,8 +326,8 @@ router.get('/:id/check', async (req, res) => {
     }
 
     const orderId = tableResult.rows[0].current_order_id;
-    const orderResult = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
-    const itemsResult = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
+    const itemsResult = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
 
     res.json({
       success: true,
@@ -308,13 +348,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Table number is required' });
     }
     // Check for duplicate table number
-    const existing = await pool.query('SELECT id FROM tables WHERE table_number::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [table_number, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const existing = await pool.query('SELECT id FROM tables WHERE table_number::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [table_number, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Table number already exists' });
     }
     const result = await pool.query(
       'INSERT INTO tables (table_number, capacity, section, status, company_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [table_number, capacity, section, 'available', req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      [table_number, capacity, section, 'available', req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     res.status(201).json({ success: true, table: result.rows[0] });
   } catch (error) {
@@ -330,7 +370,7 @@ router.put('/:id', async (req, res) => {
     const { table_number, capacity, section } = req.body;
     // Check for duplicate table number (exclude current table)
     if (table_number) {
-      const existing = await pool.query('SELECT id FROM tables WHERE table_number::text = $1::text AND id::text != $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [table_number, id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+      const existing = await pool.query('SELECT id FROM tables WHERE table_number::text = $1::text AND id::text != $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [table_number, id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
       if (existing.rows.length > 0) {
         return res.status(400).json({ success: false, error: 'Table number already exists' });
       }
@@ -341,8 +381,8 @@ router.put('/:id', async (req, res) => {
         capacity = COALESCE($2, capacity),
         section = COALESCE($3, section),
         updated_at = CURRENT_TIMESTAMP
-       WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207') RETURNING *`,
-      [table_number, capacity, section, id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+       WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936') RETURNING *`,
+      [table_number, capacity, section, id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Table not found' });
@@ -358,14 +398,14 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const tableResult = await pool.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const tableResult = await pool.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (tableResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Table not found' });
     }
     if (tableResult.rows[0].status === 'occupied') {
       return res.status(400).json({ success: false, error: 'Cannot delete an occupied table' });
     }
-    const result = await pool.query('DELETE FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') RETURNING *', [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const result = await pool.query('DELETE FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\') RETURNING *', [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Table not found or not authorized' });
     }
@@ -385,7 +425,7 @@ router.post('/:id/bill-out', async (req, res) => {
 
     await client.query('BEGIN');
 
-    const tableResult = await client.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') FOR UPDATE', [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const tableResult = await client.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\') FOR UPDATE', [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (tableResult.rows.length === 0 || !tableResult.rows[0].current_order_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'No open check on this table' });
@@ -393,7 +433,7 @@ router.post('/:id/bill-out', async (req, res) => {
 
     // Use requested order_id (for split checks) or default to current_order_id
     const orderId = requestedOrderId || tableResult.rows[0].current_order_id;
-    const orderResult = await client.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const orderResult = await client.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (orderResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, error: 'Order not found' });
@@ -416,7 +456,7 @@ router.post('/:id/bill-out', async (req, res) => {
         customer_id = $4,
         total_amount = $5,
         discount_amount = $6
-       WHERE id::text = $7::text AND (company_id::text = $8::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')`,
+       WHERE id::text = $7::text AND (company_id::text = $8::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
       [
         effectivePaymentMethod,
         payment_reference || null,
@@ -425,7 +465,7 @@ router.post('/:id/bill-out', async (req, res) => {
         finalTotal,
         discount_amount,
         orderId,
-        req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207'
+        req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936'
       ]
     );
 
@@ -435,7 +475,7 @@ router.post('/:id/bill-out', async (req, res) => {
         await client.query(
           `INSERT INTO order_payments (order_id, payment_method, amount, payment_reference, company_id)
            VALUES ($1::text, $2, $3, $4, $5::text)`,
-          [orderId, p.method, p.amount, p.reference || null, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+          [orderId, p.method, p.amount, p.reference || null, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
         );
       }
     }
@@ -447,37 +487,64 @@ router.post('/:id/bill-out', async (req, res) => {
 
     if (creditPayment && customer_id) {
       await client.query(
-        `UPDATE customers SET credit_balance = credit_balance + $1 WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')`,
-        [creditPayment.amount, customer_id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+        `UPDATE customers SET credit_balance = credit_balance + $1 WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [creditPayment.amount, customer_id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
       await client.query(
         `INSERT INTO customer_ledger (customer_id, order_id, transaction_type, amount, notes, created_by, company_id)
          VALUES ($1::text, $2::text, 'credit_purchase', $3, $4, 'POS', $5::text)`,
-        [customer_id, orderId, creditPayment.amount, `Credit purchase - ${order.order_number}`, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+        [customer_id, orderId, creditPayment.amount, `Credit purchase - ${order.order_number}`, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
     }
 
     // Check if there are other open orders on this table (split checks)
     const remainingOrders = await client.query(
-      "SELECT id FROM orders WHERE table_id::text = $1::text AND order_status = 'open' AND id::text != $2::text AND (company_id::text = $3::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')",
-      [id, orderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      "SELECT id FROM orders WHERE table_id::text = $1::text AND order_status = 'open' AND id::text != $2::text AND (company_id::text = $3::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')",
+      [id, orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
 
     if (remainingOrders.rows.length === 0) {
       // No more open orders - free the table
       await client.query(
-        'UPDATE tables SET status = $1, current_order_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-        ['available', id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+        'UPDATE tables SET status = $1, current_order_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+        ['available', id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
     } else {
       // Still has open orders - update current_order_id to the first remaining one
       await client.query(
-        'UPDATE tables SET current_order_id = $1::text, updated_at = CURRENT_TIMESTAMP WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-        [remainingOrders.rows[0].id, id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+        'UPDATE tables SET current_order_id = $1::text, updated_at = CURRENT_TIMESTAMP WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+        [remainingOrders.rows[0].id, id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
     }
 
     await client.query('COMMIT');
+
+    /*
+    // Automated Accounting Deactivated
+    try {
+      const accountingClient = await pool.connect();
+      try {
+        await accountingClient.query('BEGIN');
+        await recordSalesTransaction(accountingClient, req.company_id, order);
+        
+        // Fetch items for COGS calculation if not and already provided (bill out usually processes whole order)
+        const itemsRes = await accountingClient.query(
+            "SELECT * FROM order_items WHERE order_id = $1",
+            [orderId]
+        );
+        await recordCOGSTransaction(accountingClient, req.company_id, order, itemsRes.rows);
+        
+        await accountingClient.query('COMMIT');
+      } catch (accErr) {
+        await accountingClient.query('ROLLBACK');
+        console.error('Accounting Entry Failed (Table Bill Out):', accErr);
+      } finally {
+        accountingClient.release();
+      }
+    } catch (e) {
+      console.error('Accounting Connection Failed:', e);
+    }
+    */
 
     let change = 0;
     if (isSplitPayment) {
@@ -518,14 +585,14 @@ router.post('/:id/split-check', async (req, res) => {
 
     await client.query('BEGIN');
 
-    const tableResult = await client.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\') FOR UPDATE', [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const tableResult = await client.query('SELECT * FROM tables WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\') FOR UPDATE', [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (tableResult.rows.length === 0 || !tableResult.rows[0].current_order_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'No open check on this table' });
     }
 
     const originalOrderId = tableResult.rows[0].current_order_id;
-    const originalOrder = await client.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const originalOrder = await client.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
     if (originalOrder.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, error: 'Order not found' });
@@ -533,8 +600,8 @@ router.post('/:id/split-check', async (req, res) => {
 
     // Verify all items belong to the original order and are active
     const itemsResult = await client.query(
-      'SELECT * FROM order_items WHERE id::text = ANY($1) AND order_id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-      [item_ids, originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'SELECT * FROM order_items WHERE id::text = ANY($1) AND order_id::text = $2::text AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+      [item_ids, originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     if (itemsResult.rows.length !== item_ids.length) {
       await client.query('ROLLBACK');
@@ -550,36 +617,36 @@ router.post('/:id/split-check', async (req, res) => {
     const newOrderResult = await client.query(
       `INSERT INTO orders (order_number, subtotal, delivery_fee, tax_amount, total_amount, payment_method, payment_status, order_status, order_type, service_type, shift_id, table_id, parent_order_id, company_id)
        VALUES ($1, $2, 0, $3, $4, 'pending', 'pending', 'open', 'pos', 'dine-in', $5::integer, $6::text, $7::text, $8::uuid) RETURNING *`,
-      [orderNumber, splitSubtotal, splitTax, splitTotal, originalOrder.rows[0].shift_id ? parseInt(originalOrder.rows[0].shift_id) : null, id, originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      [orderNumber, splitSubtotal, splitTax, splitTotal, originalOrder.rows[0].shift_id ? parseInt(originalOrder.rows[0].shift_id) : null, id, originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
 
     // Move items to new order
     await client.query(
-      'UPDATE order_items SET order_id = $1::text WHERE id::text = ANY($2) AND (company_id::text = $3::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-      [newOrderResult.rows[0].id, item_ids, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'UPDATE order_items SET order_id = $1::text WHERE id::text = ANY($2) AND (company_id::text = $3::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+      [newOrderResult.rows[0].id, item_ids, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
 
     // Recalculate original order totals
     const origTotals = await client.query(
-      "SELECT COALESCE(SUM(CASE WHEN status = 'active' THEN subtotal ELSE 0 END), 0) as subtotal FROM order_items WHERE order_id::text = $1::text AND status != 'voided' AND (company_id::text = $2::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')",
-      [originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      "SELECT COALESCE(SUM(CASE WHEN status = 'active' THEN subtotal ELSE 0 END), 0) as subtotal FROM order_items WHERE order_id::text = $1::text AND status != 'voided' AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')",
+      [originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     const origSubtotal = parseFloat(origTotals.rows[0].subtotal);
     const origTax = origSubtotal * 0.12;
     const origTotal = origSubtotal + origTax;
 
     await client.query(
-      'UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
-      [origSubtotal, origTax, origTotal, originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+      'UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
+      [origSubtotal, origTax, origTotal, originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
 
     await client.query('COMMIT');
 
     // Fetch both orders with items
-    const order1 = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
-    const order1Items = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [originalOrderId, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
-    const order2 = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [newOrderResult.rows[0].id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
-    const order2Items = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [newOrderResult.rows[0].id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+    const order1 = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
+    const order1Items = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
+    const order2 = await pool.query('SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [newOrderResult.rows[0].id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
+    const order2Items = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [newOrderResult.rows[0].id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
 
     res.json({
       success: true,
@@ -601,13 +668,13 @@ router.get('/:id/orders', async (req, res) => {
     const { id } = req.params;
     const result = await pool.query(
       `SELECT o.*, (SELECT COUNT(*) FROM order_items WHERE order_id::text = o.id::text AND company_id::text = o.company_id::text) as item_count
-       FROM orders o WHERE o.table_id::text = $1::text AND o.order_status = 'open' AND (o.company_id::text = $2::text OR o.company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207') ORDER BY o.id`,
-      [id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']
+       FROM orders o WHERE o.table_id::text = $1::text AND o.order_status = 'open' AND (o.company_id::text = $2::text OR o.company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936') ORDER BY o.id`,
+      [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     // Fetch items for each order
     const orders = [];
     for (const order of result.rows) {
-      const items = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')', [order.id, req.company_id || 'd6797595-412e-4b3b-8378-4442a397d207']);
+      const items = await pool.query('SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')', [order.id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']);
       orders.push({ ...order, items: items.rows });
     }
     res.json({ success: true, orders });

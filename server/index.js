@@ -19,6 +19,7 @@ import categoriesRoutes from './routes/categories.js';
 import uploadRoutes from './routes/upload.js';
 import reportsRoutes from './routes/reports.js';
 import schedulesRoutes from './routes/schedules.js';
+import accountingRoutes from './routes/accounting.js';
 import { verifyToken } from './routes/auth.js'; // Import the protection middleware!
 import { startScheduler } from './services/scheduler.js' 
 import fs from 'fs';
@@ -83,6 +84,7 @@ app.use('/api/modifiers', verifyToken, modifiersRoutes);
 app.use('/api/upload', verifyToken, uploadRoutes);
 app.use('/api/reports', verifyToken, reportsRoutes);
 app.use('/api/schedules', verifyToken, schedulesRoutes);
+app.use('/api/accounting', verifyToken, accountingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

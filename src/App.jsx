@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator } from 'lucide-react';
 // Fallback alias to avoid missing icon errors in dynamic builds
 const Settings2 = Settings;
 const LayoutIcon = Layout;
@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import ProductManagementPage from './components/ProductManagementPage';
+import BackOfficeAccounting from './components/BackOfficeAccounting';
 
 const currencySymbols = {
   PHP: '₱',
@@ -75,7 +76,7 @@ const useCart = () => {
 };
 
 // API URL - Backend server (proxied via Vite locally, absolute for production)
-export const API_URL = '/api'; 
+export const API_URL = '/api';
 
 // Helper for authenticated API calls
 export const fetchWithAuth = async (url, options = {}) => {
@@ -668,7 +669,7 @@ export default function App() {
           employee={employee}
         />
       )}
-      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden pt-14 md:pt-16 pb-16 md:pb-0 md:pl-[50px]' : currentPage === 'home' ? 'bg-gray-100 min-h-screen pt-14 md:pt-16' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 pt-14 md:pt-16 md:pl-[50px]'}`}>
+      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden pt-14 md:pt-16 pb-16 md:pb-0 md:pl-[50px]' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 pt-14 md:pt-16 md:pl-[50px]'}`}>
         {currentPage === 'home' && (
           <HomePage
             setCurrentPage={setCurrentPage}
@@ -845,6 +846,17 @@ export default function App() {
             <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
           )
         )}
+        {currentPage === 'accounting' && (
+          employee ? (
+            hasPermission('accounting') ? (
+              <BackOfficeAccounting />
+            ) : (
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Back Office Accounting." onBack={() => setCurrentPage('dashboard')} />
+            )
+          ) : (
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('accounting'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+          )
+        )}
         {/* Inventory Pages */}
         {currentPage.startsWith('inventory') && (
           employee ? (
@@ -870,6 +882,17 @@ export default function App() {
           )
         )}
         {/* Settings Pages */}
+        {currentPage === 'suppliers' && (
+          employee ? (
+            ['admin', 'manager'].includes(employee.role) ? (
+              <SuppliersPage setCurrentPage={setCurrentPage} />
+            ) : (
+              <AccessDeniedPage message="Access Denied" onBack={() => setCurrentPage('pos')} />
+            )
+          ) : (
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+          )
+        )}
         {currentPage.startsWith('settings-') && (
           employee ? (
             hasPermission('settings-general') ? (
@@ -1107,6 +1130,13 @@ export default function App() {
                         </button>
                       )}
 
+                      {['admin', 'manager'].includes(employee.role) && (
+                        <button onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                          <Truck className="w-7 h-7 mb-2" />
+                          <span className="text-[11px] font-bold">Suppliers</span>
+                        </button>
+                      )}
+
                       {employee.role === 'admin' && (
                         <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
                           <User className="w-7 h-7 mb-2 opacity-70" />
@@ -1227,11 +1257,17 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
   const isGlass = currentPage === 'home' && isScrolled;
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 h-14 md:h-16 ${isGlass ? 'bg-cyan-600/70 backdrop-blur-md shadow-lg' : 'bg-cyan-600'
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isGlass ? 'bg-cyan-600/70 backdrop-blur-md shadow-lg' : 'bg-cyan-600'
       } ${currentPage === 'pos' ? 'border-b border-white' : ''}`}>
-      <div className="w-full h-full">
-        {/* Top bar */}
-        <div className="w-full h-full px-4 md:px-8">
+      {currentPage === 'home' && (
+        <div className="bg-black text-white py-2 text-center text-xs font-bold tracking-tight">
+          <span className="bg-red-600 text-[14px] px-1.5 py-0.5 rounded mr-2 font-black uppercase">SALE</span>
+          Get 50% off Lumina-POS for 3 months &mdash; <a href="#pricing" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4 ml-1 transition-colors">View Pricing</a>
+        </div>
+      )}
+      <div className="w-full">
+        {/* Top bar content */}
+        <div className="w-full h-14 md:h-16 px-4 md:px-8">
           <div className="flex items-center justify-between gap-4 h-full">
             {/* Logo - hidden on mobile when search is shown */}
             <div className={`flex items-center space-x-3 cursor-pointer ${(currentPage === 'home' || currentPage === 'menu') ? 'hidden md:flex' : 'flex'}`} onClick={() => setCurrentPage('home')}>
@@ -1415,6 +1451,9 @@ const navItems = [
       { id: 'inventory-ingredients', label: 'Raw Materials' },
       { id: 'inventory-recipes', label: 'Composite Recipes' }
     ]
+  },
+  {
+    id: 'accounting', icon: Calculator, label: 'Back Office', roles: ['admin'], desc: 'Expense & Accounting'
   },
   {
     id: 'reports', icon: FileText, label: 'Reports', roles: ['admin', 'manager'], sub: [
@@ -1662,6 +1701,7 @@ function SubMenu({ currentPage, setCurrentPage, employee }) {
               )}
 
               {['admin', 'manager'].includes(employee.role) && navBtn('customers', 'Customers', User)}
+              {['admin', 'manager'].includes(employee.role) && navBtn('suppliers', 'Suppliers', Truck)}
 
               {employee.role === 'admin' && (
                 <NavDropdown name="staff" label="Staff" openMenu={openMenu} onToggle={toggle}
@@ -2611,7 +2651,7 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
   return (
     <div className="bg-white">
       {/* Dynamic Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden bg-[#0A0F0D]">
+      <section className="relative min-h-[90vh] flex items-center pt-32 md:pt-40 overflow-hidden bg-[#0A0F0D]">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-cyan-600/20 rounded-full blur-[120px] animate-pulse"></div>
@@ -5747,7 +5787,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         oscillator.start();
         oscillator.stop(ctx.currentTime + 0.1);
       });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleAmountKeypadInput = (key) => {
@@ -6539,8 +6579,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                     )}
                   </div>
 
-                   {/* Cash Tendered & Change Section */}
-                   {paymentMethod === 'cash' && (
+                  {/* Cash Tendered & Change Section */}
+                  {paymentMethod === 'cash' && (
                     <div className="pt-4 border-t-2 border-gray-100 animate-fadeIn">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white border-2 border-gray-100 p-2 px-3 rounded-2xl shadow-sm flex flex-col min-h-[100px] justify-center">
@@ -6553,7 +6593,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                             <div className="absolute inset-0 flex items-center justify-center font-black text-cyan-600 text-[52px] pointer-events-none transition-all">
                               {amountReceived ? amountReceived : <span className="opacity-20">0.00</span>}
                             </div>
-                            
+
                             {/* Hidden Input for Keyboard Support */}
                             <input
                               type="text"
@@ -6583,7 +6623,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                       <div className="bg-cyan-50 border-2 border-cyan-100 p-4 rounded-2xl flex justify-between items-center shadow-sm">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-sm">
-                            {selectedCustomer.name.substring(0,2).toUpperCase()}
+                            {selectedCustomer.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <p className="font-black text-gray-900 text-sm leading-none">{selectedCustomer.name}</p>
@@ -6612,7 +6652,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 {/* Right Column: Keypad (Calculator) */}
                 <div className={`flex flex-col border-l border-gray-100 bg-gray-50/50 p-6 gap-6 ${paymentMethod === 'cash' ? '' : 'opacity-30 grayscale pointer-events-none'}`}>
                   <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] text-center mt-2">Numpad Entry</div>
-                  
+
                   <div className="grid grid-cols-3 gap-3 flex-1">
                     {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
                       <button
@@ -7647,10 +7687,10 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     try {
       const res = await fetchWithAuth(`${API_URL}/reports/email`, {
         method: 'POST',
-        body: JSON.stringify({ 
-          startDate: start, 
+        body: JSON.stringify({
+          startDate: start,
           endDate: end,
-          reportType: activeReport 
+          reportType: activeReport
         })
       });
       const data = await res.json();
@@ -8071,7 +8111,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
         <div className="flex flex-wrap justify-between gap-2 items-center print:hidden">
           <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => window.print()}
               className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-colors"
               title="Print current report"
@@ -8079,7 +8119,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print</span>
             </button>
-            <button 
+            <button
               onClick={handleEmailReport}
               disabled={emailLoading}
               className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
@@ -8325,10 +8365,10 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-orange-500">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Peak Sales Hours</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {trendData.filter(t => t.orders > 0).sort((a,b) => b.revenue - a.revenue).slice(0, 4).map((t, idx) => (
+                {trendData.filter(t => t.orders > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 4).map((t, idx) => (
                   <div key={t.hour} className="bg-orange-50 p-3 rounded-lg border border-orange-100">
                     <p className="text-xs text-orange-600 font-bold">#{idx + 1} Busy Hour</p>
-                    <p className="text-lg font-bold text-gray-800">{t.hour === 0 ? '12 AM' : t.hour <= 11 ? `${t.hour} AM` : t.hour === 12 ? '12 PM' : `${t.hour-12} PM`}</p>
+                    <p className="text-lg font-bold text-gray-800">{t.hour === 0 ? '12 AM' : t.hour <= 11 ? `${t.hour} AM` : t.hour === 12 ? '12 PM' : `${t.hour - 12} PM`}</p>
                     <p className="text-sm text-gray-500">{t.orders} Orders | Php {t.revenue.toFixed(2)}</p>
                   </div>
                 ))}
@@ -8342,7 +8382,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
                 <tbody className="divide-y">
                   {trendData.map(t => (
                     <tr key={t.hour} className={t.orders > 0 ? 'bg-white' : 'bg-gray-50/30'}>
-                      <td className="px-4 py-3 text-sm">{t.hour === 0 ? '12:00 AM' : t.hour <= 11 ? `${t.hour}:00 AM` : t.hour === 12 ? '12:00 PM' : `${t.hour-12}:00 PM`}</td>
+                      <td className="px-4 py-3 text-sm">{t.hour === 0 ? '12:00 AM' : t.hour <= 11 ? `${t.hour}:00 AM` : t.hour === 12 ? '12:00 PM' : `${t.hour - 12}:00 PM`}</td>
                       <td className="px-4 py-3 text-sm text-right">{t.orders}</td>
                       <td className="px-4 py-3 text-sm text-right font-medium">Php {t.revenue.toFixed(2)}</td>
                       <td className="px-4 py-3 text-sm text-right text-gray-500">{((t.revenue / (netSales || 1)) * 100).toFixed(1)}%</td>
@@ -8356,7 +8396,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
 
         {!loading && activeReport === 'reports-profit' && (
           <div className="space-y-4">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-cyan-500">
                 <p className="text-sm text-gray-500">Net Sales</p>
                 <p className="text-2xl font-bold text-gray-800">Php {netSales.toFixed(2)}</p>
@@ -8466,8 +8506,8 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-               <p className="p-4 text-sm font-bold text-gray-700 border-b">Recent Canceled/Refunded Activity</p>
-               <table className="w-full font-data-table">
+              <p className="p-4 text-sm font-bold text-gray-700 border-b">Recent Canceled/Refunded Activity</p>
+              <table className="w-full font-data-table">
                 <thead className="bg-gray-50">
                   <tr><th className="text-left px-4 py-3 text-sm">Order #</th><th className="text-left px-4 py-3 text-sm">Reason/Staff</th><th className="text-right px-4 py-3 text-sm">Amount</th></tr>
                 </thead>
@@ -8498,7 +8538,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-               <table className="w-full font-data-table">
+              <table className="w-full font-data-table">
                 <thead className="bg-gray-50 border-b">
                   <tr><th className="text-left px-4 py-3 text-sm">Sales Channel</th><th className="text-right px-4 py-3 text-sm">Transactions</th><th className="text-right px-4 py-3 text-sm">Net Revenue</th><th className="text-right px-4 py-3 text-sm">Contribution</th></tr>
                 </thead>
@@ -8588,7 +8628,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
         )}
 
         {!loading && activeReport === 'reports-employees' && (
-           <div className="space-y-3">
+          <div className="space-y-3">
             <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
               <p className="text-sm text-gray-500">Staff Contribution</p>
               <p className="text-2xl font-bold text-blue-600">{employeeData.length} Employees Active</p>
@@ -8995,14 +9035,14 @@ function KitchenDisplayPage() {
     try {
       const res = await fetchWithAuth(`${API_URL}/orders/kitchen`);
       const data = await res.json();
-        if (data.success) {
-          const currentNewIds = new Set(
-            data.orders
-              .filter(o => 
-                ['received', 'open', 'preparing', 'preparing-', 'paid', 'pending'].includes(String(o.order_status || '').toLowerCase())
-              )
-              .map(o => o.id)
-          );
+      if (data.success) {
+        const currentNewIds = new Set(
+          data.orders
+            .filter(o =>
+              ['received', 'open', 'preparing', 'preparing-', 'paid', 'pending'].includes(String(o.order_status || '').toLowerCase())
+            )
+            .map(o => o.id)
+        );
         if (lastOrderIdsRef.current !== null) {
           let hasNew = false;
           currentNewIds.forEach(id => {
@@ -11179,7 +11219,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                 Found {ingredients.filter(ing => (ing.current_stock || 0) <= (ing.reorder_level || 0)).length + products.filter(p => p.ingredient_count === 0 && (p.stock_quantity || 0) <= (p.low_stock_threshold || 10)).length} items below minimum safety levels.
               </p>
             </div>
-            
+
             <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
               <table className="w-full text-xs font-data-table border-collapse">
                 <thead className="bg-gray-50 border-b text-gray-400 uppercase text-[10px] font-black sticky top-0 z-10">
@@ -11196,39 +11236,39 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                     ...ingredients.map(ing => ({ ...ing, itemType: 'Raw Material', current: ing.current_stock, threshold: ing.reorder_level })),
                     ...products.filter(p => (p.ingredient_count || 0) === 0).map(p => ({ ...p, itemType: 'Retail Product', current: p.stock_quantity, threshold: p.low_stock_threshold || 10 }))
                   ]
-                  .filter(item => (item.current || 0) <= (item.threshold || 0))
-                  .sort((a,b) => (a.current / (a.threshold || 1)) - (b.current / (b.threshold || 1)))
-                  .map(item => {
-                    const gap = (item.threshold || 0) - (item.current || 0);
-                    return (
-                      <tr key={`${item.itemType}-${item.id}`} className="hover:bg-red-50/20 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="font-black text-gray-800">{item.name}</div>
-                          <div className="text-[9px] uppercase font-bold text-gray-400">{item.itemType}</div>
-                        </td>
-                        <td className="px-4 py-3 text-center font-black text-red-600">
-                          {parseFloat(item.current || 0).toFixed(2)} {item.unit || 'pc'}
-                        </td>
-                        <td className="px-4 py-3 text-center font-bold text-gray-400">
-                          {parseFloat(item.threshold || 0).toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-black bg-red-50 text-red-700">
-                          +{parseFloat(gap + (item.threshold * 0.5)).toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => {
-                              setSelectedItemForAdjustment({ ...item, type: item.itemType === 'Retail Product' ? 'product' : 'ingredient' });
-                              setShowAdjustmentModal(true);
-                            }}
-                            className="text-[9px] font-black uppercase px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 shadow-sm"
-                          >
-                            Restock Now
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                    .filter(item => (item.current || 0) <= (item.threshold || 0))
+                    .sort((a, b) => (a.current / (a.threshold || 1)) - (b.current / (b.threshold || 1)))
+                    .map(item => {
+                      const gap = (item.threshold || 0) - (item.current || 0);
+                      return (
+                        <tr key={`${item.itemType}-${item.id}`} className="hover:bg-red-50/20 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-black text-gray-800">{item.name}</div>
+                            <div className="text-[9px] uppercase font-bold text-gray-400">{item.itemType}</div>
+                          </td>
+                          <td className="px-4 py-3 text-center font-black text-red-600">
+                            {parseFloat(item.current || 0).toFixed(2)} {item.unit || 'pc'}
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-gray-400">
+                            {parseFloat(item.threshold || 0).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-center font-black bg-red-50 text-red-700">
+                            +{parseFloat(gap + (item.threshold * 0.5)).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => {
+                                setSelectedItemForAdjustment({ ...item, type: item.itemType === 'Retail Product' ? 'product' : 'ingredient' });
+                                setShowAdjustmentModal(true);
+                              }}
+                              className="text-[9px] font-black uppercase px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 shadow-sm"
+                            >
+                              Restock Now
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
               {ingredients.filter(ing => ing.current_stock <= ing.reorder_level).length === 0 && products.filter(p => p.ingredient_count === 0 && p.stock_quantity <= p.low_stock_threshold).length === 0 && (
@@ -11245,7 +11285,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               </h3>
               <p className="text-[10px] text-orange-600 mt-1">Found {ingredients.filter(ing => ing.last_expiry_date && new Date(ing.last_expiry_date) < new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)).length + products.filter(p => p.last_expiry_date && new Date(p.last_expiry_date) < new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)).length} items nearing or past expiry.</p>
             </div>
-            
+
             <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
               <table className="w-full text-xs font-data-table border-collapse">
                 <thead className="bg-gray-50 border-b text-gray-500 uppercase text-[10px] font-black sticky top-0 z-10">
@@ -11262,44 +11302,44 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                     ...ingredients.map(ing => ({ ...ing, itemType: 'Raw Material' })),
                     ...products.map(p => ({ ...p, itemType: 'Retail Product' }))
                   ]
-                  .filter(item => item.last_expiry_date && new Date(item.last_expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
-                  .sort((a,b) => new Date(a.last_expiry_date) - new Date(b.last_expiry_date))
-                  .map(item => {
-                    const days = Math.ceil((new Date(item.last_expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-                    const isExpired = days <= 0;
-                    const isSoon = days <= 7;
-                    return (
-                      <tr key={`${item.itemType}-${item.id}`} className={isExpired ? 'bg-red-50/30' : ''}>
-                        <td className="px-4 py-3">
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-transparent ${item.itemType === 'Retail Product' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                            {item.itemType}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-bold text-gray-800">{item.name}</td>
-                        <td className="px-4 py-3 text-center font-mono">
-                          {new Date(item.last_expiry_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-center font-black">
-                          {isExpired ? (
-                            <span className="text-red-600">EXPIRED</span>
-                          ) : (
-                            <span className={isSoon ? 'text-orange-600' : 'text-gray-600'}>
-                              {days} days
+                    .filter(item => item.last_expiry_date && new Date(item.last_expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                    .sort((a, b) => new Date(a.last_expiry_date) - new Date(b.last_expiry_date))
+                    .map(item => {
+                      const days = Math.ceil((new Date(item.last_expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                      const isExpired = days <= 0;
+                      const isSoon = days <= 7;
+                      return (
+                        <tr key={`${item.itemType}-${item.id}`} className={isExpired ? 'bg-red-50/30' : ''}>
+                          <td className="px-4 py-3">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-transparent ${item.itemType === 'Retail Product' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                              {item.itemType}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {isExpired ? (
-                            <div className="w-3 h-3 bg-red-600 rounded-full mx-auto animate-pulse" />
-                          ) : isSoon ? (
-                            <div className="w-3 h-3 bg-orange-500 rounded-full mx-auto" />
-                          ) : (
-                            <div className="w-3 h-3 bg-green-500 rounded-full mx-auto" />
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="px-4 py-3 font-bold text-gray-800">{item.name}</td>
+                          <td className="px-4 py-3 text-center font-mono">
+                            {new Date(item.last_expiry_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-center font-black">
+                            {isExpired ? (
+                              <span className="text-red-600">EXPIRED</span>
+                            ) : (
+                              <span className={isSoon ? 'text-orange-600' : 'text-gray-600'}>
+                                {days} days
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {isExpired ? (
+                              <div className="w-3 h-3 bg-red-600 rounded-full mx-auto animate-pulse" />
+                            ) : isSoon ? (
+                              <div className="w-3 h-3 bg-orange-500 rounded-full mx-auto" />
+                            ) : (
+                              <div className="w-3 h-3 bg-green-500 rounded-full mx-auto" />
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
               {ingredients.filter(i => i.last_expiry_date).length === 0 && products.filter(p => p.last_expiry_date).length === 0 && (
@@ -12875,6 +12915,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
     { id: 'settings-printers', name: 'Printers' },
     { id: 'settings-loyalty', name: 'Loyalty Program' },
     { id: 'settings-integrations', name: 'Integrations' },
+    { id: 'settings-migration', name: 'Migration Tools' },
   ];
 
   const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
@@ -12886,6 +12927,98 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
   const [showSmtp, setShowSmtp] = useState(false);
   const [seedingData, setSeedingData] = useState(false);
   const [seedMsg, setSeedMsg] = useState('');
+
+  // Migration State
+  const [activeTool, setActiveTool] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState({ type: '', msg: '' });
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  const migrationTemplates = {
+    customers: {
+      columns: ['Name', 'Phone', 'Email', 'Address', 'Notes'],
+      template: 'Name,Phone,Email,Address,Notes\nJohn Doe,09123456789,john@example.com,Quezon City,Loyal Customer',
+      description: 'Import your customer database and loyalty start points.'
+    },
+    suppliers: {
+      columns: ['Company Name', 'Contact Person', 'Phone', 'Email', 'Address'],
+      template: 'Company Name,Contact Person,Phone,Email,Address\nGlobal Foods Inc,Jane Smith,09187654321,orders@globalfoods.com,Cebu City',
+      description: 'Import business vendors and suppliers.'
+    },
+    coa: {
+      columns: ['Code', 'Account Name', 'Type', 'Category', 'Balance', 'As of'],
+      template: 'Code,Account Name,Type,Category,Balance,As of\n1000,Petty Cash,Asset,Cash,5000,2026-04-09\n2000,Accounts Payable,Liability,Payables,0,2026-04-09',
+      description: 'Import your existing Chart of Accounts hierarchy with opening balances.'
+    },
+    products: {
+      columns: ['Name', 'Category', 'Price', 'SKU', 'Cost', 'Stock_Quantity', 'Low_Stock_Threshold'],
+      template: 'name,category,price,sku,cost,stock_quantity,low_stock_threshold\nCoca-Cola 330ml,Drinks,45.00,COKE-330,25.00,24,10',
+      description: 'Import your retail items and inventory catalog (Matches Stock Management process).'
+    },
+    raw: {
+      columns: ['Name', 'Unit', 'Current_Stock', 'Reorder_Level', 'Cost_Per_Unit', 'Supplier'],
+      template: 'name,unit,current_stock,reorder_level,cost_per_unit,supplier\nSample Ingredient,pc,100,20,5.50,AgriTrade Inc',
+      description: 'Import raw ingredients and supply materials (Matches Stock Management process).'
+    }
+  };
+
+  const downloadTemplate = (id) => {
+    const template = migrationTemplates[id]?.template;
+    if (!template) return;
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${id}_migration_template.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadStatus({ type: 'success', msg: `File selected: ${file.name}` });
+    }
+  };
+
+  const triggerMigration = async () => {
+    if (!selectedFile) return setUploadStatus({ type: 'error', msg: 'Please select a file first.' });
+    setUploadLoading(true);
+    
+    try {
+      const text = await selectedFile.text();
+      let endpoint = '';
+      
+      switch(activeTool) {
+        case 'products': endpoint = '/products/bulk'; break;
+        case 'raw': endpoint = '/inventory/ingredients/bulk'; break;
+        case 'customers': endpoint = '/customers/bulk'; break;
+        case 'suppliers': endpoint = '/inventory/suppliers/bulk'; break;
+        case 'coa': endpoint = '/accounting/accounts/batch-opening-balance'; break;
+        default: throw new Error('Invalid tool selected');
+      }
+
+      const res = await fetchWithAuth(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: text })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setUploadStatus({ type: 'success', msg: `Protocol Success: Imported ${data.imported || 0} entries into ${activeTool}.` });
+        setSelectedFile(null);
+        if (fetchProducts) fetchProducts();
+      } else {
+        setUploadStatus({ type: 'error', msg: `Protocol Rejection: ${data.error || 'The server refused the import.'}` });
+      }
+    } catch (err) {
+      setUploadStatus({ type: 'error', msg: `Network Failure: ${err.message}` });
+    } finally {
+      setUploadLoading(false);
+    }
+  };
 
   const seedDemoData = async () => {
     if (!window.confirm('This will load demo products, tables, and modifiers into your account. Proceed?')) return;
@@ -13746,6 +13879,124 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
             <p className="text-gray-500">Third-party integrations coming soon.</p>
           </div>
         )}
+        {currentView === 'settings-migration' && (
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden animate-fadeIn">
+            <div className="bg-[#0A0F0D] p-10 text-white relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+              <h3 className="text-[28px] font-black uppercase tracking-tight mb-2">Migration Assistant</h3>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Bring your existing business data from QuickBooks, Xero, or Excel</p>
+            </div>
+            <div className="p-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                {[
+                  { id: 'customers', name: 'Customers', icon: User, color: 'text-blue-600', bg: 'bg-blue-50' },
+                  { id: 'suppliers', name: 'Suppliers', icon: Truck, color: 'text-orange-600', bg: 'bg-orange-50' },
+                  { id: 'coa', name: 'Chart of Accounts', icon: Calculator, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                  { id: 'products', name: 'Products & Services', icon: Package, color: 'text-purple-600', bg: 'bg-purple-50' },
+                  { id: 'raw', name: 'Raw Materials', icon: Box, color: 'text-cyan-600', bg: 'bg-cyan-50' }
+                ].map((tool) => (
+                  <button
+                    key={tool.id}
+                    onClick={() => {
+                      setActiveTool(tool.id);
+                      setUploadStatus({ type: '', msg: '' });
+                      setSelectedFile(null);
+                    }}
+                    className={`flex flex-col items-center justify-center p-8 rounded-[2.5rem] bg-white border-2 transition-all group active:scale-95 ${activeTool === tool.id ? 'border-cyan-500 shadow-xl scale-105' : 'border-gray-100 hover:border-cyan-500'}`}
+                  >
+                    <div className={`w-20 h-20 ${tool.bg} rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform relative`}>
+                      <tool.icon className={`w-10 h-10 ${tool.color}`} />
+                      <div className="absolute -bottom-1.5 w-4 h-4 bg-inherit rotate-45 border-r border-b border-gray-100 group-hover:border-cyan-500 transition-colors"></div>
+                    </div>
+                    <span className="text-[11px] font-black text-center text-gray-800 uppercase tracking-wider">{tool.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {activeTool ? (
+                <div className="mt-12 p-10 bg-white border-2 border-cyan-100 rounded-[3rem] shadow-xl animate-fadeIn">
+                  <div className="flex justify-between items-start mb-8">
+                    <div>
+                      <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">
+                        {migrationTemplates[activeTool]?.columns ? 'Import ' + activeTool.charAt(0).toUpperCase() + activeTool.slice(1) : 'Select a tool'}
+                      </h4>
+                      <p className="text-gray-500 font-bold text-xs">{migrationTemplates[activeTool]?.description}</p>
+                    </div>
+                    <button onClick={() => setActiveTool(null)} className="text-gray-400 hover:text-red-500">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Header Mapping Requirements</p>
+                      <button 
+                        onClick={() => downloadTemplate(activeTool)}
+                        className="text-[10px] font-black text-cyan-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                      >
+                        <FileText size={12} />
+                        Download Template
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {migrationTemplates[activeTool]?.columns.map(col => (
+                        <span key={col} className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600">{col}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {uploadStatus.msg && (
+                    <div className={`p-4 rounded-xl mb-6 flex items-center gap-3 ${uploadStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                      {uploadStatus.type === 'error' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle size={16} />}
+                      <span className="text-xs font-bold">{uploadStatus.msg}</span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <input
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileSelect}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      />
+                      <div className="w-full bg-white border-2 border-dashed border-gray-200 py-4 px-6 rounded-2xl flex items-center justify-between group hover:border-cyan-400 transition-colors">
+                        <span className="text-xs font-bold text-gray-400">{selectedFile ? selectedFile.name : 'Select CSV/Excel File...'}</span>
+                        <Upload className="w-5 h-5 text-gray-300 group-hover:text-cyan-500 transition-colors" />
+                      </div>
+                    </div>
+                    <button
+                      onClick={triggerMigration}
+                      disabled={uploadLoading || !selectedFile}
+                      className="bg-cyan-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-cyan-600/20 hover:bg-cyan-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3 min-w-[200px]"
+                    >
+                      {uploadLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                      RUN MIGRATION
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-12 p-10 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200 flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-6 ring-8 ring-white/50">
+                    <Upload className="w-8 h-8 text-cyan-600" />
+                  </div>
+                  <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-2">Import CSV or Excel</h4>
+                  <p className="text-gray-500 font-bold text-xs max-w-md mx-auto leading-relaxed">
+                    Select a category above to download our standard CSV migration template. Lumina automatically maps headings from QuickBooks and Xero.
+                  </p>
+                  <div className="flex gap-4 mt-8">
+                    <button className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all shadow-sm">
+                      Download Template
+                    </button>
+                    <button className="px-6 py-3 bg-cyan-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-700 transition-all shadow-lg">
+                      See Instructions
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -14574,7 +14825,7 @@ function StockAdjustmentModal({ item, API_URL, onRefresh, onClose }) {
       const q = parseFloat(qty);
       // Automatic sign change based on type
       const quantity_change = (type === 'receive' || (type === 'correction' && q > 0)) ? Math.abs(q) : -Math.abs(q);
-      
+
       const payload = {
         quantity_change,
         notes: `${type.toUpperCase()}: ${notes}`,
@@ -14615,10 +14866,10 @@ function StockAdjustmentModal({ item, API_URL, onRefresh, onClose }) {
           </div>
           <button onClick={onClose} className="hover:opacity-70 p-1">✕</button>
         </div>
-        
+
         <div className="p-5 space-y-4">
           {error && <div className="p-3 bg-red-50 text-red-600 text-[10px] rounded border border-red-100 font-bold">{error}</div>}
-          
+
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase mb-1.5 tracking-widest">Movement Type</label>
             <div className="grid grid-cols-3 gap-2">
@@ -14703,3 +14954,167 @@ function StockAdjustmentModal({ item, API_URL, onRefresh, onClose }) {
 
 
 
+
+// Suppliers Management Page
+function SuppliersPage({ setCurrentPage }) {
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingVendor, setEditingVendor] = useState(null);
+  const [form, setForm] = useState({ name: '', contact_person: '', phone: '', email: '', address: '' });
+  const [msg, setMsg] = useState({ type: '', text: '' });
+
+  const fetchVendors = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchWithAuth(`${API_URL}/accounting/vendors`);
+      const data = await res.json();
+      if (data.success) setVendors(data.vendors);
+    } catch (err) { console.error('Error fetching vendors:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchVendors(); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMsg({ type: '', text: '' });
+    try {
+      const url = editingVendor ? `${API_URL}/accounting/vendors/${editingVendor.id}` : `${API_URL}/accounting/vendors`;
+      const res = await fetchWithAuth(url, {
+        method: editingVendor ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ type: 'success', text: `Supplier ${editingVendor ? 'updated' : 'added'} successfully!` });
+        fetchVendors();
+        setTimeout(() => { setShowAddModal(false); setEditingVendor(null); setForm({ name: '', contact_person: '', phone: '', email: '', address: '' }); setMsg({ type: '', text: '' }); }, 1500);
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Operation failed' });
+      }
+    } catch (err) { setMsg({ type: 'error', text: 'Connection error' }); }
+  };
+
+  const deleteVendor = async (id) => {
+    if (!confirm('Permanent deletion authorized?')) return;
+    try {
+      const res = await fetchWithAuth(`${API_URL}/accounting/vendors/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) fetchVendors();
+      else alert(data.error || 'Delete failed');
+    } catch (err) { alert('Network error'); }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] pt-24 pb-20 px-6 font-dashboard">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase mb-2">Vendor Protocol</h1>
+            <p className="text-gray-400 font-bold text-xs tracking-widest uppercase">Supplier Relationship & Logistics Management</p>
+          </div>
+          <button
+            onClick={() => { setEditingVendor(null); setForm({ name: '', contact_person: '', phone: '', email: '', address: '' }); setShowAddModal(true); }}
+            className="bg-[#0A0F0D] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-cyan-900/20 hover:bg-cyan-600 transition-all active:scale-95 flex items-center gap-3"
+          >
+            <Plus className="w-4 h-4 text-cyan-400" />
+            Establish New Vendor
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+            <div className="w-16 h-16 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-cyan-600 font-black text-xs uppercase tracking-widest">Synchronizing Database...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {vendors.map(v => (
+              <div key={v.id} className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/20 border border-gray-50 p-8 hover:shadow-2xl hover:shadow-cyan-900/5 transition-all group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700 opacity-50"></div>
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="w-14 h-14 bg-gray-900 text-cyan-400 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Truck className="w-7 h-7" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditingVendor(v); setForm(v); setShowAddModal(true); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-cyan-600 transition-colors"><Edit3 className="w-4 h-4" /></button>
+                      <button onClick={() => deleteVendor(v.id)} className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 leading-tight">{v.name}</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 text-gray-500">
+                      <User className="w-3.5 h-3.5 text-cyan-500" />
+                      <span className="text-[11px] font-bold uppercase">{v.contact_person || 'No Contact Person'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-500">
+                      <TrendingUp className="w-3.5 h-3.5 text-cyan-500 opacity-50" />
+                      <span className="text-[11px] font-bold">{v.phone || 'No Phone'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-500">
+                      <Mail className="w-3.5 h-3.5 text-cyan-500 opacity-50" />
+                      <span className="text-[11px] font-bold truncate">{v.email || 'No Email'}</span>
+                    </div>
+                  </div>
+                  <div className="mt-8 pt-6 border-t border-gray-50">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">HQ Address</p>
+                    <p className="text-[10px] font-bold text-gray-600 line-clamp-2">{v.address || 'Deployment address not set.'}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full overflow-hidden border border-white/20">
+              <div className="bg-[#0A0F0D] p-10 text-white relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                <h2 className="text-3xl font-black uppercase tracking-tight mb-2">{editingVendor ? 'Modify Vendor' : 'New Vendor'}</h2>
+                <p className="text-cyan-400 uppercase text-[10px] font-black tracking-widest">Protocol Version 1.0.4</p>
+              </div>
+              <form onSubmit={handleSubmit} className="p-10 space-y-6">
+                {msg.text && (
+                  <div className={`p-4 rounded-xl text-xs font-bold flex items-center gap-3 ${msg.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                    {msg.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                    {msg.text}
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Legal Name</label>
+                  <input required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="e.g. Global Supplies Corp" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Key Contact</label>
+                    <input type="text" value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Representative Name" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone Pulse</label>
+                    <input type="text" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="+63 900 000 0000" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Electronic Mail</label>
+                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="vendor@protocol.com" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Physical HQ Address</label>
+                  <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none h-20 resize-none" placeholder="Full logistics address..." />
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-all">Cancel</button>
+                  <button type="submit" className="flex-1 bg-cyan-600 text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-cyan-600/20 hover:shadow-cyan-600/40 transition-all active:scale-95">Save Protocol Entry</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

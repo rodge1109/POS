@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
       `SELECT id, name, email, phone, address, city, barangay,
               credit_balance, credit_limit, loyalty_points, loyalty_tier, loyalty_discount, created_at
        FROM customers 
-       WHERE company_id::text = $1::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207'
+       WHERE company_id::text = $1::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936'
        ORDER BY name ASC LIMIT $2 OFFSET $3`,
       [req.company_id, limit, offset]
     );
@@ -44,7 +44,7 @@ router.post('/register', async (req, res) => {
 
     // Check if phone already exists in this company context
     const existing = await pool.query(
-      'SELECT id FROM customers WHERE phone = $1 AND (company_id::text = $2::text OR company_id::text = \'d6797595-412e-4b3b-8378-4442a397d207\')',
+      'SELECT id FROM customers WHERE phone = $1 AND (company_id::text = $2::text OR company_id::text = \'562b9f65-608f-455f-8340-ba9a2811b936\')',
       [phone, company_id]
     );
 
@@ -78,7 +78,7 @@ router.post('/login', async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, phone, email, address, city, barangay, credit_balance, credit_limit, loyalty_points, loyalty_discount, loyalty_tier
        FROM customers 
-       WHERE phone = $1 AND pin = $2 AND (company_id::text = $3::text OR company_id::text = 'd6797595-412e-4b3b-8378-4442a397d207')`,
+       WHERE phone = $1 AND pin = $2 AND (company_id::text = $3::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
       [phone, pin, company_id]
     );
 

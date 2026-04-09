@@ -1,0 +1,92 @@
+[
+  {
+    "id": 40,
+    "code": "1",
+    "name": "ASSET"
+  },
+  {
+    "id": 7,
+    "code": "1100",
+    "name": "Bank Account"
+  },
+  {
+    "id": 11,
+    "code": "1200",
+    "name": "Inventory"
+  },
+  {
+    "id": 44,
+    "code": "2",
+    "name": "LIABILITY"
+  },
+  {
+    "id": 15,
+    "code": "2000",
+    "name": "Accounts Payable"
+  },
+  {
+    "id": 48,
+    "code": "3",
+    "name": "EQUITY"
+  },
+  {
+    "id": 52,
+    "code": "4",
+    "name": "REVENUE"
+  },
+  {
+    "id": 19,
+    "code": "4000",
+    "name": "Sales Revenue"
+  },
+  {
+    "id": 3,
+    "code": "1000",
+    "name": "CASH"
+  },
+  {
+    "id": 56,
+    "code": "5",
+    "name": "EXPENSE"
+  },
+  {
+    "id": 23,
+    "code": "5000",
+    "name": "Cost of Goods Sold"
+  },
+  {
+    "id": 27,
+    "code": "6000",
+    "name": "Rent Expense"
+  },
+  {
+    "id": 31,
+    "code": "6100",
+    "name": "Utilities Expense"
+  },
+  {
+    "id": 35,
+    "code": "6200",
+    "name": "Salaries & Wages"
+  },
+  {
+    "id": 57,
+    "code": "1001",
+    "name": "Cash on Hand"
+  },
+  {
+    "id": 58,
+    "code": "1002",
+    "name": "Petty Cash"
+  },
+  {
+    "id": 59,
+    "code": "1101",
+    "name": "BPI Checking"
+  },
+  {
+    "id": 60,
+    "code": "1102",
+    "name": "GCash Business"
+  }
+]
