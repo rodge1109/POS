@@ -27,6 +27,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   });
   const [lowStockCount, setLowStockCount] = useState(0);
   const [hasSizes, setHasSizes] = useState(false);
+  const [selectedModifierIds, setSelectedModifierIds] = useState([]);
   const productModalRef = useRef(null);
   const productModalDragRef = useRef({ offsetX: 0, offsetY: 0 });
   const csvInputRef = useRef(null);
@@ -356,6 +357,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       cost: ''
     });
     setHasSizes(false);
+    setSelectedModifierIds([]);
     setProductModalPos(getDefaultProductModalPos());
     setShowModal(true);
   };
@@ -379,6 +381,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       sizes: product.sizes ? product.sizes.map(s => ({ ...s, cost: s.cost || 0 })) : []
     });
     setHasSizes(product.sizes && product.sizes.length > 0);
+    setSelectedModifierIds(product.modifier_ids || []);
     setProductModalPos(getDefaultProductModalPos());
     setShowModal(true);
   };
@@ -387,16 +390,33 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     e.preventDefault();
     if (productSaving) return;
 
+    // Filter out incomplete size rows (missing name or price) and coerce to numbers
+    const validSizes = hasSizes
+      ? formData.sizes
+          .filter(s => s.name?.trim() && s.price !== '' && s.price !== null && s.price !== undefined && !isNaN(parseFloat(s.price)))
+          .map(s => ({
+            name: s.name.trim(),
+            price: parseFloat(s.price),
+            cost: parseFloat(s.cost) || 0
+          }))
+      : null;
+
+    if (hasSizes && (!validSizes || validSizes.length === 0)) {
+      alert('Please enter at least one size with a valid name and price.');
+      return;
+    }
+
     const payload = {
       name: formData.name,
       category: formData.category,
       price: hasSizes ? null : parseFloat(formData.price) || null,
+      modifier_ids: selectedModifierIds,
       description: formData.description,
       image: formData.image,
       popular: formData.popular,
       sku: formData.sku?.trim() || null,
       barcode: formData.barcode || null,
-      sizes: hasSizes ? formData.sizes : null,
+      sizes: validSizes,
       active: formData.active,
       stock_quantity: parseInt(formData.stock_quantity) || 0,
       low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
@@ -1575,7 +1595,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                     onChange={(e) => {
                       setHasSizes(e.target.checked);
                       if (e.target.checked && formData.sizes.length === 0) {
-                        setFormData(prev => ({ ...prev, sizes: [{ name: 'Small', price: '' }, { name: 'Medium', price: '' }, { name: 'Large', price: '' }] }));
+                        setFormData(prev => ({ ...prev, sizes: [{ name: 'Small', price: '', cost: '' }, { name: 'Medium', price: '', cost: '' }, { name: 'Large', price: '', cost: '' }] }));
                       }
                     }}
                     className="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
@@ -1779,6 +1799,57 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                   </div>
                 </div>
               </div>
+
+              {/* Modifier Assignment */}
+              {modifiers.length > 0 && (
+                <div className="px-6 pb-4">
+                  <div className="border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-800">Add-ons &amp; Options</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">Select which modifiers apply to this product in the POS</p>
+                      </div>
+                      {selectedModifierIds.length > 0 && (
+                        <span className="text-xs bg-violet-100 text-violet-700 font-semibold px-2 py-0.5 rounded-full">
+                          {selectedModifierIds.length} selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {modifiers.filter(m => m.active !== false).map(mod => {
+                        const isSelected = selectedModifierIds.includes(mod.id);
+                        return (
+                          <button
+                            key={mod.id}
+                            type="button"
+                            onClick={() => setSelectedModifierIds(prev =>
+                              isSelected ? prev.filter(id => id !== mod.id) : [...prev, mod.id]
+                            )}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                              isSelected
+                                ? 'bg-violet-600 border-violet-600 text-white'
+                                : 'bg-white border-gray-200 text-gray-600 hover:border-violet-400 hover:text-violet-600'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              mod.type === 'addon' ? 'bg-emerald-400' : 'bg-amber-400'
+                            } ${isSelected ? 'opacity-80' : ''}`} />
+                            {mod.name}
+                            {parseFloat(mod.price) > 0 && (
+                              <span className={isSelected ? 'text-violet-200' : 'text-gray-400'}>
+                                +{parseFloat(mod.price).toFixed(0)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedModifierIds.length === 0 && (
+                      <p className="text-xs text-gray-400 mt-2 italic">No add-ons — modifier picker will be skipped in POS</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="sticky bottom-0 z-10 flex gap-3 p-6 pt-4 border-t border-gray-200 bg-white">
                 <button

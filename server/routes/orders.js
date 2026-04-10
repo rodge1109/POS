@@ -561,9 +561,15 @@ router.post('/', async (req, res) => {
         productId = item.product_id || item.id;
       }
 
+      const modifiersJson = JSON.stringify(
+        Array.isArray(item.selectedModifiers)
+          ? item.selectedModifiers.map(m => ({ id: m.id, name: m.name, type: m.type, price: parseFloat(m.price || 0) }))
+          : []
+      );
+
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, company_id)
-         VALUES ($1::text, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::uuid)`,
+        `INSERT INTO order_items (order_id, product_id, combo_id, is_combo, product_name, size_name, quantity, unit_price, subtotal, notes, modifiers, company_id)
+         VALUES ($1::text, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::uuid)`,
         [
           order.id,
           productId,
@@ -575,6 +581,7 @@ router.post('/', async (req, res) => {
           fromCents(toCents(item.price || item.unit_price)),
           fromCents(Math.round(Number(item.quantity || 0) * Number(item.price || item.unit_price || 0) * 100)),
           item.notes || null,
+          modifiersJson,
           req.company_id
         ]
       );

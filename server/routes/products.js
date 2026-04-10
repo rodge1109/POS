@@ -23,6 +23,17 @@ router.get('/', async (req, res) => {
       [req.company_id]
     );
 
+    // Get all product-modifier assignments
+    const pmResult = await pool.query(
+      'SELECT product_id, modifier_id FROM product_modifiers WHERE company_id = $1',
+      [req.company_id]
+    );
+    const pmMap = {};
+    for (const row of pmResult.rows) {
+      if (!pmMap[row.product_id]) pmMap[row.product_id] = [];
+      pmMap[row.product_id].push(row.modifier_id);
+    }
+
     // Map sizes to products
     const products = productsResult.rows.map(product => {
       const sizes = sizesResult.rows
@@ -40,6 +51,7 @@ router.get('/', async (req, res) => {
         category: product.category,
         price: product.price ? parseFloat(product.price) : null,
         sizes: sizes.length > 0 ? sizes : null,
+        modifier_ids: pmMap[product.id] || [],
         description: product.description,
         image: product.image,
         popular: product.popular,
@@ -217,7 +229,9 @@ router.put('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { name, category, price, sizes, description, image, popular, barcode, active, stock_quantity, low_stock_threshold, send_to_kitchen, sku, cost } = req.body;
+    const { name, category, price, sizes, modifier_ids, description, image, popular, barcode, active, stock_quantity, low_stock_threshold, send_to_kitchen, sku, cost } = req.body;
+
+    console.log('[PUT /products/:id] id:', id, '| sizes received:', JSON.stringify(sizes));
 
     await client.query('BEGIN');
 
@@ -241,6 +255,17 @@ router.put('/:id', async (req, res) => {
         await client.query(
           'INSERT INTO product_sizes (product_id, size_name, price, cost, company_id) VALUES ($1, $2, $3, $4, $5)',
           [id, size.name, size.price, size.cost || 0, req.company_id]
+        );
+      }
+    }
+
+    // Save product-modifier assignments (delete + reinsert)
+    await client.query('DELETE FROM product_modifiers WHERE product_id = $1 AND company_id = $2', [id, req.company_id]);
+    if (Array.isArray(modifier_ids) && modifier_ids.length > 0) {
+      for (const modId of modifier_ids) {
+        await client.query(
+          'INSERT INTO product_modifiers (product_id, modifier_id, company_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [id, modId, req.company_id]
         );
       }
     }

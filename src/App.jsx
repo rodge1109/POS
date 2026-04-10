@@ -503,11 +503,8 @@ export default function App() {
   };
 
   const addToCart = (item, selectedSize = null) => {
-    console.log('addToCart called:', { item, selectedSize, hasSizes: !!item.sizes });
-
     // For items with sizes, we need size info
     if (item.sizes && !selectedSize) {
-      console.log('Opening size modal for:', item.name);
       setSelectedProduct(item);
       setShowSizeModal(true);
       return;
@@ -518,20 +515,30 @@ export default function App() {
       ? {
         ...item,
         selectedSize: selectedSize.name,
-        size_id: selectedSize.id, // STORE THE SIZE ID
+        size_id: selectedSize.id,
         price: selectedSize.price,
         displayName: `${item.name} (${selectedSize.name})`
       }
       : item;
 
-    // Find existing item by id AND size (if applicable)
+    // Build a modifier fingerprint: sorted modifier IDs joined as string
+    const modFingerprint = (mods) =>
+      Array.isArray(mods) ? [...mods].map(m => m.id).sort((a, b) => a - b).join(',') : '';
+
+    const itemModKey = modFingerprint(item.selectedModifiers);
+
+    // Find existing item by id + size + exact same modifiers
     const existingItem = cartItems.find(i =>
-      i.id === item.id && (!selectedSize || i.selectedSize === selectedSize.name)
+      i.id === item.id &&
+      (i.selectedSize || null) === (item.selectedSize || (selectedSize?.name || null)) &&
+      modFingerprint(i.selectedModifiers) === itemModKey
     );
 
     if (existingItem) {
       setCartItems(cartItems.map(i =>
-        (i.id === item.id && (!selectedSize || i.selectedSize === selectedSize.name))
+        (i.id === item.id &&
+          (i.selectedSize || null) === (item.selectedSize || (selectedSize?.name || null)) &&
+          modFingerprint(i.selectedModifiers) === itemModKey)
           ? { ...i, quantity: i.quantity + 1 }
           : i
       ));
@@ -5061,6 +5068,15 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
   const [showOrderSelectModal, setShowOrderSelectModal] = useState(false);
   const [isTabletOrderPanelOpen, setIsTabletOrderPanelOpen] = useState(false);
 
+  // Unified item picker (sizes + modifiers in one modal)
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [itemPickerItem, setItemPickerItem] = useState(null);
+  const [itemPickerSize, setItemPickerSize] = useState(null);
+  const [itemPickerMods, setItemPickerMods] = useState({});
+
+  // Modifier picker modal
+  const [posModifiers, setPosModifiers] = useState([]);
+
   // Ready order alerts
   const [readyOrders, setReadyOrders] = useState([]);
   const [knownReadyIds, setKnownReadyIds] = useState(new Set());
@@ -5137,6 +5153,57 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     const interval = setInterval(fetchTables, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch active modifiers for the POS
+  useEffect(() => {
+    const loadModifiers = async () => {
+      try {
+        const res = await fetchWithAuth(`${API_URL}/modifiers`);
+        const data = await res.json();
+        if (data.success) setPosModifiers(data.modifiers || []);
+      } catch (e) { /* silent */ }
+    };
+    loadModifiers();
+  }, []);
+
+  // Open the unified item picker
+  const openItemPicker = (item) => {
+    const hasSizes = item.sizes && item.sizes.length > 0;
+    // Filter modifiers to only those assigned to this product
+    const assignedMods = posModifiers.filter(
+      m => m.active !== false && Array.isArray(item.modifier_ids) && item.modifier_ids.includes(m.id)
+    );
+    if (!hasSizes && assignedMods.length === 0) {
+      addToCart(item);
+      return;
+    }
+    setItemPickerItem(item);
+    setItemPickerSize(null);
+    setItemPickerMods({});
+    setShowItemPicker(true);
+  };
+
+  // Confirm and add to cart from unified picker
+  const confirmItemPicker = () => {
+    const chosen = posModifiers.filter(m => itemPickerMods[m.id]);
+    const basePrice = itemPickerSize ? itemPickerSize.price : (itemPickerItem?.price || 0);
+    const modTotal = chosen.reduce((s, m) => s + parseFloat(m.price || 0), 0);
+    const effectivePrice = parseFloat(basePrice) + modTotal;
+    // Destructure out `sizes` so the old customer-facing size modal doesn't re-trigger
+    const { sizes: _sizes, ...itemBase } = itemPickerItem;
+    const cartEntry = {
+      ...itemBase,
+      price: effectivePrice,
+      selectedSize: itemPickerSize?.name || null,
+      size_id: itemPickerSize?.id || null,
+      selectedModifiers: chosen,
+    };
+    addToCart(cartEntry, null);
+    setShowItemPicker(false);
+    setItemPickerItem(null);
+    setItemPickerSize(null);
+    setItemPickerMods({});
+  };
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
@@ -5836,13 +5903,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
   const handleQuickAdd = (item) => {
     playRegisterBeep();
-    if (item.sizes) {
-      // For items with sizes, add the smallest size by default
-      const smallestSize = item.sizes.reduce((min, size) => size.price < min.price ? size : min, item.sizes[0]);
-      addToCart(item, smallestSize);
-    } else {
-      addToCart(item);
-    }
+    openItemPicker(item);
   };
 
   const handlePayment = () => {
@@ -5881,13 +5942,14 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
           items: cartItems.map(item => ({
             id: item.id,
             product_id: item.isCombo ? null : item.id,
-            size_id: item.size_id || null, // PASS THE SIZE ID
+            size_id: item.size_id || null,
             isCombo: item.isCombo || false,
             name: item.name,
             selectedSize: item.selectedSize,
             quantity: item.quantity,
             price: item.price,
-            notes: item.notes || null
+            notes: item.notes || null,
+            selectedModifiers: item.selectedModifiers || []
           })),
           subtotal: getTotalPrice(),
           delivery_fee: 0,
@@ -6105,6 +6167,172 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               )}
             </div>
 
+            {/* ── Unified Item Picker Modal ── */}
+            {showItemPicker && itemPickerItem && (() => {
+              const hasSizes = itemPickerItem.sizes && itemPickerItem.sizes.length > 0;
+              const assignedMods = posModifiers.filter(
+                m => m.active !== false && Array.isArray(itemPickerItem.modifier_ids) && itemPickerItem.modifier_ids.includes(m.id)
+              );
+              const addons = assignedMods.filter(m => m.type === 'addon');
+              const options = assignedMods.filter(m => m.type === 'option');
+              const basePrice = itemPickerSize ? itemPickerSize.price : (itemPickerItem.price || 0);
+              const modTotal = posModifiers
+                .filter(m => itemPickerMods[m.id])
+                .reduce((s, m) => s + parseFloat(m.price || 0), 0);
+              const livePrice = parseFloat(basePrice || 0) + modTotal;
+              const canAdd = !hasSizes || itemPickerSize;
+
+              return (
+                <div
+                  className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.45)' }}
+                  onClick={() => setShowItemPicker(false)}
+                >
+                  <div
+                    className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[88vh]"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-cyan-600 to-cyan-500 px-5 pt-5 pb-4 rounded-t-2xl flex items-start justify-between">
+                      <div>
+                        <p className="text-cyan-100 text-xs uppercase tracking-widest mb-0.5">Customize Order</p>
+                        <h3 className="text-white font-black text-lg leading-tight">{itemPickerItem.name}</h3>
+                      </div>
+                      <button
+                        onClick={() => setShowItemPicker(false)}
+                        className="mt-1 text-cyan-200 hover:text-white transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Scrollable body */}
+                    <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+
+                      {/* Sizes — Specification */}
+                      {hasSizes && (
+                        <div>
+                          <p className="text-gray-500 font-semibold text-xs uppercase tracking-widest mb-2.5">Specification</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {itemPickerItem.sizes.map(size => (
+                              <button
+                                key={size.name}
+                                onClick={() => setItemPickerSize(size)}
+                                className={`py-3 px-2 rounded-xl font-bold text-xs transition-all border-2 ${
+                                  itemPickerSize?.name === size.name
+                                    ? 'bg-cyan-600 border-cyan-600 text-white shadow-sm'
+                                    : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
+                                }`}
+                              >
+                                {size.name.toUpperCase()}
+                                <div className={`text-[10px] mt-0.5 font-medium ${
+                                  itemPickerSize?.name === size.name ? 'text-cyan-100' : 'text-gray-400'
+                                }`}>
+                                  {currencySymbol}{Number(size.price).toFixed(2)}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Add-ons — multi-select */}
+                      {addons.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <p className="text-gray-500 font-semibold text-xs uppercase tracking-widest">ADD ON</p>
+                            <span className="text-gray-400 text-[10px]">Multiple choice</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {addons.map(mod => {
+                              const checked = !!itemPickerMods[mod.id];
+                              return (
+                                <button
+                                  key={mod.id}
+                                  onClick={() => setItemPickerMods(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
+                                  className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${
+                                    checked
+                                      ? 'bg-cyan-600 border-cyan-600 text-white'
+                                      : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
+                                  }`}
+                                >
+                                  <div className="font-bold text-[11px] uppercase">{mod.name}</div>
+                                  <div className={`text-[11px] font-medium mt-0.5 ${
+                                    checked ? 'text-cyan-100' : 'text-gray-400'
+                                  }`}>
+                                    {parseFloat(mod.price) > 0 ? `+${currencySymbol}${parseFloat(mod.price).toFixed(2)}` : 'Free'}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Options — single-select (deselects others) */}
+                      {options.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <p className="text-gray-500 font-semibold text-xs uppercase tracking-widest">OPTIONS</p>
+                            <span className="text-gray-400 text-[10px]">Choose one</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {options.map(mod => {
+                              const checked = !!itemPickerMods[mod.id];
+                              return (
+                                <button
+                                  key={mod.id}
+                                  onClick={() => {
+                                    const optionIds = options.map(o => o.id);
+                                    setItemPickerMods(prev => {
+                                      const next = { ...prev };
+                                      optionIds.forEach(id => { next[id] = false; });
+                                      next[mod.id] = !prev[mod.id];
+                                      return next;
+                                    });
+                                  }}
+                                  className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${
+                                    checked
+                                      ? 'bg-cyan-600 border-cyan-600 text-white'
+                                      : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
+                                  }`}
+                                >
+                                  <div className="font-bold text-[11px] uppercase">{mod.name}</div>
+                                  <div className={`text-[11px] font-medium mt-0.5 ${
+                                    checked ? 'text-cyan-100' : 'text-gray-400'
+                                  }`}>
+                                    {parseFloat(mod.price) > 0 ? `+${currencySymbol}${parseFloat(mod.price).toFixed(2)}` : 'Free'}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Footer — live price + confirm */}
+                    <div className="px-5 py-4 border-t border-gray-200">
+                      <button
+                        onClick={() => { if (canAdd) { playRegisterBeep(); confirmItemPicker(); } }}
+                        className={`w-full py-3.5 rounded-xl font-black text-sm transition-all ${
+                          canAdd
+                            ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {!canAdd
+                          ? 'Select a size to continue'
+                          : `Add to Order — ${currencySymbol}${livePrice.toFixed(2)}`
+                        }
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Mobile-only checkout actions (moved here from sidebar) */}
             {cartItems.length > 0 && !selectedTable && !showTableView && (
               <div className="md:hidden p-2 space-y-2 bg-white border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] animate-slideUp">
@@ -6292,6 +6520,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                               <span className="text-gray-800 font-medium text-xs md:text-sm truncate block">
                                 {item.name}{item.selectedSize ? ` (${item.selectedSize})` : ''}
                               </span>
+                              {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                                <span className="text-violet-500 text-[10px] md:text-xs block truncate">
+                                  +{item.selectedModifiers.map(m => m.name).join(', ')}
+                                </span>
+                              )}
                               {item.notes && editingNoteIndex !== index && (
                                 <span className="text-gray-400 italic text-[10px] md:text-xs truncate block">{item.notes}</span>
                               )}
