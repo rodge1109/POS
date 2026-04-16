@@ -1,1523 +1,1571 @@
 ﻿<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Worksheet ss:Name="Products">
-    <Table>
-      <Row>
-        <Cell><Data ss:Type="String">name</Data></Cell>
-        <Cell><Data ss:Type="String">category</Data></Cell>
-        <Cell><Data ss:Type="String">price</Data></Cell>
-        <Cell><Data ss:Type="String">sku</Data></Cell>
-        <Cell><Data ss:Type="String">barcode</Data></Cell>
-        <Cell><Data ss:Type="String">stock_quantity</Data></Cell>
-        <Cell><Data ss:Type="String">low_stock_threshold</Data></Cell>
-        <Cell><Data ss:Type="String">description</Data></Cell>
-        <Cell><Data ss:Type="String">image</Data></Cell>
-        <Cell><Data ss:Type="String">active</Data></Cell>
-        <Cell><Data ss:Type="String">popular</Data></Cell>
-        <Cell><Data ss:Type="String">send_to_k</Data></Cell>
-        <Cell><Data ss:Type="String">cost</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Paracetamol 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">52.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-001</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000001</Data></Cell>
-        <Cell><Data ss:Type="String">23</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">31.90</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Ibuprofen 200mg</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">69.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-002</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000002</Data></Cell>
-        <Cell><Data ss:Type="String">26</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">44.54</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Cetirizine 10mg</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">86.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-003</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000003</Data></Cell>
-        <Cell><Data ss:Type="String">29</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">58.22</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Loratadine 10mg</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">104.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-004</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000004</Data></Cell>
-        <Cell><Data ss:Type="String">32</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">72.94</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Amoxicillin 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">121.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-005</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000005</Data></Cell>
-        <Cell><Data ss:Type="String">35</Data></Cell>
-        <Cell><Data ss:Type="String">10</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">88.70</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Azithromycin 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">138.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-006</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000006</Data></Cell>
-        <Cell><Data ss:Type="String">38</Data></Cell>
-        <Cell><Data ss:Type="String">11</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">105.49</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Omeprazole 20mg</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">156.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-007</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000007</Data></Cell>
-        <Cell><Data ss:Type="String">41</Data></Cell>
-        <Cell><Data ss:Type="String">12</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">90.54</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Pantoprazole 40mg</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">173.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-008</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000008</Data></Cell>
-        <Cell><Data ss:Type="String">44</Data></Cell>
-        <Cell><Data ss:Type="String">13</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">105.77</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Metformin 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">190.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-009</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000009</Data></Cell>
-        <Cell><Data ss:Type="String">47</Data></Cell>
-        <Cell><Data ss:Type="String">14</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">122.05</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Amlodipine 5mg</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">208.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-010</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000010</Data></Cell>
-        <Cell><Data ss:Type="String">50</Data></Cell>
-        <Cell><Data ss:Type="String">15</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">139.36</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Losartan 50mg</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">225.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-011</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000011</Data></Cell>
-        <Cell><Data ss:Type="String">53</Data></Cell>
-        <Cell><Data ss:Type="String">16</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">157.71</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Atorvastatin 20mg</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">242.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-012</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000012</Data></Cell>
-        <Cell><Data ss:Type="String">56</Data></Cell>
-        <Cell><Data ss:Type="String">17</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">177.10</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Vitamin C 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">259.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-013</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000013</Data></Cell>
-        <Cell><Data ss:Type="String">59</Data></Cell>
-        <Cell><Data ss:Type="String">18</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">197.52</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Vitamin B Complex</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">277.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-014</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000014</Data></Cell>
-        <Cell><Data ss:Type="String">62</Data></Cell>
-        <Cell><Data ss:Type="String">19</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">160.78</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Multivitamins</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">294.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-015</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000015</Data></Cell>
-        <Cell><Data ss:Type="String">65</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">179.64</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Fish Oil 1000mg</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">311.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-016</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000016</Data></Cell>
-        <Cell><Data ss:Type="String">68</Data></Cell>
-        <Cell><Data ss:Type="String">5</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">199.55</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Calcium + D3</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">329.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-017</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000017</Data></Cell>
-        <Cell><Data ss:Type="String">71</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">220.50</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Iron Supplement</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">346.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-018</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000018</Data></Cell>
-        <Cell><Data ss:Type="String">74</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">242.48</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Zinc 50mg</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">363.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-019</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000019</Data></Cell>
-        <Cell><Data ss:Type="String">77</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">265.50</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">ORS Sachet</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">381.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-020</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000020</Data></Cell>
-        <Cell><Data ss:Type="String">80</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">289.56</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Cough Syrup</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">398.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-021</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000021</Data></Cell>
-        <Cell><Data ss:Type="String">83</Data></Cell>
-        <Cell><Data ss:Type="String">10</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">231.01</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Expectorant Syrup</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">415.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-022</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000022</Data></Cell>
-        <Cell><Data ss:Type="String">86</Data></Cell>
-        <Cell><Data ss:Type="String">11</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">253.52</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Antacid Suspension</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">432.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-023</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000023</Data></Cell>
-        <Cell><Data ss:Type="String">89</Data></Cell>
-        <Cell><Data ss:Type="String">12</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">277.06</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Loperamide 2mg</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">450.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-024</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000024</Data></Cell>
-        <Cell><Data ss:Type="String">92</Data></Cell>
-        <Cell><Data ss:Type="String">13</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">301.63</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Probiotic Capsules</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">47.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-025</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000025</Data></Cell>
-        <Cell><Data ss:Type="String">95</Data></Cell>
-        <Cell><Data ss:Type="String">14</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">33.25</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Nasal Spray</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">64.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-026</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000026</Data></Cell>
-        <Cell><Data ss:Type="String">98</Data></Cell>
-        <Cell><Data ss:Type="String">15</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">47.30</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Saline Solution</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">82.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-027</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000027</Data></Cell>
-        <Cell><Data ss:Type="String">101</Data></Cell>
-        <Cell><Data ss:Type="String">16</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">62.40</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Eye Drops Lubricant</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">99.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-028</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000028</Data></Cell>
-        <Cell><Data ss:Type="String">104</Data></Cell>
-        <Cell><Data ss:Type="String">17</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">57.65</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Antiseptic Solution</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">116.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-029</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000029</Data></Cell>
-        <Cell><Data ss:Type="String">107</Data></Cell>
-        <Cell><Data ss:Type="String">18</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">71.19</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Hydrogen Peroxide</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">134.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-030</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000030</Data></Cell>
-        <Cell><Data ss:Type="String">110</Data></Cell>
-        <Cell><Data ss:Type="String">19</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">85.76</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Alcohol 70%</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">151.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-031</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000031</Data></Cell>
-        <Cell><Data ss:Type="String">113</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">101.37</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Cotton Balls</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">168.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-032</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000032</Data></Cell>
-        <Cell><Data ss:Type="String">116</Data></Cell>
-        <Cell><Data ss:Type="String">5</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">118.02</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Sterile Gauze</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">185.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-033</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000033</Data></Cell>
-        <Cell><Data ss:Type="String">119</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">135.71</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Adhesive Bandage</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">203.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-034</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000034</Data></Cell>
-        <Cell><Data ss:Type="String">122</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">154.43</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Digital Thermometer</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">220.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-035</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000035</Data></Cell>
-        <Cell><Data ss:Type="String">125</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">127.89</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Blood Pressure Monitor</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">237.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-036</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000036</Data></Cell>
-        <Cell><Data ss:Type="String">128</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">145.06</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Pulse Oximeter</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">255.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-037</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000037</Data></Cell>
-        <Cell><Data ss:Type="String">131</Data></Cell>
-        <Cell><Data ss:Type="String">10</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">163.26</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Pregnancy Test Kit</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">272.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-038</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000038</Data></Cell>
-        <Cell><Data ss:Type="String">134</Data></Cell>
-        <Cell><Data ss:Type="String">11</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">182.51</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Glucose Test Strips</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">289.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-039</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000039</Data></Cell>
-        <Cell><Data ss:Type="String">137</Data></Cell>
-        <Cell><Data ss:Type="String">12</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">202.79</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Insulin Syringes</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">307.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-040</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000040</Data></Cell>
-        <Cell><Data ss:Type="String">140</Data></Cell>
-        <Cell><Data ss:Type="String">13</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">224.11</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Baby Formula</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">324.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-041</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000041</Data></Cell>
-        <Cell><Data ss:Type="String">143</Data></Cell>
-        <Cell><Data ss:Type="String">14</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">246.47</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Baby Wipes</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">341.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-042</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000042</Data></Cell>
-        <Cell><Data ss:Type="String">146</Data></Cell>
-        <Cell><Data ss:Type="String">15</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">198.13</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Diaper Rash Cream</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">358.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-043</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000043</Data></Cell>
-        <Cell><Data ss:Type="String">149</Data></Cell>
-        <Cell><Data ss:Type="String">16</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">218.93</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Sunscreen SPF50</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">376.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-044</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000044</Data></Cell>
-        <Cell><Data ss:Type="String">152</Data></Cell>
-        <Cell><Data ss:Type="String">17</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">240.77</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Moisturizing Lotion</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">393.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-045</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000045</Data></Cell>
-        <Cell><Data ss:Type="String">155</Data></Cell>
-        <Cell><Data ss:Type="String">18</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">263.64</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Acne Gel</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">410.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-046</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000046</Data></Cell>
-        <Cell><Data ss:Type="String">158</Data></Cell>
-        <Cell><Data ss:Type="String">19</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">287.56</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Anti-Dandruff Shampoo</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">428.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-047</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000047</Data></Cell>
-        <Cell><Data ss:Type="String">161</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">312.51</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Toothpaste Sensitive</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">445.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-048</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000048</Data></Cell>
-        <Cell><Data ss:Type="String">164</Data></Cell>
-        <Cell><Data ss:Type="String">5</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">338.50</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Mouthwash</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">42.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-049</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000049</Data></Cell>
-        <Cell><Data ss:Type="String">167</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">24.77</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Hand Sanitizer</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">60.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-050</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000050</Data></Cell>
-        <Cell><Data ss:Type="String">170</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">36.60</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Paracetamol 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">77.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-051</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000051</Data></Cell>
-        <Cell><Data ss:Type="String">173</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">49.47</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Ibuprofen 200mg</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">94.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-052</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000052</Data></Cell>
-        <Cell><Data ss:Type="String">176</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">63.38</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Cetirizine 10mg</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">111.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-053</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000053</Data></Cell>
-        <Cell><Data ss:Type="String">179</Data></Cell>
-        <Cell><Data ss:Type="String">10</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">78.33</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Loratadine 10mg</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">129.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-054</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000054</Data></Cell>
-        <Cell><Data ss:Type="String">182</Data></Cell>
-        <Cell><Data ss:Type="String">11</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">94.32</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Amoxicillin 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">146.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-055</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000055</Data></Cell>
-        <Cell><Data ss:Type="String">185</Data></Cell>
-        <Cell><Data ss:Type="String">12</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">111.34</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Azithromycin 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">163.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-056</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000056</Data></Cell>
-        <Cell><Data ss:Type="String">188</Data></Cell>
-        <Cell><Data ss:Type="String">13</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">95.00</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Omeprazole 20mg</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">181.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-057</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000057</Data></Cell>
-        <Cell><Data ss:Type="String">191</Data></Cell>
-        <Cell><Data ss:Type="String">14</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">110.47</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Pantoprazole 40mg</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">198.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-058</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000058</Data></Cell>
-        <Cell><Data ss:Type="String">194</Data></Cell>
-        <Cell><Data ss:Type="String">15</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">126.98</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Metformin 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">215.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-059</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000059</Data></Cell>
-        <Cell><Data ss:Type="String">197</Data></Cell>
-        <Cell><Data ss:Type="String">16</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">144.52</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Amlodipine 5mg</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">233.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-060</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000060</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">17</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">163.10</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Losartan 50mg</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">250.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-061</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000061</Data></Cell>
-        <Cell><Data ss:Type="String">23</Data></Cell>
-        <Cell><Data ss:Type="String">18</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">182.72</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Atorvastatin 20mg</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">267.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-062</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000062</Data></Cell>
-        <Cell><Data ss:Type="String">26</Data></Cell>
-        <Cell><Data ss:Type="String">19</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">203.38</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Vitamin C 500mg</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">284.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-063</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000063</Data></Cell>
-        <Cell><Data ss:Type="String">29</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">165.24</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Vitamin B Complex</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">302.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-064</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000064</Data></Cell>
-        <Cell><Data ss:Type="String">32</Data></Cell>
-        <Cell><Data ss:Type="String">5</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">184.34</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Multivitamins</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">319.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-065</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000065</Data></Cell>
-        <Cell><Data ss:Type="String">35</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">204.48</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Fish Oil 1000mg</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">336.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-066</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000066</Data></Cell>
-        <Cell><Data ss:Type="String">38</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">225.66</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Calcium + D3</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">354.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-067</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000067</Data></Cell>
-        <Cell><Data ss:Type="String">41</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">247.87</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Iron Supplement</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">371.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-068</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000068</Data></Cell>
-        <Cell><Data ss:Type="String">44</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">271.12</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Zinc 50mg</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">388.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-069</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000069</Data></Cell>
-        <Cell><Data ss:Type="String">47</Data></Cell>
-        <Cell><Data ss:Type="String">10</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">295.41</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">ORS Sachet</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">406.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-070</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000070</Data></Cell>
-        <Cell><Data ss:Type="String">50</Data></Cell>
-        <Cell><Data ss:Type="String">11</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">235.48</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Cough Syrup</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">423.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-071</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000071</Data></Cell>
-        <Cell><Data ss:Type="String">53</Data></Cell>
-        <Cell><Data ss:Type="String">12</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">258.21</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Expectorant Syrup</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">440.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-072</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000072</Data></Cell>
-        <Cell><Data ss:Type="String">56</Data></Cell>
-        <Cell><Data ss:Type="String">13</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">281.98</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Antacid Suspension</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">37.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-073</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000073</Data></Cell>
-        <Cell><Data ss:Type="String">59</Data></Cell>
-        <Cell><Data ss:Type="String">14</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">25.39</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Loperamide 2mg</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">55.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-074</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000074</Data></Cell>
-        <Cell><Data ss:Type="String">62</Data></Cell>
-        <Cell><Data ss:Type="String">15</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">38.64</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Probiotic Capsules</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">72.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-075</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000075</Data></Cell>
-        <Cell><Data ss:Type="String">65</Data></Cell>
-        <Cell><Data ss:Type="String">16</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">52.92</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Nasal Spray</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">89.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-076</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000076</Data></Cell>
-        <Cell><Data ss:Type="String">68</Data></Cell>
-        <Cell><Data ss:Type="String">17</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">68.25</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Saline Solution</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">107.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-077</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000077</Data></Cell>
-        <Cell><Data ss:Type="String">71</Data></Cell>
-        <Cell><Data ss:Type="String">18</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">62.12</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Eye Drops Lubricant</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">124.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-078</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000078</Data></Cell>
-        <Cell><Data ss:Type="String">74</Data></Cell>
-        <Cell><Data ss:Type="String">19</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">75.88</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Antiseptic Solution</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">141.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-079</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000079</Data></Cell>
-        <Cell><Data ss:Type="String">77</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">90.69</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Hydrogen Peroxide</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">159.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-080</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000080</Data></Cell>
-        <Cell><Data ss:Type="String">80</Data></Cell>
-        <Cell><Data ss:Type="String">5</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">106.53</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Alcohol 70%</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">176.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-081</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000081</Data></Cell>
-        <Cell><Data ss:Type="String">83</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">123.41</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Cotton Balls</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">193.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-082</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000082</Data></Cell>
-        <Cell><Data ss:Type="String">86</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">141.33</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Sterile Gauze</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">210.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-083</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000083</Data></Cell>
-        <Cell><Data ss:Type="String">89</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">160.28</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Adhesive Bandage</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">228.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-084</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000084</Data></Cell>
-        <Cell><Data ss:Type="String">92</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">132.36</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Digital Thermometer</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">245.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-085</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000085</Data></Cell>
-        <Cell><Data ss:Type="String">95</Data></Cell>
-        <Cell><Data ss:Type="String">10</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">149.76</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Blood Pressure Monitor</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">262.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-086</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000086</Data></Cell>
-        <Cell><Data ss:Type="String">98</Data></Cell>
-        <Cell><Data ss:Type="String">11</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">168.19</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Pulse Oximeter</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">280.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-087</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000087</Data></Cell>
-        <Cell><Data ss:Type="String">101</Data></Cell>
-        <Cell><Data ss:Type="String">12</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">187.67</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Pregnancy Test Kit</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">297.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-088</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000088</Data></Cell>
-        <Cell><Data ss:Type="String">104</Data></Cell>
-        <Cell><Data ss:Type="String">13</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">208.18</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Glucose Test Strips</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">314.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-089</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000089</Data></Cell>
-        <Cell><Data ss:Type="String">107</Data></Cell>
-        <Cell><Data ss:Type="String">14</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">229.73</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Insulin Syringes</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">332.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-090</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000090</Data></Cell>
-        <Cell><Data ss:Type="String">110</Data></Cell>
-        <Cell><Data ss:Type="String">15</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">252.32</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Baby Formula</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">349.30</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-091</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000091</Data></Cell>
-        <Cell><Data ss:Type="String">113</Data></Cell>
-        <Cell><Data ss:Type="String">16</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">202.59</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Baby Wipes</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">366.60</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-092</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000092</Data></Cell>
-        <Cell><Data ss:Type="String">116</Data></Cell>
-        <Cell><Data ss:Type="String">17</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">223.63</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Diaper Rash Cream</Data></Cell>
-        <Cell><Data ss:Type="String">Personal Care</Data></Cell>
-        <Cell><Data ss:Type="String">383.90</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PCR-093</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000093</Data></Cell>
-        <Cell><Data ss:Type="String">119</Data></Cell>
-        <Cell><Data ss:Type="String">18</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">245.70</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Sunscreen SPF50</Data></Cell>
-        <Cell><Data ss:Type="String">Baby Care</Data></Cell>
-        <Cell><Data ss:Type="String">401.20</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-BBC-094</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000094</Data></Cell>
-        <Cell><Data ss:Type="String">122</Data></Cell>
-        <Cell><Data ss:Type="String">19</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">268.80</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Moisturizing Lotion</Data></Cell>
-        <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
-        <Cell><Data ss:Type="String">418.50</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-MDS-095</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000095</Data></Cell>
-        <Cell><Data ss:Type="String">125</Data></Cell>
-        <Cell><Data ss:Type="String">20</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">292.95</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Acne Gel</Data></Cell>
-        <Cell><Data ss:Type="String">Skin Care</Data></Cell>
-        <Cell><Data ss:Type="String">435.80</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-SKN-096</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000096</Data></Cell>
-        <Cell><Data ss:Type="String">128</Data></Cell>
-        <Cell><Data ss:Type="String">5</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">318.13</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Anti-Dandruff Shampoo</Data></Cell>
-        <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
-        <Cell><Data ss:Type="String">453.10</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-PRM-097</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000097</Data></Cell>
-        <Cell><Data ss:Type="String">131</Data></Cell>
-        <Cell><Data ss:Type="String">6</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">344.36</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Toothpaste Sensitive</Data></Cell>
-        <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
-        <Cell><Data ss:Type="String">50.40</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-OTC-098</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000098</Data></Cell>
-        <Cell><Data ss:Type="String">134</Data></Cell>
-        <Cell><Data ss:Type="String">7</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">29.23</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Mouthwash</Data></Cell>
-        <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
-        <Cell><Data ss:Type="String">67.70</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-VIT-099</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000099</Data></Cell>
-        <Cell><Data ss:Type="String">137</Data></Cell>
-        <Cell><Data ss:Type="String">8</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">false</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">41.30</Data></Cell>
-      </Row>
-      <Row>
-        <Cell><Data ss:Type="String">Hand Sanitizer</Data></Cell>
-        <Cell><Data ss:Type="String">First Aid</Data></Cell>
-        <Cell><Data ss:Type="String">85.00</Data></Cell>
-        <Cell><Data ss:Type="String">CAF-FAD-100</Data></Cell>
-        <Cell><Data ss:Type="String">9000000000100</Data></Cell>
-        <Cell><Data ss:Type="String">140</Data></Cell>
-        <Cell><Data ss:Type="String">9</Data></Cell>
-        <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
-        <Cell><Data ss:Type="String"></Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">true</Data></Cell>
-        <Cell><Data ss:Type="String">54.40</Data></Cell>
-      </Row>
-    </Table>
-  </Worksheet>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>7596</WindowHeight>
+  <WindowWidth>22428</WindowWidth>
+  <WindowTopX>32767</WindowTopX>
+  <WindowTopY>32767</WindowTopY>
+  <ProtectStructure>False</ProtectStructure>
+  <ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Products">
+  <Table ss:ExpandedColumnCount="13" ss:ExpandedRowCount="101" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultRowHeight="14.4">
+   <Column ss:AutoFitWidth="0" ss:Width="142.20000000000002"/>
+   <Column ss:AutoFitWidth="0" ss:Width="148.80000000000001"/>
+   <Column ss:AutoFitWidth="0" ss:Width="63"/>
+   <Column ss:AutoFitWidth="0" ss:Width="73.8"/>
+   <Column ss:AutoFitWidth="0" ss:Width="98.4"/>
+   <Column ss:AutoFitWidth="0" ss:Width="76.2"/>
+   <Column ss:Index="8" ss:AutoFitWidth="0" ss:Width="295.8"/>
+   <Row>
+    <Cell><Data ss:Type="String">name</Data></Cell>
+    <Cell><Data ss:Type="String">category</Data></Cell>
+    <Cell><Data ss:Type="String">price</Data></Cell>
+    <Cell><Data ss:Type="String">sku</Data></Cell>
+    <Cell><Data ss:Type="String">barcode</Data></Cell>
+    <Cell><Data ss:Type="String">stock_quantity</Data></Cell>
+    <Cell><Data ss:Type="String">low_stock_threshold</Data></Cell>
+    <Cell><Data ss:Type="String">description</Data></Cell>
+    <Cell><Data ss:Type="String">image</Data></Cell>
+    <Cell><Data ss:Type="String">active</Data></Cell>
+    <Cell><Data ss:Type="String">popular</Data></Cell>
+    <Cell><Data ss:Type="String">send_to_k</Data></Cell>
+    <Cell><Data ss:Type="String">cost</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Paracetamol 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">52.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-001</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000001</Data></Cell>
+    <Cell><Data ss:Type="String">23</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">31.90</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Ibuprofen 200mg</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">69.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-002</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000002</Data></Cell>
+    <Cell><Data ss:Type="String">26</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">44.54</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Cetirizine 10mg</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">86.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-003</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000003</Data></Cell>
+    <Cell><Data ss:Type="String">29</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">58.22</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Loratadine 10mg</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">104.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-004</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000004</Data></Cell>
+    <Cell><Data ss:Type="String">32</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">72.94</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amoxicillin 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">121.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-005</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000005</Data></Cell>
+    <Cell><Data ss:Type="String">35</Data></Cell>
+    <Cell><Data ss:Type="String">10</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">88.70</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Azithromycin 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">138.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-006</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000006</Data></Cell>
+    <Cell><Data ss:Type="String">38</Data></Cell>
+    <Cell><Data ss:Type="String">11</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">105.49</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Omeprazole 20mg</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">156.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-007</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000007</Data></Cell>
+    <Cell><Data ss:Type="String">41</Data></Cell>
+    <Cell><Data ss:Type="String">12</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">90.54</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Pantoprazole 40mg</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">173.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-008</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000008</Data></Cell>
+    <Cell><Data ss:Type="String">44</Data></Cell>
+    <Cell><Data ss:Type="String">13</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">105.77</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Metformin 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">190.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-009</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000009</Data></Cell>
+    <Cell><Data ss:Type="String">47</Data></Cell>
+    <Cell><Data ss:Type="String">14</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">122.05</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amlodipine 5mg</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">208.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-010</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000010</Data></Cell>
+    <Cell><Data ss:Type="String">50</Data></Cell>
+    <Cell><Data ss:Type="String">15</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">139.36</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Losartan 50mg</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">225.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-011</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000011</Data></Cell>
+    <Cell><Data ss:Type="String">53</Data></Cell>
+    <Cell><Data ss:Type="String">16</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">157.71</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Atorvastatin 20mg</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">242.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-012</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000012</Data></Cell>
+    <Cell><Data ss:Type="String">56</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">177.10</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Vitamin C 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">259.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-013</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000013</Data></Cell>
+    <Cell><Data ss:Type="String">59</Data></Cell>
+    <Cell><Data ss:Type="String">18</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">197.52</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Vitamin B Complex</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">277.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-014</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000014</Data></Cell>
+    <Cell><Data ss:Type="String">62</Data></Cell>
+    <Cell><Data ss:Type="String">19</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">160.78</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Multivitamins</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">294.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-015</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000015</Data></Cell>
+    <Cell><Data ss:Type="String">65</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">179.64</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Fish Oil 1000mg</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">311.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-016</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000016</Data></Cell>
+    <Cell><Data ss:Type="String">68</Data></Cell>
+    <Cell><Data ss:Type="String">5</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">199.55</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Calcium + D3</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">329.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-017</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000017</Data></Cell>
+    <Cell><Data ss:Type="String">71</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">220.50</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Iron Supplement</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">346.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-018</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000018</Data></Cell>
+    <Cell><Data ss:Type="String">74</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">242.48</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Zinc 50mg</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">363.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-019</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000019</Data></Cell>
+    <Cell><Data ss:Type="String">77</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">265.50</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">ORS Sachet</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">381.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-020</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000020</Data></Cell>
+    <Cell><Data ss:Type="String">80</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">289.56</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Cough Syrup</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">398.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-021</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000021</Data></Cell>
+    <Cell><Data ss:Type="String">83</Data></Cell>
+    <Cell><Data ss:Type="String">10</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">231.01</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Expectorant Syrup</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">415.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-022</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000022</Data></Cell>
+    <Cell><Data ss:Type="String">86</Data></Cell>
+    <Cell><Data ss:Type="String">11</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">253.52</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Antacid Suspension</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">432.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-023</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000023</Data></Cell>
+    <Cell><Data ss:Type="String">89</Data></Cell>
+    <Cell><Data ss:Type="String">12</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">277.06</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Loperamide 2mg</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">450.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-024</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000024</Data></Cell>
+    <Cell><Data ss:Type="String">92</Data></Cell>
+    <Cell><Data ss:Type="String">13</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">301.63</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Probiotic Capsules</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">47.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-025</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000025</Data></Cell>
+    <Cell><Data ss:Type="String">95</Data></Cell>
+    <Cell><Data ss:Type="String">14</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">33.25</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Nasal Spray</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">64.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-026</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000026</Data></Cell>
+    <Cell><Data ss:Type="String">98</Data></Cell>
+    <Cell><Data ss:Type="String">15</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">47.30</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Saline Solution</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">82.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-027</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000027</Data></Cell>
+    <Cell><Data ss:Type="String">101</Data></Cell>
+    <Cell><Data ss:Type="String">16</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">62.40</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Eye Drops Lubricant</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">99.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-028</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000028</Data></Cell>
+    <Cell><Data ss:Type="String">104</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">57.65</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Antiseptic Solution</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">116.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-029</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000029</Data></Cell>
+    <Cell><Data ss:Type="String">107</Data></Cell>
+    <Cell><Data ss:Type="String">18</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">71.19</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Hydrogen Peroxide</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">134.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-030</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000030</Data></Cell>
+    <Cell><Data ss:Type="String">110</Data></Cell>
+    <Cell><Data ss:Type="String">19</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">85.76</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Alcohol 70%</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">151.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-031</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000031</Data></Cell>
+    <Cell><Data ss:Type="String">113</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">101.37</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Cotton Balls</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">168.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-032</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000032</Data></Cell>
+    <Cell><Data ss:Type="String">116</Data></Cell>
+    <Cell><Data ss:Type="String">5</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">118.02</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Sterile Gauze</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">185.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-033</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000033</Data></Cell>
+    <Cell><Data ss:Type="String">119</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">135.71</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Adhesive Bandage</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">203.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-034</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000034</Data></Cell>
+    <Cell><Data ss:Type="String">122</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">154.43</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Digital Thermometer</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">220.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-035</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000035</Data></Cell>
+    <Cell><Data ss:Type="String">125</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">127.89</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Blood Pressure Monitor</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">237.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-036</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000036</Data></Cell>
+    <Cell><Data ss:Type="String">128</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">145.06</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Pulse Oximeter</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">255.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-037</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000037</Data></Cell>
+    <Cell><Data ss:Type="String">131</Data></Cell>
+    <Cell><Data ss:Type="String">10</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">163.26</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Pregnancy Test Kit</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">272.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-038</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000038</Data></Cell>
+    <Cell><Data ss:Type="String">134</Data></Cell>
+    <Cell><Data ss:Type="String">11</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">182.51</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Glucose Test Strips</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">289.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-039</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000039</Data></Cell>
+    <Cell><Data ss:Type="String">137</Data></Cell>
+    <Cell><Data ss:Type="String">12</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">202.79</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Insulin Syringes</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">307.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-040</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000040</Data></Cell>
+    <Cell><Data ss:Type="String">140</Data></Cell>
+    <Cell><Data ss:Type="String">13</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">224.11</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Baby Formula</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">324.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-041</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000041</Data></Cell>
+    <Cell><Data ss:Type="String">143</Data></Cell>
+    <Cell><Data ss:Type="String">14</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">246.47</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Baby Wipes</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">341.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-042</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000042</Data></Cell>
+    <Cell><Data ss:Type="String">146</Data></Cell>
+    <Cell><Data ss:Type="String">15</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">198.13</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Diaper Rash Cream</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">358.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-043</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000043</Data></Cell>
+    <Cell><Data ss:Type="String">149</Data></Cell>
+    <Cell><Data ss:Type="String">16</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">218.93</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Sunscreen SPF50</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">376.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-044</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000044</Data></Cell>
+    <Cell><Data ss:Type="String">152</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">240.77</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Moisturizing Lotion</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">393.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-045</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000045</Data></Cell>
+    <Cell><Data ss:Type="String">155</Data></Cell>
+    <Cell><Data ss:Type="String">18</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">263.64</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Acne Gel</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">410.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-046</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000046</Data></Cell>
+    <Cell><Data ss:Type="String">158</Data></Cell>
+    <Cell><Data ss:Type="String">19</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">287.56</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Anti-Dandruff Shampoo</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">428.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-047</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000047</Data></Cell>
+    <Cell><Data ss:Type="String">161</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">312.51</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Toothpaste Sensitive</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">445.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-048</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000048</Data></Cell>
+    <Cell><Data ss:Type="String">164</Data></Cell>
+    <Cell><Data ss:Type="String">5</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">338.50</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Mouthwash</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">42.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-049</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000049</Data></Cell>
+    <Cell><Data ss:Type="String">167</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">24.77</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Hand Sanitizer</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">60.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-050</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000050</Data></Cell>
+    <Cell><Data ss:Type="String">170</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">36.60</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Paracetamol 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">77.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-051</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000051</Data></Cell>
+    <Cell><Data ss:Type="String">173</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">49.47</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Ibuprofen 200mg</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">94.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-052</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000052</Data></Cell>
+    <Cell><Data ss:Type="String">176</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">63.38</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Cetirizine 10mg</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">111.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-053</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000053</Data></Cell>
+    <Cell><Data ss:Type="String">179</Data></Cell>
+    <Cell><Data ss:Type="String">10</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">78.33</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Loratadine 10mg</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">129.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-054</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000054</Data></Cell>
+    <Cell><Data ss:Type="String">182</Data></Cell>
+    <Cell><Data ss:Type="String">11</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">94.32</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amoxicillin 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">146.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-055</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000055</Data></Cell>
+    <Cell><Data ss:Type="String">185</Data></Cell>
+    <Cell><Data ss:Type="String">12</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">111.34</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Azithromycin 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">163.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-056</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000056</Data></Cell>
+    <Cell><Data ss:Type="String">188</Data></Cell>
+    <Cell><Data ss:Type="String">13</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">95.00</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Omeprazole 20mg</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">181.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-057</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000057</Data></Cell>
+    <Cell><Data ss:Type="String">191</Data></Cell>
+    <Cell><Data ss:Type="String">14</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">110.47</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Pantoprazole 40mg</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">198.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-058</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000058</Data></Cell>
+    <Cell><Data ss:Type="String">194</Data></Cell>
+    <Cell><Data ss:Type="String">15</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">126.98</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Metformin 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">215.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-059</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000059</Data></Cell>
+    <Cell><Data ss:Type="String">197</Data></Cell>
+    <Cell><Data ss:Type="String">16</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">144.52</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amlodipine 5mg</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">233.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-060</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000060</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">163.10</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Losartan 50mg</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">250.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-061</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000061</Data></Cell>
+    <Cell><Data ss:Type="String">23</Data></Cell>
+    <Cell><Data ss:Type="String">18</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">182.72</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Atorvastatin 20mg</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">267.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-062</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000062</Data></Cell>
+    <Cell><Data ss:Type="String">26</Data></Cell>
+    <Cell><Data ss:Type="String">19</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">203.38</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Vitamin C 500mg</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">284.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-063</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000063</Data></Cell>
+    <Cell><Data ss:Type="String">29</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">165.24</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Vitamin B Complex</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">302.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-064</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000064</Data></Cell>
+    <Cell><Data ss:Type="String">32</Data></Cell>
+    <Cell><Data ss:Type="String">5</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">184.34</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Multivitamins</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">319.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-065</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000065</Data></Cell>
+    <Cell><Data ss:Type="String">35</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">204.48</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Fish Oil 1000mg</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">336.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-066</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000066</Data></Cell>
+    <Cell><Data ss:Type="String">38</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">225.66</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Calcium + D3</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">354.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-067</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000067</Data></Cell>
+    <Cell><Data ss:Type="String">41</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">247.87</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Iron Supplement</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">371.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-068</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000068</Data></Cell>
+    <Cell><Data ss:Type="String">44</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">271.12</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Zinc 50mg</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">388.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-069</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000069</Data></Cell>
+    <Cell><Data ss:Type="String">47</Data></Cell>
+    <Cell><Data ss:Type="String">10</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">295.41</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">ORS Sachet</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">406.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-070</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000070</Data></Cell>
+    <Cell><Data ss:Type="String">50</Data></Cell>
+    <Cell><Data ss:Type="String">11</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">235.48</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Cough Syrup</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">423.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-071</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000071</Data></Cell>
+    <Cell><Data ss:Type="String">53</Data></Cell>
+    <Cell><Data ss:Type="String">12</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">258.21</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Expectorant Syrup</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">440.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-072</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000072</Data></Cell>
+    <Cell><Data ss:Type="String">56</Data></Cell>
+    <Cell><Data ss:Type="String">13</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">281.98</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Antacid Suspension</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">37.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-073</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000073</Data></Cell>
+    <Cell><Data ss:Type="String">59</Data></Cell>
+    <Cell><Data ss:Type="String">14</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">25.39</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Loperamide 2mg</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">55.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-074</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000074</Data></Cell>
+    <Cell><Data ss:Type="String">62</Data></Cell>
+    <Cell><Data ss:Type="String">15</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">38.64</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Probiotic Capsules</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">72.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-075</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000075</Data></Cell>
+    <Cell><Data ss:Type="String">65</Data></Cell>
+    <Cell><Data ss:Type="String">16</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">52.92</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Nasal Spray</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">89.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-076</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000076</Data></Cell>
+    <Cell><Data ss:Type="String">68</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">68.25</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Saline Solution</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">107.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-077</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000077</Data></Cell>
+    <Cell><Data ss:Type="String">71</Data></Cell>
+    <Cell><Data ss:Type="String">18</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">62.12</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Eye Drops Lubricant</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">124.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-078</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000078</Data></Cell>
+    <Cell><Data ss:Type="String">74</Data></Cell>
+    <Cell><Data ss:Type="String">19</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">75.88</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Antiseptic Solution</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">141.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-079</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000079</Data></Cell>
+    <Cell><Data ss:Type="String">77</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">90.69</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Hydrogen Peroxide</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">159.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-080</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000080</Data></Cell>
+    <Cell><Data ss:Type="String">80</Data></Cell>
+    <Cell><Data ss:Type="String">5</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">106.53</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Alcohol 70%</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">176.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-081</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000081</Data></Cell>
+    <Cell><Data ss:Type="String">83</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">123.41</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Cotton Balls</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">193.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-082</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000082</Data></Cell>
+    <Cell><Data ss:Type="String">86</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">141.33</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Sterile Gauze</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">210.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-083</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000083</Data></Cell>
+    <Cell><Data ss:Type="String">89</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">160.28</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Adhesive Bandage</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">228.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-084</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000084</Data></Cell>
+    <Cell><Data ss:Type="String">92</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">132.36</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Digital Thermometer</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">245.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-085</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000085</Data></Cell>
+    <Cell><Data ss:Type="String">95</Data></Cell>
+    <Cell><Data ss:Type="String">10</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">149.76</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Blood Pressure Monitor</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">262.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-086</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000086</Data></Cell>
+    <Cell><Data ss:Type="String">98</Data></Cell>
+    <Cell><Data ss:Type="String">11</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">168.19</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Pulse Oximeter</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">280.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-087</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000087</Data></Cell>
+    <Cell><Data ss:Type="String">101</Data></Cell>
+    <Cell><Data ss:Type="String">12</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">187.67</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Pregnancy Test Kit</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">297.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-088</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000088</Data></Cell>
+    <Cell><Data ss:Type="String">104</Data></Cell>
+    <Cell><Data ss:Type="String">13</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">208.18</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Glucose Test Strips</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">314.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-089</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000089</Data></Cell>
+    <Cell><Data ss:Type="String">107</Data></Cell>
+    <Cell><Data ss:Type="String">14</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">229.73</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Insulin Syringes</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">332.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-090</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000090</Data></Cell>
+    <Cell><Data ss:Type="String">110</Data></Cell>
+    <Cell><Data ss:Type="String">15</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">252.32</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Baby Formula</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">349.30</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-091</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000091</Data></Cell>
+    <Cell><Data ss:Type="String">113</Data></Cell>
+    <Cell><Data ss:Type="String">16</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">202.59</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Baby Wipes</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">366.60</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-092</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000092</Data></Cell>
+    <Cell><Data ss:Type="String">116</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">223.63</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Diaper Rash Cream</Data></Cell>
+    <Cell><Data ss:Type="String">Personal Care</Data></Cell>
+    <Cell><Data ss:Type="String">383.90</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PCR-093</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000093</Data></Cell>
+    <Cell><Data ss:Type="String">119</Data></Cell>
+    <Cell><Data ss:Type="String">18</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving personal care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">245.70</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Sunscreen SPF50</Data></Cell>
+    <Cell><Data ss:Type="String">Baby Care</Data></Cell>
+    <Cell><Data ss:Type="String">401.20</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-BBC-094</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000094</Data></Cell>
+    <Cell><Data ss:Type="String">122</Data></Cell>
+    <Cell><Data ss:Type="String">19</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving baby care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">268.80</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Moisturizing Lotion</Data></Cell>
+    <Cell><Data ss:Type="String">Medical Devices</Data></Cell>
+    <Cell><Data ss:Type="String">418.50</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-MDS-095</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000095</Data></Cell>
+    <Cell><Data ss:Type="String">125</Data></Cell>
+    <Cell><Data ss:Type="String">20</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving medical devices item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">292.95</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Acne Gel</Data></Cell>
+    <Cell><Data ss:Type="String">Skin Care</Data></Cell>
+    <Cell><Data ss:Type="String">435.80</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-SKN-096</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000096</Data></Cell>
+    <Cell><Data ss:Type="String">128</Data></Cell>
+    <Cell><Data ss:Type="String">5</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving skin care item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">318.13</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Anti-Dandruff Shampoo</Data></Cell>
+    <Cell><Data ss:Type="String">Prescription Medicines</Data></Cell>
+    <Cell><Data ss:Type="String">453.10</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-PRM-097</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000097</Data></Cell>
+    <Cell><Data ss:Type="String">131</Data></Cell>
+    <Cell><Data ss:Type="String">6</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving prescription medicines item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">344.36</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Toothpaste Sensitive</Data></Cell>
+    <Cell><Data ss:Type="String">Over-the-Counter</Data></Cell>
+    <Cell><Data ss:Type="String">50.40</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-OTC-098</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000098</Data></Cell>
+    <Cell><Data ss:Type="String">134</Data></Cell>
+    <Cell><Data ss:Type="String">7</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving over-the-counter item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">29.23</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Mouthwash</Data></Cell>
+    <Cell><Data ss:Type="String">Vitamins &amp; Supplements</Data></Cell>
+    <Cell><Data ss:Type="String">67.70</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-VIT-099</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000099</Data></Cell>
+    <Cell><Data ss:Type="String">137</Data></Cell>
+    <Cell><Data ss:Type="String">8</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving vitamins &amp; supplements item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">false</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">41.30</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Hand Sanitizer</Data></Cell>
+    <Cell><Data ss:Type="String">First Aid</Data></Cell>
+    <Cell><Data ss:Type="String">85.00</Data></Cell>
+    <Cell><Data ss:Type="String">CAF-FAD-100</Data></Cell>
+    <Cell><Data ss:Type="String">9000000000100</Data></Cell>
+    <Cell><Data ss:Type="String">140</Data></Cell>
+    <Cell><Data ss:Type="String">9</Data></Cell>
+    <Cell><Data ss:Type="String">Fast-moving first aid item for daily pharmacy sales</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">true</Data></Cell>
+    <Cell><Data ss:Type="String">54.40</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <Selected/>
+   <Panes>
+    <Pane>
+     <Number>3</Number>
+     <ActiveRow>14</ActiveRow>
+     <ActiveCol>1</ActiveCol>
+    </Pane>
+   </Panes>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
 </Workbook>

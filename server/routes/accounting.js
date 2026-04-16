@@ -399,7 +399,7 @@ router.get('/reports/daily-summary', async (req, res) => {
                 COALESCE(SUM(discount_amount), 0) as total_discount
              FROM orders 
              WHERE company_id::text = $1::text
-               AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $2::date
+               AND (created_at::timestamptz AT TIME ZONE 'Asia/Manila')::date = $2::date
                AND order_status != 'cancelled'
                AND (posted_to_ledger IS FALSE OR posted_to_ledger IS NULL)`,
             [company_id, date]
@@ -413,7 +413,7 @@ router.get('/reports/daily-summary', async (req, res) => {
              JOIN orders o ON oi.order_id = o.id
              JOIN products p ON oi.product_id = p.id
              WHERE o.company_id::text = $1::text
-               AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $2::date
+               AND (o.created_at::timestamptz AT TIME ZONE 'Asia/Manila')::date = $2::date
                AND o.order_status != 'cancelled'
                AND (o.posted_to_ledger IS FALSE OR o.posted_to_ledger IS NULL)`,
             [company_id, date]
@@ -424,7 +424,7 @@ router.get('/reports/daily-summary', async (req, res) => {
             `SELECT id, order_number, total_amount, created_at
              FROM orders
              WHERE company_id::text = $1::text
-               AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $2::date
+               AND (created_at::timestamptz AT TIME ZONE 'Asia/Manila')::date = $2::date
                AND order_status != 'cancelled'
                AND (posted_to_ledger IS FALSE OR posted_to_ledger IS NULL)
              ORDER BY created_at DESC`,
@@ -461,7 +461,7 @@ router.post('/reports/post-daily', async (req, res) => {
                 COALESCE(SUM(tax_amount), 0) as total_tax
              FROM orders 
              WHERE company_id::text = $1::text
-               AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $2::date
+               AND (created_at::timestamptz AT TIME ZONE 'Asia/Manila')::date = $2::date
                AND order_status != 'cancelled'
                AND (posted_to_ledger IS FALSE OR posted_to_ledger IS NULL)`,
             [company_id, date]
@@ -474,7 +474,7 @@ router.post('/reports/post-daily', async (req, res) => {
              JOIN orders o ON oi.order_id = o.id
              JOIN products p ON oi.product_id = p.id
              WHERE o.company_id::text = $1::text
-               AND (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $2::date
+               AND (o.created_at::timestamptz AT TIME ZONE 'Asia/Manila')::date = $2::date
                AND o.order_status != 'cancelled'
                AND (o.posted_to_ledger IS FALSE OR o.posted_to_ledger IS NULL)`,
             [company_id, date]
@@ -574,7 +574,7 @@ router.post('/reports/post-daily', async (req, res) => {
         await client.query(
             `UPDATE orders SET posted_to_ledger = TRUE 
              WHERE company_id::text = $1::text
-               AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date = $2::date
+               AND (created_at::timestamptz AT TIME ZONE 'Asia/Manila')::date = $2::date
                AND (posted_to_ledger IS FALSE OR posted_to_ledger IS NULL)`,
             [company_id, date]
         );

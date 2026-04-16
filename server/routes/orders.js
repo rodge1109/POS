@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     const tz = sanitizeTimezone(req.query.tz);
-    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const orderDateExpr = `(o.created_at::timestamptz AT TIME ZONE '${tz}')::date`;
     let query = `
       SELECT o.*, c.name as customer_name, c.phone as customer_phone, e.name as employee_name,
         (SELECT COUNT(*) FROM order_item_adjustments WHERE order_id = o.id AND company_id = $1) as adjustment_count
@@ -178,7 +178,7 @@ router.get('/kitchen-report', async (req, res) => {
   try {
     const { date, limit = 100, offset = 0 } = req.query;
     const tz = sanitizeTimezone(req.query.tz);
-    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const orderDateExpr = `(o.created_at::timestamptz AT TIME ZONE '${tz}')::date`;
     let where = `o.order_status IN ('received', 'preparing', 'completed', 'open', 'paid')
       AND EXISTS (
         SELECT 1 FROM order_items oi
@@ -234,7 +234,7 @@ router.get('/reconciliation', async (req, res) => {
   try {
     const { start, end } = req.query;
     const tz = sanitizeTimezone(req.query.tz);
-    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const orderDateExpr = `(o.created_at::timestamptz AT TIME ZONE '${tz}')::date`;
     const params = [req.company_id];
     let where = 'o.company_id = $1';
 

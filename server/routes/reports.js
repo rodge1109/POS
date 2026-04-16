@@ -41,7 +41,7 @@ router.get('/sales-items', async (req, res) => {
   try {
     const { start, end } = req.query;
     const tz = sanitizeTimezone(req.query.tz);
-    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const orderDateExpr = `(o.created_at::timestamptz AT TIME ZONE '${tz}')::date`;
     const company_id = req.company_id;
 
     const params = [company_id];
@@ -94,9 +94,9 @@ router.get('/activity-logs', async (req, res) => {
   try {
     const { start, end, limit = 200, module = 'all' } = req.query;
     const tz = sanitizeTimezone(req.query.tz);
-    const orderDateExpr = `(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
-    const inventoryDateExpr = `(it.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
-    const shiftDateExpr = `(s.start_time AT TIME ZONE 'UTC' AT TIME ZONE '${tz}')::date`;
+    const orderDateExpr = `(o.created_at::timestamptz AT TIME ZONE '${tz}')::date`;
+    const inventoryDateExpr = `(it.created_at::timestamptz AT TIME ZONE '${tz}')::date`;
+    const shiftDateExpr = `(s.start_time::timestamptz AT TIME ZONE '${tz}')::date`;
     const company_id = req.company_id;
 
     const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500);
@@ -324,14 +324,14 @@ router.get('/dashboard-metrics', async (req, res) => {
     // 4. Sales History (Line Chart)
     const salesHistoryRes = await pool.query(`
       SELECT 
-        TO_CHAR(date_trunc('day', (created_at AT TIME ZONE 'UTC' AT TIME ZONE $2)), 'Mon DD') as date,
+        TO_CHAR(date_trunc('day', (created_at::timestamptz AT TIME ZONE $2)), 'Mon DD') as date,
         SUM(total_amount)::float as daily_total
       FROM orders
       WHERE company_id = $1
       AND created_at >= NOW() - INTERVAL '${interval}'
       AND LOWER(order_status) NOT IN ('voided', 'refunded', 'cancelled')
-      GROUP BY 1, date_trunc('day', (created_at AT TIME ZONE 'UTC' AT TIME ZONE $2))
-      ORDER BY date_trunc('day', (created_at AT TIME ZONE 'UTC' AT TIME ZONE $2))
+      GROUP BY 1, date_trunc('day', (created_at::timestamptz AT TIME ZONE $2))
+      ORDER BY date_trunc('day', (created_at::timestamptz AT TIME ZONE $2))
     `, [company_id, tz]);
 
     const salesData = {

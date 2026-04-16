@@ -1279,7 +1279,7 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
             {/* Logo - hidden on mobile when search is shown */}
             <div className={`flex items-center space-x-3 cursor-pointer ${(currentPage === 'home' || currentPage === 'menu') ? 'hidden md:flex' : 'flex'}`} onClick={() => setCurrentPage('home')}>
               <img src="/assets/images/lumina-logo.png" alt="Lumina Logo" className="w-10 h-10 object-contain drop-shadow-md" />
-              <div>
+              <div className="hidden md:block">
                 <h1 className="text-lg font-black text-white tracking-wider uppercase">Lumina POS</h1>
                 <p className="text-[8px] text-white font-bold opacity-90 uppercase tracking-widest">SME Commerce Engine</p>
               </div>
@@ -6066,10 +6066,10 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
   return (
     <>
-      <div className="bg-gray-200 h-full flex flex-col overflow-hidden">
-        <div className="flex flex-col-reverse md:flex-row h-full md:gap-2 lg:gap-0">
+      <div className="bg-white h-full flex flex-col overflow-hidden">
+        <div className="flex flex-row h-full overflow-hidden">
           {/* Left Panel - Menu Items */}
-          <div className="w-full md:flex-1 md:min-w-0 flex flex-col overflow-hidden flex-1">
+          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden border-r border-gray-200">
             {/* Barcode Scanner Input */}
             <form onSubmit={handleBarcodeSubmit} className="bg-white pt-5 pb-1.5 px-1.5 md:p-2.5 lg:p-3 flex gap-1 md:gap-2 items-center">
               <div className="relative flex-1">
@@ -6184,12 +6184,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
               return (
                 <div
-                  className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.45)' }}
+                  className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
                   onClick={() => setShowItemPicker(false)}
                 >
                   <div
-                    className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[88vh]"
+                    className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
                     onClick={e => e.stopPropagation()}
                   >
                     {/* Header */}
@@ -6333,25 +6332,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               );
             })()}
 
-            {/* Mobile-only checkout actions (moved here from sidebar) */}
-            {cartItems.length > 0 && !selectedTable && !showTableView && (
-              <div className="md:hidden p-2 space-y-2 bg-white border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] animate-slideUp">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setShowTableView(true)}
-                    className="py-3 rounded-xl font-black text-xs transition-all bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-widest"
-                  >
-                    Save to Table
-                  </button>
-                  <button
-                    onClick={handlePaymentWithShiftCheck}
-                    className="py-3 rounded-xl font-black text-xs transition-all bg-cyan-600 text-white shadow-sm uppercase tracking-widest"
-                  >
-                    Quick Charge
-                  </button>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Tablet overlay backdrop */}
@@ -6365,7 +6346,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
           )}
 
           {/* Right Panel - Order Summary */}
-          <div className={`w-full md:w-[22rem] lg:w-96 xl:w-[26rem] bg-white flex flex-col overflow-hidden h-[52vh] md:h-[calc(100vh-104px)] lg:h-full flex-shrink-0 md:fixed md:top-[104px] md:right-0 md:z-[65] md:max-w-[92vw] md:border-l md:border-gray-200 md:shadow-2xl md:transition-transform md:duration-300 ${isTabletOrderPanelOpen ? 'md:translate-x-0' : 'md:translate-x-full'} lg:translate-x-0 lg:static lg:top-auto lg:right-auto lg:z-auto lg:shadow-none lg:border-l-0`}>
+          <div className="w-64 sm:w-72 md:w-80 lg:w-96 xl:w-[26rem] bg-white flex flex-col overflow-hidden h-full flex-shrink-0 shadow-[-10px_0_20px_rgba(0,0,0,0.02)] transition-all">
             {/* Header with Shift Info */}
             <div className={`${currentShift ? 'bg-cyan-600' : 'bg-yellow-600'} pt-5 pb-2 px-2 md:p-3 lg:p-4 flex-shrink-0`}>
               <div className="flex justify-between items-start">
@@ -6649,12 +6630,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
                 {cartItems.length > 0 && !selectedTable ? (
                   /* Items in cart but no table selected */
-                  <div className="hidden md:block">
+                  <div>
                     <button
                       onClick={handlePaymentWithShiftCheck}
-                      className="w-full py-3 md:py-4 rounded-xl font-black text-xs md:text-lg transition-all bg-cyan-600 text-white hover:bg-cyan-700 shadow-md"
+                      className="w-full py-3 md:py-4 rounded-xl font-black text-sm md:text-lg transition-all bg-cyan-600 text-white hover:bg-cyan-700 shadow-md"
                     >
-                      CHARGE {money(total)} (NO TABLE)
+                      CHARGE {money(total)}
                     </button>
                   </div>
                 ) : employee?.role === 'waiter' ? (
@@ -6670,7 +6651,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   <button
                     onClick={handlePaymentWithShiftCheck}
                     disabled={cartItems.length === 0}
-                    className={`hidden md:block w-full py-2.5 md:py-4 rounded font-bold text-xs md:text-base transition-all ${cartItems.length === 0
+                    className={`w-full py-2.5 md:py-4 rounded font-bold text-xs md:text-base transition-all ${cartItems.length === 0
                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       : 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-md hover:shadow-lg'
                       }`}
@@ -6681,7 +6662,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                 <button
                   onClick={() => cartItems.forEach(item => removeFromCart(item.id, item.selectedSize))}
                   disabled={cartItems.length === 0}
-                  className={`hidden md:block w-full py-2.5 rounded font-medium text-sm transition-all ${cartItems.length === 0
+                  className={`w-full py-2.5 rounded font-medium text-xs md:text-sm transition-all ${cartItems.length === 0
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
                     }`}
@@ -6703,16 +6684,21 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
         </div>
 
         {showPaymentModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-6 lg:p-10 font-dashboard">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm md:p-6 lg:p-10 font-dashboard">
             <div className="w-full max-w-5xl h-full md:h-[92vh] flex flex-col bg-white md:rounded-3xl shadow-2xl overflow-hidden relative">
               {/* Green Header */}
               <div className="bg-cyan-600 text-white px-6 py-5 flex-shrink-0">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-2xl font-black tracking-tight uppercase">Process Payment</h2>
-                    <p className="text-cyan-100 text-[11px] font-bold opacity-80 uppercase tracking-widest">
-                      Complete Transaction • Order #{cartItems.length > 0 ? (Date.now() % 10000) : '0000'}
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-inner">
+                      <Calculator className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black tracking-tight uppercase">Process Payment</h2>
+                      <p className="text-cyan-100 text-[11px] font-bold opacity-80 uppercase tracking-widest">
+                        Complete Transaction • Order #{cartItems.length > 0 ? (Date.now() % 10000) : '0000'}
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => setShowPaymentModal(false)}
@@ -6739,7 +6725,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   </div>
 
                   {/* Actions Grid */}
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid md:grid-cols-2 gap-3">
                     {/* Service Type */}
                     <div className="space-y-3">
                       <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Service Type</label>
@@ -6752,12 +6738,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                           <button
                             key={type.value}
                             onClick={() => setServiceType(type.value)}
-                            className={`py-4 font-black transition-all rounded-2xl border-2 flex flex-col items-center gap-1.5 ${serviceType === type.value
-                              ? 'bg-cyan-600 text-white border-cyan-600 shadow-lg -translate-y-0.5'
+                            className={`py-2.5 font-black transition-all rounded-2xl border-2 flex items-center justify-center gap-2 ${serviceType === type.value
+                              ? 'bg-cyan-600 text-white border-cyan-600 shadow-lg'
                               : 'bg-white text-gray-400 border-gray-100 hover:border-cyan-300 hover:bg-green-50'
                               }`}
                           >
-                            <type.Icon className="w-5 h-5" />
+                            <type.Icon className="w-4 h-4" />
                             <span className="text-[10px] tracking-tight">{type.label}</span>
                           </button>
                         ))}
@@ -6767,12 +6753,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                     {/* Payment Method */}
                     <div className="space-y-3">
                       <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Payment Method</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         {['cash', 'gcash', 'card', 'credit'].map(method => (
                           <button
                             key={method}
                             onClick={() => setPaymentMethod(method)}
-                            className={`py-4 font-black text-[11px] tracking-widest transition-all rounded-2xl border-2 uppercase ${paymentMethod === method
+                            className={`py-2.5 font-black text-[10px] tracking-tighter transition-all rounded-2xl border-2 uppercase ${paymentMethod === method
                               ? method === 'credit' ? 'bg-orange-600 text-white border-orange-600 shadow-lg' : 'bg-cyan-600 text-white border-cyan-600 shadow-lg'
                               : 'bg-white text-gray-400 border-gray-100 hover:border-cyan-300 hover:bg-green-50'
                               }`}
@@ -6814,7 +6800,7 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
                   {/* Cash Tendered & Change Section */}
                   {paymentMethod === 'cash' && (
-                    <div className="pt-4 border-t-2 border-gray-100 animate-fadeIn">
+                    <div className="pt-4 border-t-2 border-gray-100 animate-fadeIn space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white border-2 border-gray-100 p-2 px-3 rounded-2xl shadow-sm flex flex-col min-h-[100px] justify-center">
                           <label className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest">
@@ -6846,6 +6832,31 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                           </div>
                         </div>
                       </div>
+
+                      {/* Quick Denominations */}
+                      <div className="grid grid-cols-6 gap-2">
+                        {quickAmounts.map(amt => (
+                          <button
+                            key={amt}
+                            onClick={() => {
+                              playTypewriterClick();
+                              setAmountReceived(amt.toString());
+                            }}
+                            className="py-3 bg-white border-2 border-gray-100 rounded-xl font-black text-gray-600 text-xs hover:border-cyan-500 hover:text-cyan-600 transition-all active:scale-95 shadow-sm"
+                          >
+                            ₱{amt}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => {
+                            playTypewriterClick();
+                            setAmountReceived(total.toFixed(2));
+                          }}
+                          className="py-3 bg-cyan-50 border-2 border-cyan-200 rounded-xl font-black text-cyan-600 text-[10px] hover:bg-cyan-600 hover:text-white hover:border-cyan-600 transition-all active:scale-95 shadow-sm uppercase tracking-tighter"
+                        >
+                          Exact
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -6860,7 +6871,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                           </div>
                           <div>
                             <p className="font-black text-gray-900 text-sm leading-none">{selectedCustomer.name}</p>
-                            <p className="text-[11px] text-gray-500 font-bold mt-1 uppercase tracking-tight">{selectedCustomer.loyalty_tier} • {selectedCustomer.loyalty_points} Points</p>
+                            <p className="text-[11px] text-gray-500 font-bold mt-1 uppercase tracking-tight">
+                              {selectedCustomer.loyalty_tier} • {selectedCustomer.loyalty_points} Points
+                              <span className="ml-2 text-cyan-600 animate-pulse">
+                                (+{(total * parseFloat(sysConfig.loyalty_points_per_php || 0.02)).toFixed(0)} points)
+                              </span>
+                            </p>
                           </div>
                         </div>
                         <button onClick={() => setSelectedCustomer(null)} className="p-2 hover:bg-white rounded-full text-red-500 transition-all">
@@ -6882,8 +6898,8 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   </div>
                 </div>
 
-                {/* Right Column: Keypad (Calculator) */}
-                <div className={`flex flex-col border-l border-gray-100 bg-gray-50/50 p-6 gap-6 ${paymentMethod === 'cash' ? '' : 'opacity-30 grayscale pointer-events-none'}`}>
+                {/* Right Column: Keypad (Calculator) - HIDDEN ON MOBILE */}
+                <div className={`hidden md:flex flex-col border-l border-gray-100 bg-gray-50/50 p-6 gap-6 ${paymentMethod === 'cash' ? '' : 'opacity-30 grayscale pointer-events-none'}`}>
                   <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] text-center mt-2">Numpad Entry</div>
 
                   <div className="grid grid-cols-3 gap-3 flex-1">
@@ -6921,9 +6937,10 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                     <button
                       id="complete-payment-btn"
                       onClick={processPayment}
-                      className="w-full py-6 bg-cyan-600 text-white rounded-2xl font-black text-xl hover:bg-cyan-700 shadow-xl transition-all active:scale-95 uppercase tracking-widest"
+                      className="w-full py-6 bg-cyan-600 text-white rounded-2xl font-black text-xl hover:bg-cyan-700 shadow-xl transition-all active:scale-95 uppercase tracking-widest flex items-center justify-center gap-3 group"
                     >
-                      COMPLETE & PRINT
+                      <Zap className="w-6 h-6 fill-current group-hover:animate-bounce" />
+                      <span>COMPLETE & PRINT</span>
                     </button>
                     <button
                       onClick={() => setShowPaymentModal(false)}
@@ -6932,6 +6949,23 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                       Cancel Transaction
                     </button>
                   </div>
+                </div>
+
+                {/* Mobile Single Action Bar - ONLY ON MOBILE */}
+                <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                  <button
+                    onClick={() => setShowPaymentModal(false)}
+                    className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black text-xs uppercase tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={processPayment}
+                    className="flex-[2] py-4 bg-cyan-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <Zap className="w-4 h-4 fill-current" />
+                    Complete
+                  </button>
                 </div>
               </div>
             </div>
@@ -7368,33 +7402,40 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
             tabIndex={0}
             ref={(el) => el && el.focus()}
           >
-            <div className="text-center bg-cyan-600 rounded-2xl px-8 py-6 md:px-10 md:py-8 shadow-2xl mx-4" onClick={(e) => e.stopPropagation()}>
-              <div className="w-12 h-12 md:w-14 md:h-14 mx-auto mb-2 md:mb-3 bg-white rounded-full flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 md:w-8 md:h-8 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
+            <div className="text-center bg-cyan-600 w-full h-full md:w-auto md:h-auto md:rounded-2xl px-8 py-12 md:px-10 md:py-8 shadow-2xl flex flex-col items-center justify-center transition-all animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-6 md:mb-4">
+                <div className="w-20 h-20 md:w-16 md:h-16 mx-auto bg-white rounded-full flex items-center justify-center shadow-2xl ring-4 ring-cyan-500/30">
+                  <svg className="w-10 h-10 md:w-8 md:h-8 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
               </div>
-              <h2 className="text-xl md:text-2xl font-bold mb-1 text-white">{successMessage || 'Payment Successful!'}</h2>
-              <p className="text-cyan-100 text-sm md:text-base mb-1">Order: {successOrderNumber}</p>
+              
+              <h2 className="text-3xl md:text-2xl font-black mb-2 text-white uppercase tracking-tight">{successMessage || 'Payment Successful!'}</h2>
+              <p className="text-cyan-100 text-lg md:text-base mb-1 font-bold">Order: {successOrderNumber}</p>
+              
               {isRefreshingStock && (
-                <p className="text-cyan-100 text-xs md:text-sm mt-1 animate-pulse">Refreshing stock...</p>
+                <p className="text-cyan-50 text-xs md:text-sm mt-1 animate-pulse font-medium bg-white/10 px-3 py-1 rounded-full">Refreshing stock...</p>
               )}
+              
               {successChange > 0 && (
-                <p className="text-white text-lg md:text-xl font-bold mt-1">Change: {money(successChange)}</p>
+                <div className="mt-6 bg-white/10 p-6 rounded-[2.5rem] border border-white/20 shadow-inner">
+                  <p className="text-cyan-100 text-xs uppercase font-black tracking-[0.2em] mb-2 opacity-90">Change Due</p>
+                  <p className="text-white text-7xl md:text-5xl font-black tabular-nums tracking-tighter drop-shadow-lg">{money(successChange)}</p>
+                </div>
               )}
-              <div className="flex flex-col gap-2 mt-6">
+              
+              <div className="flex flex-col gap-3 mt-10 w-full max-w-xs">
                 <button
                   onClick={() => window.print()}
-                  className="w-full bg-white text-cyan-700 font-bold py-3 rounded-xl text-sm md:text-base hover:bg-green-50 transition-colors shadow-lg flex items-center justify-center gap-2"
+                  className="w-full bg-white text-cyan-700 font-black py-5 md:py-4 rounded-2xl text-base md:text-sm hover:bg-cyan-50 transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Print Receipt & Slip
+                  <Printer className="w-5 h-5" />
+                  <span>Print Receipt</span>
                 </button>
                 <button
                   onClick={() => setShowSuccessOverlay(false)}
-                  className="w-full bg-cyan-700 text-white font-bold py-3 rounded-xl text-sm md:text-base hover:bg-cyan-800 transition-colors"
+                  className="w-full bg-cyan-800 text-white font-black py-4 rounded-2xl text-sm hover:bg-cyan-900 transition-all border border-cyan-400/30 active:scale-95"
                 >
                   Done / Next Order
                 </button>
@@ -9772,13 +9813,18 @@ function BulkReceiveModal({ ingredients, API_URL, onRefresh, onClose }) {
     const sample = ingredients.slice(0, 3).map(ing => [ing.name, '10', 'Sample Supplier', 'Sample note']);
     const rows = [headers, ...sample];
     const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'receive_stock_template.csv';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
   };
 
   const handleFileUpload = (e) => {
@@ -10375,13 +10421,18 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
 
   const downloadProductTemplate = () => {
     const csv = 'name,category,price,sku,cost,stock_quantity,low_stock_threshold\nCoca-Cola 330ml,Drinks,45.00,COKE-330,25.00,24,10\nMargherita Pizza,Pizza,350.00,PIZ-MARG,120.00,0,5\n';
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'menu_import_template.csv';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
   };
 
   const handleProductCsvFileChange = async (e) => {
@@ -10603,15 +10654,18 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
         text = 'name,unit,current_stock,reorder_level,cost_per_unit,supplier\nSample Ingredient,pc,0,0,0,Supplier Name\n';
       }
 
-      const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + text], { type: 'text/csv;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'ingredients_template.csv';
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Failed to download template:', error);
       alert('Could not download template. Please try again.');
@@ -13198,13 +13252,18 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
   const downloadTemplate = (id) => {
     const template = migrationTemplates[id]?.template;
     if (!template) return;
-    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + template], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${id}_migration_template.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
   };
 
   const handleFileSelect = (e) => {
