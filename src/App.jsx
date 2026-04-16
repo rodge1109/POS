@@ -1,5 +1,24 @@
-import React, { useState, createContext, useContext, useEffect, useRef, useMemo } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator } from 'lucide-react';
+import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback } from 'react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi } from 'lucide-react';
+
+// ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
+let _offlineDB = null;
+const _noop = async () => {};
+const _safeOfflineDB = {
+  cacheMenuData:    async () => {},
+  getCachedMenuData:async () => null,
+  queueOrder:       async () => Date.now(),  // returns a fake localId
+  getPendingOrders: async () => [],
+  deleteQueuedOrder:async () => {},
+};
+import('./offlineDB.js')
+  .then(mod => { _offlineDB = mod; })
+  .catch(err => { console.warn('[OfflineDB] Failed to load, offline mode disabled:', err); });
+const cacheMenuData     = (...a) => (_offlineDB || _safeOfflineDB).cacheMenuData(...a);
+const getCachedMenuData = (...a) => (_offlineDB || _safeOfflineDB).getCachedMenuData(...a);
+const queueOrder        = (...a) => (_offlineDB || _safeOfflineDB).queueOrder(...a);
+const getPendingOrders  = (...a) => (_offlineDB || _safeOfflineDB).getPendingOrders(...a);
+const deleteQueuedOrder = (...a) => (_offlineDB || _safeOfflineDB).deleteQueuedOrder(...a);
 // Fallback alias to avoid missing icon errors in dynamic builds
 const Settings2 = Settings;
 const LayoutIcon = Layout;
@@ -76,7 +95,7 @@ const useCart = () => {
 };
 
 // API URL - Backend server (proxied via Vite locally, absolute for production)
-export const API_URL = '/api';
+export const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Helper for authenticated API calls
 export const fetchWithAuth = async (url, options = {}) => {
@@ -86,11 +105,9 @@ export const fetchWithAuth = async (url, options = {}) => {
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...(options.headers || {})
   };
-  const response = await fetch(url, { cache: 'no-store', ...options, headers });
+  const response = await fetch(url, { ...options, headers });
   if (response.status === 401) {
     localStorage.removeItem('auth_token');
-    // Optionally, redirect to login page or show a message
-    // window.location.href = '/login';
   }
   return response;
 };
@@ -147,6 +164,27 @@ export default function App() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productsError, setProductsError] = useState(null);
   const [categoryList, setCategoryList] = useState([]);
+
+  // Offline / Online state
+  const [isOnline, setIsOnline] = useState(true); // optimistic default; confirmed by actual ping
+  const [pendingOrderCount, setPendingOrderCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Real connectivity check — pings the health endpoint
+  const checkServerReachable = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${API_URL}/health`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, [API_URL]);
 
   // Customer state
   const [customer, setCustomer] = useState(() => {
@@ -383,10 +421,12 @@ export default function App() {
   };
 
   // Fetch products function (extracted so it can be called from child components)
-  const fetchProducts = async () => {
+  const fetchProducts = async (isSilent = false) => {
     try {
-      setIsLoadingProducts(true);
-      setProductsError(null);
+      if (!isSilent) {
+        setIsLoadingProducts(true);
+        setProductsError(null);
+      }
 
       // Fetch categories alongside products
       fetchCategories();
@@ -426,14 +466,90 @@ export default function App() {
       }
 
       setMenuData(allItems);
+      // ✅ Cache to IndexedDB for offline use
+      cacheMenuData(allItems).catch(e => console.warn('Cache write failed:', e));
     } catch (error) {
       console.error('Error fetching products:', error);
-      setMenuData([]);
-      setProductsError('Connection error: Failed to fetch online data');
+      // 📦 Offline fallback: load from IndexedDB cache
+      try {
+        const cached = await getCachedMenuData();
+        if (cached && cached.data && cached.data.length > 0) {
+          setMenuData(cached.data);
+          const age = Math.round((Date.now() - cached.cachedAt) / 60000);
+          setProductsError(`Offline mode — showing cached menu (${age} min ago)`);
+        } else {
+          setMenuData([]);
+          setProductsError('Offline — no cached menu available');
+        }
+      } catch (cacheErr) {
+        setMenuData([]);
+        setProductsError('Connection error: Failed to fetch online data');
+      }
     } finally {
       setIsLoadingProducts(false);
     }
   };
+
+  // ─── Sync queued offline orders ────────────────────────────────────────────
+  const syncOfflineOrders = useCallback(async () => {
+    const pending = await getPendingOrders();
+    if (pending.length === 0) return;
+    const reachable = await checkServerReachable();
+    if (!reachable) return;
+    setIsSyncing(true);
+    let synced = 0;
+    for (const order of pending) {
+      try {
+        const { localId, queuedAt, status, ...payload } = order;
+        const response = await fetchWithAuth(`${API_URL}/orders`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+          await deleteQueuedOrder(localId);
+          synced++;
+        }
+      } catch (e) {
+        console.warn('Sync failed for order', order.localId, e);
+      }
+    }
+    const remaining = await getPendingOrders();
+    setPendingOrderCount(remaining.length);
+    setIsSyncing(false);
+    if (synced > 0) {
+      // Refresh local products to update stock if needed - SILENTLY to avoid UI jumps
+      fetchProducts(true);
+      alert(`✅ ${synced} offline order(s) synced successfully!`);
+    }
+  }, [API_URL, checkServerReachable]);
+
+  const handleOnline = useCallback(async () => {
+    const reachable = await checkServerReachable();
+    setIsOnline(reachable);
+    if (reachable) syncOfflineOrders();
+  }, [checkServerReachable, syncOfflineOrders]);
+
+  // ─── Listen for online/offline events ─────────────────────────────────────
+  useEffect(() => {
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Auto-ping the server to detect recovery
+    const interval = setInterval(handleOnline, 10000);
+
+    // Initial check and pending count
+    handleOnline();
+    getPendingOrders().then(p => setPendingOrderCount(p.length)).catch(() => {});
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+    };
+  }, [handleOnline]);
 
   // Check URL parameters for payment status (after GCash redirect)
   useEffect(() => {
@@ -611,7 +727,14 @@ export default function App() {
           }
         }
         .animate-fadeIn {
-          animation: fadeIn 0.8s ease-out forwards;
+          animation: fadeIn 0.15s ease-out forwards;
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(15px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slideUp {
+          animation: slideUp 0.15s ease-out forwards;
         }
         /* Hide scrollbar for category filter */
         .scrollbar-hide {
@@ -707,7 +830,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Menu setup." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'cart' && <CartPage setCurrentPage={setCurrentPage} taxRate={sysConfig.tax_rate} />}
@@ -731,6 +854,12 @@ export default function App() {
                   formatMoney={formatMoney}
                   lastOrderData={lastOrderData}
                   setLastOrderData={setLastOrderData}
+                  isOnline={isOnline}
+                  setIsOnline={setIsOnline}
+                  pendingOrderCount={pendingOrderCount}
+                  setPendingOrderCount={setPendingOrderCount}
+                  isSyncing={isSyncing}
+                  syncOfflineOrders={syncOfflineOrders}
                   onEndShift={() => setShowShiftEndModal(true)}
                   onStartShift={() => setShowShiftStartModal(true)}
                   onRefreshShift={async () => {
@@ -752,7 +881,7 @@ export default function App() {
                       setCurrentShift(null);
                     }
                   }}
-                  onRefreshProducts={fetchProducts}
+                  onRefreshProducts={() => fetchProducts(true)}
                 />
                 {showShiftStartModal && (
                   <ShiftStartModal
@@ -778,7 +907,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access the Terminal." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
 
@@ -795,7 +924,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Reports." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'customers' && (
@@ -806,7 +935,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Customers." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Dashboard - Redirect to POS or Login */}
@@ -818,7 +947,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Analytics Dashboard." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Orders Pages */}
@@ -830,7 +959,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Orders." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Kitchen Display */}
@@ -842,7 +971,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access the Kitchen." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Kitchen Report */}
@@ -850,7 +979,7 @@ export default function App() {
           employee ? (
             <KitchenReportPage />
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'accounting' && (
@@ -861,7 +990,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Back Office Accounting." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('accounting'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('accounting'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Inventory Pages */}
@@ -873,7 +1002,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Inventory." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Staff Pages */}
@@ -885,7 +1014,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Staff Management." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Settings Pages */}
@@ -897,7 +1026,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied" onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage.startsWith('settings-') && (
@@ -915,7 +1044,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Settings." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'customer-login' && <CustomerLoginPage setCustomer={setCustomer} setCurrentPage={setCurrentPage} companyId={publicCompanyId} />}
@@ -1201,6 +1330,47 @@ export default function App() {
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
         <PrintableReceipt order={lastOrderData} config={sysConfig} />
       </div>
+
+      {/* ── Offline Status Banner ─────────────────────────────────────── */}
+      {(!isOnline || pendingOrderCount > 0) && (
+        <div className={`fixed bottom-0 left-0 right-0 z-[200] flex items-center justify-between px-4 py-2 text-xs font-bold shadow-lg transition-all
+          ${!isOnline ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}`}>
+          <div className="flex items-center gap-2">
+            {!isOnline ? (
+              <WifiOff size={14} />
+            ) : (
+              <Wifi size={14} />
+            )}
+            {!isOnline
+              ? `OFFLINE MODE — Orders will be saved locally`
+              : `Back online`}
+            {pendingOrderCount > 0 && (
+              <span className="bg-white text-red-600 rounded-full px-2 py-0.5 text-[10px] font-black ml-1">
+                {pendingOrderCount} PENDING
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            {!isOnline && (
+              <button
+                onClick={handleOnline}
+                className="bg-white text-red-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-red-100 transition-all border border-red-200"
+              >
+                RETRY NOW
+              </button>
+            )}
+            {isOnline && pendingOrderCount > 0 && (
+              <button
+                onClick={syncOfflineOrders}
+                disabled={isSyncing}
+                className="bg-white text-amber-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-amber-100 disabled:opacity-60 transition-all"
+              >
+                {isSyncing ? 'Syncing...' : `Sync ${pendingOrderCount} Order(s)`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </CartContext.Provider>
   );
 }
@@ -4192,7 +4362,7 @@ function PaymentFailedPage({ setCurrentPage, orderNumber }) {
   );
 }
 
-function EmployeeLoginPage({ onLogin, onBack, onAction }) {
+function EmployeeLoginPage({ onLogin, onBack, onAction, isOnline }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -4230,7 +4400,20 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
         method: 'POST',
         body: JSON.stringify({ pin: enteredPin })
       });
-      const data = await response.json();
+      
+      let data;
+      let rawText;
+      try { 
+        rawText = await response.text();
+        data = JSON.parse(rawText); 
+      } catch (e) { 
+        data = { error: rawText ? rawText.slice(0, 100) : `Server error (${response.status})` };
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Server error (${response.status})`);
+      }
+
       if (data.success) {
         localStorage.setItem('active_company_id', data.company_id);
         localStorage.setItem('active_company_name', data.company_name);
@@ -4242,7 +4425,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
         triggerError();
       }
     } catch (err) {
-      setError('Connection error');
+      setError(`Connection error (${API_URL}/auth/verify-company): ${err.message || 'Unknown'}`);
       triggerError();
     }
   };
@@ -4268,7 +4451,14 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
         method: 'POST',
         body: JSON.stringify({ pin: enteredPin, company_id })
       });
-      const data = await response.json();
+      
+      let data;
+      try { data = await response.json(); } catch (e) { /* ignore */ }
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Server error (${response.status})`);
+      }
+
       if (data.success && data.employee && data.token) {
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('auth_employee', JSON.stringify(data.employee));
@@ -4284,7 +4474,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
         triggerError();
       }
     } catch (err) {
-      setError('Connection error');
+      setError(`Connection error (${API_URL}/auth/login): ${err.message || 'Unknown'}`);
       triggerError();
     }
   };
@@ -4322,9 +4512,11 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
               {loginStep === 'company' ? 'Enter 6-digit access code' : 'Enter 4-digit PIN'}
             </p>
 
-            <div className="flex items-center justify-center gap-1.5 mt-2 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100/50">
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Supabase Connected</span>
+            <div className={`flex items-center justify-center gap-1.5 mt-2 px-2 py-0.5 rounded-full border ${isOnline ? 'bg-emerald-50 border-emerald-100/50' : 'bg-red-50 border-red-100/50'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+              <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
+                {isOnline ? 'Supabase Connected' : 'Supabase Offline'}
+              </span>
             </div>
 
             {loginStep === 'employee' && localStorage.getItem('active_company_name') && (
@@ -4459,9 +4651,9 @@ function EmployeeLoginPage({ onLogin, onBack, onAction }) {
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+        .animate-fadeIn { animation: fadeIn 0.15s ease-out forwards; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
-        .animate-shake { animation: shake 0.4s ease-in-out; }
+        .animate-shake { animation: shake 0.2s ease-in-out; }
       `}</style>
     </div>
   );
@@ -5002,7 +5194,11 @@ function ShiftReportModal({ report, onClose }) {
 }
 
 // POS (Point of Sale) Page
-function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts, categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode }) {
+function POSPage({ 
+  menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts, 
+  categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode,
+  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders 
+}) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -5689,110 +5885,85 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
     setScannerErrorDetail('');
     setShowScanner(true);
     setIsScanning(true);
-    setScannerMode('native');
-    try {
-      // Try to pick a rear-facing camera deviceId when available
-      let preferredDeviceId = null;
-      let chosenLabel = null;
+    
+    // Give React a frame to render the modal and the container div
+    setTimeout(async () => {
       try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter(d => d.kind === 'videoinput');
-        const rear = videoInputs.find(d => /rear|back|environment/i.test(d.label));
-        const first = videoInputs[0];
-        if (rear) {
-          preferredDeviceId = rear.deviceId;
-          chosenLabel = rear.label || 'Rear camera';
-        } else if (videoInputs.length === 1) {
-          preferredDeviceId = first.deviceId;
-          chosenLabel = first.label || 'Camera';
-        }
-      } catch (e) {
-        console.warn('Could not enumerate devices for camera selection:', e && e.message ? e.message : e);
-      }
-
-      // Preferred: native BarcodeDetector
-      if ('BarcodeDetector' in window) {
-        const videoConstraints = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
-        const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
-        streamRef.current = stream;
+        // Try to pick a rear-facing camera deviceId when available
+        let preferredDeviceId = null;
+        let chosenLabel = null;
         try {
-          const track = stream.getVideoTracks()[0];
-          if (track && track.label) setActiveCameraLabel(track.label);
-          else if (chosenLabel) setActiveCameraLabel(chosenLabel);
-          else setActiveCameraLabel('Camera');
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoInputs = devices.filter(d => d.kind === 'videoinput');
+          const rear = videoInputs.find(d => /rear|back|environment/i.test(d.label));
+          if (rear) {
+            preferredDeviceId = rear.deviceId;
+            chosenLabel = rear.label || 'Rear camera';
+          } else if (videoInputs.length > 0) {
+            preferredDeviceId = videoInputs[0].deviceId;
+            chosenLabel = videoInputs[0].label || 'Camera';
+          }
         } catch (e) {
-          // ignore
-        }
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => { });
+          console.warn('Could not enumerate devices:', e);
         }
 
-        const detector = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'] });
-        const scanFrame = async () => {
-          if (!isScanning || !videoRef.current) return;
+        // 1. Try Native BarcodeDetector (fastest, but limited support)
+        if ('BarcodeDetector' in window) {
+          setScannerMode('native');
           try {
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes.length > 0) {
-              handleScanResult(barcodes[0].rawValue);
-              return;
+            const constraints = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
+            const stream = await navigator.mediaDevices.getUserMedia({ video: constraints });
+            streamRef.current = stream;
+            
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              await videoRef.current.play();
+              
+              const detector = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'code_128', 'upc_a'] });
+              const scanFrame = async () => {
+                if (!isScanning || !videoRef.current) return;
+                try {
+                  const barcodes = await detector.detect(videoRef.current);
+                  if (barcodes.length > 0) {
+                    handleScanResult(barcodes[0].rawValue);
+                    return;
+                  }
+                } catch (e) {}
+                requestAnimationFrame(scanFrame);
+              };
+              requestAnimationFrame(scanFrame);
+              return; // Success with native
             }
-          } catch (e) { /* ignore frame errors */ }
-          requestAnimationFrame(scanFrame);
-        };
-        requestAnimationFrame(scanFrame);
-        return;
-      }
+          } catch (nativeErr) {
+            console.warn('Native scanner failed, falling back:', nativeErr);
+          }
+        }
 
-      // Fallback: html5-qrcode via local dependency (bundled)
-      let Html5Qrcode, Html5QrcodeSupportedFormats;
-      try {
+        // 2. Fallback to html5-qrcode
+        setScannerMode('html5');
         const mod = await import('html5-qrcode');
-        Html5Qrcode = mod.Html5Qrcode;
-        Html5QrcodeSupportedFormats = mod.Html5QrcodeSupportedFormats;
-      } catch (cdnErr2) {
-        console.error('Scanner library load failed:', cdnErr2);
-        setScannerError('Scanner library not available. Please install html5-qrcode or use manual barcode entry.');
-        setIsScanning(false);
-        return;
-      }
+        const Html5Class = mod.Html5Qrcode || (mod.default && mod.default.Html5Qrcode);
+        const SupportedFormats = mod.Html5QrcodeSupportedFormats || (mod.default && mod.default.Html5QrcodeSupportedFormats);
 
-      if (!Html5Qrcode) {
-        setScannerError('Scanner library not available. Please use manual barcode entry.');
-        setIsScanning(false);
-        return;
-      }
+        if (!Html5Class) throw new Error('Scanner library structure invalid');
 
-      const html5 = new Html5Qrcode('html5-scanner-container', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-        ]
-      });
-      html5ScannerRef.current = html5;
-      setScannerMode('html5');
-      const startCameraConfig = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
-      if (chosenLabel && !activeCameraLabel) setActiveCameraLabel(chosenLabel);
-      html5.start(
-        startCameraConfig,
-        { fps: 10, qrbox: { width: 260, height: 260 } },
-        (decodedText) => handleScanResult(decodedText),
-        () => { }
-      ).catch(err => {
-        setScannerError(err?.message || 'Unable to start camera');
+        const html5 = new Html5Class('html5-scanner-container', {
+          formatsToSupport: [0, 1, 5, 6, 9] // EAN_13, QR_CODE, CODE_128, etc.
+        });
+        html5ScannerRef.current = html5;
+        
+        await html5.start(
+          preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (text) => handleScanResult(text)
+        );
+      } catch (err) {
+        console.error('Final Scanner Error:', err);
+        setScannerError(err.message || 'Camera access denied or library error');
+        setScannerErrorDetail(err.name === 'NotAllowedError' ? 'Browser blocked camera. Ensure you use HTTPS.' : err.stack);
         setIsScanning(false);
-      });
-    } catch (err) {
-      console.error('Scanner error:', err);
-      const msg = err?.message || 'Unable to access camera. Please check permissions.';
-      setScannerError(msg);
-      setScannerErrorDetail(err?.name ? `${err.name}: ${msg}` : msg);
-      setIsScanning(false);
-      setShowScanner(true);
-    }
+      }
+    }, 100);
   };
 
   const filteredItems = (menuData || []).filter(item => {
@@ -5934,40 +6105,52 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
       }
     }
 
+    const orderPayload = {
+      items: cartItems.map(item => ({
+        id: item.id,
+        product_id: item.isCombo ? null : item.id,
+        size_id: item.size_id || null,
+        isCombo: item.isCombo || false,
+        name: item.name,
+        selectedSize: item.selectedSize,
+        quantity: item.quantity,
+        price: item.price,
+        notes: item.notes || null,
+        selectedModifiers: item.selectedModifiers || []
+      })),
+      subtotal: getTotalPrice(),
+      delivery_fee: 0,
+      tax_amount: tax,
+      discount_amount: discountAmount,
+      total_amount: total,
+      payment_method: paymentMethod,
+      payment_reference: paymentMethod === 'cash' ? `Cash: ${received.toFixed(2)}` :
+        paymentMethod === 'credit' ? `Credit: ${selectedCustomer?.name}` : null,
+      payment_status: paymentMethod === 'credit' ? 'credit' : 'paid',
+      order_type: 'pos',
+      service_type: serviceType,
+      customer_id: selectedCustomer?.id || null,
+      shift_id: currentShift?.id || null
+    };
+
     try {
       // Save order to PostgreSQL
       const response = await fetchWithAuth(`${API_URL}/orders`, {
         method: 'POST',
-        body: JSON.stringify({
-          items: cartItems.map(item => ({
-            id: item.id,
-            product_id: item.isCombo ? null : item.id,
-            size_id: item.size_id || null,
-            isCombo: item.isCombo || false,
-            name: item.name,
-            selectedSize: item.selectedSize,
-            quantity: item.quantity,
-            price: item.price,
-            notes: item.notes || null,
-            selectedModifiers: item.selectedModifiers || []
-          })),
-          subtotal: getTotalPrice(),
-          delivery_fee: 0,
-          tax_amount: tax,
-          discount_amount: discountAmount,
-          total_amount: total,
-          payment_method: paymentMethod,
-          payment_reference: paymentMethod === 'cash' ? `Cash: ${received.toFixed(2)}` :
-            paymentMethod === 'credit' ? `Credit: ${selectedCustomer?.name}` : null,
-          payment_status: paymentMethod === 'credit' ? 'credit' : 'paid',
-          order_type: 'pos',
-          service_type: serviceType,
-          customer_id: selectedCustomer?.id || null,
-          shift_id: currentShift?.id || null
-        })
+        body: JSON.stringify(orderPayload)
       });
 
-      const result = await response.json();
+      // Wrap JSON parse separately — empty/garbled body (502, dropped connection)
+      // throws SyntaxError, not TypeError, so we normalize it here.
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        // Treat unparseable response as a network failure
+        const netErr = new TypeError('Failed to fetch');
+        netErr._isNetworkFailure = true;
+        throw netErr;
+      }
 
       if (result.success) {
         const change = paymentMethod === 'cash' ? received - total : 0;
@@ -6015,15 +6198,12 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
 
         setIsRefreshingStock(true);
         try {
-          // Refresh shift sales
           if (onRefreshShift) await onRefreshShift();
-          // Refresh product stocks so Inventory view reflects latest standalone/composite deductions
           if (onRefreshProducts) await onRefreshProducts();
         } finally {
           setIsRefreshingStock(false);
         }
 
-        // Clear cart and reset
         clearCart();
         setAmountReceived('');
         setServiceType('dine-in');
@@ -6034,10 +6214,50 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
       }
     } catch (error) {
       console.error('Error processing payment:', error);
-      const msg = error.message || 'Unknown network error';
-      alert('Error saving order: ' + msg + '. Please try again or check connection.');
+      // Detect real network failures: TypeError from fetch OR our normalized JSON-parse failure
+      const isNetworkError = error._isNetworkFailure || (
+        error instanceof TypeError && (
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('Load failed') ||
+          error.message.includes('network')
+        )
+      );
+      if (isNetworkError) {
+        // ─── OFFLINE FALLBACK ─────────────────────────────────────────────
+        try {
+          const localId = await queueOrder(orderPayload);
+          setPendingOrderCount(c => c + 1);
+          setIsOnline(false);
+          const change = paymentMethod === 'cash' ? received - total : 0;
+          setLastOrderData({
+            orderNumber: `OFFLINE-${localId}`,
+            items: cartItems.map(item => ({ name: item.name, quantity: item.quantity, price: item.price, selectedSize: item.selectedSize, notes: item.notes })),
+            subtotal: getTotalPrice(), tax_amount: tax, discount_amount: discountAmount,
+            total_amount: total, payment_method: paymentMethod,
+            amount_received: received, change, date: new Date(),
+            service_type: serviceType, customerName: selectedCustomer?.name
+          });
+          setSuccessOrderNumber(`OFFLINE-${localId}`);
+          setSuccessChange(change);
+          setSuccessMessage('Saved Offline — Will sync when back online');
+          setShowPaymentModal(false);
+          setShowSuccessOverlay(true);
+          clearCart();
+          setAmountReceived('');
+          setServiceType('dine-in');
+          setSelectedCustomer(null);
+          setCustomerSearch('');
+        } catch (queueErr) {
+          alert('Network error and offline save also failed: ' + queueErr.message);
+        }
+      } else {
+        alert(`Error saving order (${API_URL}/orders): ` + (error.message || 'Unknown error') + '. Please try again.');
+      }
     }
   };
+
+
 
   const quickAmounts = [50, 100, 200, 500, 1000];
 
@@ -6366,6 +6586,15 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {/* Online / Offline Indicator */}
+                  <div
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mr-1 transition-all
+                      ${isOnline ? 'bg-white/20 text-white' : 'bg-red-500 text-white animate-pulse'}`}
+                    title={isOnline ? 'Connected to server' : `Offline — ${pendingOrderCount} order(s) pending sync`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-300' : 'bg-white animate-ping'}`} />
+                    {isOnline ? 'Online' : `Offline${pendingOrderCount > 0 ? ` (${pendingOrderCount})` : ''}`}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsTabletOrderPanelOpen(false)}
@@ -7414,9 +7643,11 @@ function POSPage({ menuData, isLoading, currentShift, employee, onEndShift, onSt
               <h2 className="text-3xl md:text-2xl font-black mb-2 text-white uppercase tracking-tight">{successMessage || 'Payment Successful!'}</h2>
               <p className="text-cyan-100 text-lg md:text-base mb-1 font-bold">Order: {successOrderNumber}</p>
               
-              {isRefreshingStock && (
-                <p className="text-cyan-50 text-xs md:text-sm mt-1 animate-pulse font-medium bg-white/10 px-3 py-1 rounded-full">Refreshing stock...</p>
-              )}
+              <div className="h-8 flex items-center justify-center my-1">
+                {isRefreshingStock && (
+                  <p className="text-cyan-50 text-xs md:text-sm animate-pulse font-medium bg-white/10 px-3 py-1 rounded-full">Refreshing stock...</p>
+                )}
+              </div>
               
               {successChange > 0 && (
                 <div className="mt-6 bg-white/10 p-6 rounded-[2.5rem] border border-white/20 shadow-inner">
@@ -10140,7 +10371,8 @@ function ReceiveStockView({ ingredients, API_URL, onRefresh }) {
     quantity: '',
     cost_per_unit: '',
     supplier: '',
-    notes: ''
+    notes: '',
+    expiry_date: ''
   });
   const [history, setHistory] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -10173,13 +10405,15 @@ function ReceiveStockView({ ingredients, API_URL, onRefresh }) {
         body: JSON.stringify({
           ingredient_id: parseInt(form.ingredientId),
           quantity_change: parseFloat(form.quantity),
+          expiry_date: form.expiry_date || null,
+          invoice_cost: form.cost_per_unit ? parseFloat(form.cost_per_unit) : null,
           notes: `Received${form.supplier ? ` from ${form.supplier}` : ''}${form.notes ? ` — ${form.notes}` : ''}`
         })
       });
       const data = await res.json();
       if (data.success) {
         setMessage({ type: 'success', text: `✓ Stock received successfully!` });
-        setForm({ ingredientId: '', quantity: '', cost_per_unit: '', supplier: '', notes: '' });
+        setForm({ ingredientId: '', quantity: '', cost_per_unit: '', supplier: '', notes: '', expiry_date: '' });
         onRefresh();
         fetchHistory();
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
@@ -10289,6 +10523,21 @@ function ReceiveStockView({ ingredients, API_URL, onRefresh }) {
             />
           </div>
 
+          {/* Expiry Date */}
+          <div>
+            <label className="block text-xs font-semibold text-orange-600 mb-1 flex items-center gap-1">
+              <span>📅 Expiry Date</span>
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="date"
+              value={form.expiry_date}
+              onChange={(e) => setForm({ ...form, expiry_date: e.target.value })}
+              className="w-full px-3 py-2 border border-orange-200 bg-orange-50/10 rounded text-sm focus:outline-none focus:border-orange-500"
+            />
+            <p className="text-[9px] text-gray-400 mt-1">Leave blank if this item doesn't expire.</p>
+          </div>
+
           {/* Notes */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Notes <span className="text-gray-400">optional</span></label>
@@ -10394,6 +10643,8 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   const [showAddIngredientModal, setShowAddIngredientModal] = useState(false);
   const [showAddPackagedModal, setShowAddPackagedModal] = useState(false);
   const [showEditIngredientModal, setShowEditIngredientModal] = useState(false);
+  const [showBatchesModal, setShowBatchesModal] = useState(false);
+  const [selectedItemForBatches, setSelectedItemForBatches] = useState(null);
   const [importingCsv, setImportingCsv] = useState(false);
   const [ingredientForm, setIngredientForm] = useState({ name: '', unit: '', current_stock: '', reorder_level: '', cost_per_unit: '' });
   const [packagedForm, setPackagedForm] = useState({ product_id: '', name: '', unit: 'pc', stock: '', reorder: '', cost: '', quantity_required: 1 });
@@ -10415,6 +10666,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
   const [selectedItemForAdjustment, setSelectedItemForAdjustment] = useState(null);
   const [loadingLedger, setLoadingLedger] = useState(false);
+  const [expiringBatches, setExpiringBatches] = useState([]);
   const ingredientCsvInputRef = useRef(null);
   const productCsvInputRef = useRef(null);
   const [importingProductCsv, setImportingProductCsv] = useState(false);
@@ -10583,6 +10835,9 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
       if (currentView === 'inventory-stock' || currentView.startsWith('inventory-recipes')) {
         console.log('[InventoryPage] Also loading recipes');
         fetchRecipes();
+      }
+      if (currentView === 'inventory-expiring') {
+        fetchExpiringBatches();
       }
     }
   }, [menuData, currentView]);
@@ -10794,6 +11049,18 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
       setModalMessage({ type: 'error', text: `✗ Error adding ingredient: ${error.message}` });
     }
   };
+  
+  const fetchExpiringBatches = async () => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/inventory/expiring-batches`);
+      const data = await res.json();
+      if (data.success) {
+        setExpiringBatches(data.batches || []);
+      }
+    } catch (error) {
+      console.error('Error fetching expiring batches:', error);
+    }
+  };
 
   const updateInventory = async (ingredientId, quantity_change, notes) => {
     try {
@@ -10987,6 +11254,135 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
     }
   };
 
+  // Batch Management Modal Component
+  const BatchManagementModal = ({ item, onClose }) => {
+    const [batches, setBatches] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      const fetchBatches = async () => {
+        try {
+          const res = await fetchWithAuth(`${API_URL}/inventory/transactions/${item.id}?type=${item.type || 'ingredient'}`);
+          const data = await res.json();
+          if (data.success) {
+            // Filter only positive arrivals with expiry dates
+            const arrivalBatches = data.transactions.filter(t => 
+              t.quantity_change > 0 && t.expiry_date
+            );
+            setBatches(arrivalBatches);
+          }
+        } catch (err) {
+          console.error('Error fetching batches:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchBatches();
+    }, [item]);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="p-4 bg-orange-600 text-white flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold">Batch Tracking: {item.name}</h2>
+              <p className="text-xs opacity-80">Managing multiple expiration dates for the same item</p>
+            </div>
+            <button onClick={onClose} className="p-1 hover:bg-white/20 rounded">
+              <span className="text-2xl font-bold">&times;</span>
+            </button>
+          </div>
+
+          <div className="p-6 overflow-auto">
+            {loading ? (
+              <div className="py-20 text-center text-gray-400">Loading batch history...</div>
+            ) : batches.length === 0 ? (
+              <div className="py-20 text-center space-y-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-3xl">
+                  📦
+                </div>
+                <p className="text-gray-500 font-medium">No expiring batches found for this item.</p>
+                <p className="text-xs text-gray-400">Use "Receive Stock" and set an Expiry Date to create a batch.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-xs text-blue-700">
+                  <span className="font-bold">Pro Tip:</span> Always consume the batch with the <strong>Soonest Expiry</strong> first (FIFO).
+                </div>
+                
+                <table className="w-full text-xs border-collapse">
+                  <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] font-black border-b">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Received Date</th>
+                      <th className="px-3 py-2 text-center">Batch Qty</th>
+                      <th className="px-3 py-2 text-center">Expiry Date</th>
+                      <th className="px-3 py-2 text-center">Countdown</th>
+                      <th className="px-3 py-2 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {batches.map(batch => {
+                      const days = Math.ceil((new Date(batch.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                      const isExpired = days <= 0;
+                      const isSoon = days <= 30;
+                      const isCritical = days <= 15;
+                      const isSixMonths = days <= 180;
+                      const isOneYear = days <= 365;
+                      
+                      return (
+                        <tr key={batch.id} className={isExpired ? 'bg-red-50/30' : ''}>
+                          <td className="px-3 py-3 border-b">
+                            {new Date(batch.created_at).toLocaleDateString()}
+                            <div className="text-[9px] text-gray-400">ID: #{batch.id}</div>
+                          </td>
+                          <td className="px-3 py-3 text-center font-bold border-b">
+                            {parseFloat(batch.quantity_change).toFixed(1)} {item.unit}
+                          </td>
+                          <td className="px-3 py-3 text-center font-mono border-b">
+                            {new Date(batch.expiry_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-3 text-center border-b font-black">
+                            {isExpired ? (
+                              <span className="text-red-600">EXPIRED</span>
+                            ) : (
+                              <span className={isCritical ? 'text-red-500' : isSoon ? 'text-orange-600' : isSixMonths ? 'text-cyan-600' : 'text-indigo-600'}>
+                                {days} days left
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center border-b">
+                            {isExpired ? (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[9px] font-bold">SPOILT</span>
+                            ) : isSoon ? (
+                              <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[9px] font-bold">USE FIRST</span>
+                            ) : isSixMonths ? (
+                              <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded-full text-[9px] font-bold">MONITOR</span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[9px] font-bold">SAFE</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4 bg-gray-50 border-t flex justify-end">
+            <button 
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-bold transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const filteredProducts = products
     .filter(p => {
       const name = (p.name || '').toLowerCase();
@@ -11013,6 +11409,12 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
 
   return (
     <div className="inventory-lineitems min-h-screen bg-gray-50 pt-0">
+      {showBatchesModal && selectedItemForBatches && (
+        <BatchManagementModal 
+          item={selectedItemForBatches} 
+          onClose={() => { setShowBatchesModal(false); setSelectedItemForBatches(null); }} 
+        />
+      )}
       <div className="w-full px-2 py-2">
         {/* Compact Header */}
         <div className="flex items-center justify-between mb-2 bg-white px-3 py-2 border-b">
@@ -11147,16 +11549,28 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                           )}
                         </td>
                         <td className="px-2 py-1 text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedItemForAdjustment({ ...product, type: 'product' });
-                              setShowAdjustmentModal(true);
-                            }}
-                            className="text-[10px] px-2 py-1 bg-cyan-600 text-white font-bold rounded hover:bg-cyan-700 transition-colors uppercase"
-                          >
-                            Adjust
-                          </button>
+                          <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedItemForAdjustment({ ...product, type: 'product' });
+                                setShowAdjustmentModal(true);
+                              }}
+                              className="text-[10px] px-2 py-1 bg-cyan-600 text-white font-bold rounded hover:bg-cyan-700 transition-colors uppercase"
+                            >
+                              Adjust
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedItemForBatches({ ...product, type: 'product' });
+                                setShowBatchesModal(true);
+                              }}
+                              className="text-[10px] px-2 py-1 bg-orange-500 text-white font-bold rounded hover:bg-orange-600 transition-colors uppercase"
+                            >
+                              Batches
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && (
@@ -11290,6 +11704,16 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                                 className="text-xs px-2 py-0.5 bg-cyan-600 text-white hover:bg-cyan-700"
                               >
                                 Adjust
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedItemForBatches({ ...ing, type: 'ingredient' });
+                                  setShowBatchesModal(true);
+                                }}
+                                className="text-xs px-2 py-0.5 bg-orange-500 text-white hover:bg-orange-600"
+                              >
+                                Batches
                               </button>
                               <button
                                 onClick={() => {
@@ -11570,7 +11994,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               <h3 className="text-sm font-bold text-orange-800 flex items-center gap-2 uppercase tracking-widest">
                 ⚠️ Expiring Items Alert
               </h3>
-              <p className="text-[10px] text-orange-600 mt-1">Found {ingredients.filter(ing => ing.last_expiry_date && new Date(ing.last_expiry_date) < new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)).length + products.filter(p => p.last_expiry_date && new Date(p.last_expiry_date) < new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)).length} items nearing or past expiry.</p>
+              <p className="text-[10px] text-orange-600 mt-1">Found {expiringBatches.filter(b => new Date(b.expiry_date) < new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)).length} active batches expiring within 1 year.</p>
             </div>
 
             <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
@@ -11579,38 +12003,48 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                   <tr>
                     <th className="px-4 py-3 text-left w-12">TYPE</th>
                     <th className="px-4 py-3 text-left">ITEM NAME</th>
+                    <th className="px-4 py-3 text-center w-24">BATCH QTY</th>
                     <th className="px-4 py-3 text-center w-32">EXPIRY DATE</th>
                     <th className="px-4 py-3 text-center w-28">DAYS REMAINING</th>
                     <th className="px-4 py-3 text-center w-24">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {[
-                    ...ingredients.map(ing => ({ ...ing, itemType: 'Raw Material' })),
-                    ...products.map(p => ({ ...p, itemType: 'Retail Product' }))
-                  ]
-                    .filter(item => item.last_expiry_date && new Date(item.last_expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
-                    .sort((a, b) => new Date(a.last_expiry_date) - new Date(b.last_expiry_date))
+                  {expiringBatches
+                    .filter(item => item.expiry_date && new Date(item.expiry_date) < new Date(Date.now() + 365 * 24 * 60 * 60 * 1000))
+                    .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))
                     .map(item => {
-                      const days = Math.ceil((new Date(item.last_expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                      const days = Math.ceil((new Date(item.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
                       const isExpired = days <= 0;
-                      const isSoon = days <= 7;
+                      const isSoon = days <= 30;
+                      const isCritical = days <= 15;
+                      const isSixMonths = days <= 180;
+                      const isOneYear = days <= 365;
+                      const itemType = item.ingredient_id ? 'Raw Material' : 'Retail Product';
+                      const itemName = item.ingredient_name || item.product_name || 'Unknown Item';
+                      
                       return (
-                        <tr key={`${item.itemType}-${item.id}`} className={isExpired ? 'bg-red-50/30' : ''}>
+                        <tr key={`batch-${item.id}`} className={isExpired ? 'bg-red-50/30' : ''}>
                           <td className="px-4 py-3">
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-transparent ${item.itemType === 'Retail Product' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                              {item.itemType}
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-transparent ${itemType === 'Retail Product' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                              {itemType}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-bold text-gray-800">{item.name}</td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-gray-800">{itemName}</div>
+                            <div className="text-[9px] text-gray-400">Batch ID: #{item.id} • Received {new Date(item.created_at).toLocaleDateString()}</div>
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-gray-600">
+                             {parseFloat(item.quantity_change).toFixed(1)} <span className="text-[10px] font-normal">{item.unit || 'pc'}</span>
+                          </td>
                           <td className="px-4 py-3 text-center font-mono">
-                            {new Date(item.last_expiry_date).toLocaleDateString()}
+                            {new Date(item.expiry_date).toLocaleDateString()}
                           </td>
                           <td className="px-4 py-3 text-center font-black">
                             {isExpired ? (
                               <span className="text-red-600">EXPIRED</span>
                             ) : (
-                              <span className={isSoon ? 'text-orange-600' : 'text-gray-600'}>
+                              <span className={isCritical ? 'text-red-500' : isSoon ? 'text-orange-600' : isSixMonths ? 'text-cyan-600' : 'text-indigo-600'}>
                                 {days} days
                               </span>
                             )}
@@ -11618,10 +12052,14 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                           <td className="px-4 py-3 text-center">
                             {isExpired ? (
                               <div className="w-3 h-3 bg-red-600 rounded-full mx-auto animate-pulse" />
+                            ) : isCritical ? (
+                              <div className="w-3 h-3 bg-red-500 rounded-full mx-auto" />
                             ) : isSoon ? (
                               <div className="w-3 h-3 bg-orange-500 rounded-full mx-auto" />
+                            ) : isSixMonths ? (
+                              <div className="w-3 h-3 bg-cyan-500 rounded-full mx-auto" />
                             ) : (
-                              <div className="w-3 h-3 bg-green-500 rounded-full mx-auto" />
+                              <div className="w-3 h-3 bg-indigo-500 rounded-full mx-auto" />
                             )}
                           </td>
                         </tr>
@@ -11629,8 +12067,8 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                     })}
                 </tbody>
               </table>
-              {ingredients.filter(i => i.last_expiry_date).length === 0 && products.filter(p => p.last_expiry_date).length === 0 && (
-                <div className="py-20 text-center text-gray-400 font-medium italic">All items are within shelf-life or have no expiry date set.</div>
+              {expiringBatches.length === 0 && (
+                <div className="py-20 text-center text-gray-400 font-medium italic">All items are within shelf-life or have no expiring batches recorded.</div>
               )}
             </div>
           </div>

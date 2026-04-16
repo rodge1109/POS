@@ -64,7 +64,10 @@ if (staticPath) { app.use(express.static(staticPath)); }
 
 // Public Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/settings/public', settingsRoutes);
+app.use('/api/settings', (req, res, next) => {
+  if (req.path === '/public' || req.path === '/public/') return next();
+  return verifyToken(req, res, next);
+}, settingsRoutes);
 
 // Protected Routes
 app.use('/api/products', verifyToken, productsRoutes);
@@ -73,7 +76,6 @@ app.use('/api/categories', verifyToken, categoriesRoutes);
 app.use('/api/tables', verifyToken, tablesRoutes);
 app.use('/api/orders', verifyToken, ordersRoutes);
 app.use('/api/shifts', verifyToken, shiftsRoutes);
-app.use('/api/settings', verifyToken, settingsRoutes);
 app.use('/api/customers', (req, res, next) => {
   const optionalTokenRoutes = ['/api/customers/login', '/api/customers/register'];
   if (optionalTokenRoutes.includes(req.originalUrl)) return next();

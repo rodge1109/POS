@@ -28,7 +28,7 @@ router.post('/verify-company', async (req, res) => {
     });
   } catch (error) {
     console.error('Company verify error:', error);
-    res.status(500).json({ success: false, error: 'Verification failed' });
+    res.status(500).json({ success: false, error: 'Verification failed: ' + error.message });
   }
 });
 
@@ -105,7 +105,7 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ success: false, error: 'Login failed' });
+    res.status(500).json({ success: false, error: 'Login failed: ' + error.message });
   }
 });
 

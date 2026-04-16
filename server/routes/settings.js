@@ -29,10 +29,9 @@ router.get('/public', async (req, res) => {
     result.rows.forEach(r => { settings[r.key] = r.value; });
     
     // Add additional company info
-    const compRes = await pool.query('SELECT name, address, phone FROM companies WHERE id = $1', [defaultCompanyId]);
+    const compRes = await pool.query('SELECT name FROM companies WHERE id = $1', [defaultCompanyId]);
     if (compRes.rows[0]) {
       settings.business_name = compRes.rows[0].name;
-      settings.business_address = compRes.rows[0].address;
     }
     
     res.json({ success: true, settings, company_id: defaultCompanyId });

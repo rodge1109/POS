@@ -671,11 +671,13 @@ router.post('/', async (req, res) => {
       order
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (e) { /* ignore rollback error */ }
+    }
     console.error('Error creating order:', error);
-    res.status(500).json({ success: false, error: 'Failed to create order' });
+    res.status(500).json({ success: false, error: 'Failed to create order: ' + error.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

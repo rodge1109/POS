@@ -375,20 +375,18 @@ router.post('/adjust', async (req, res) => {
     await client.query('COMMIT');
     res.json({ success: true, transaction: transactionResult.rows[0] });
 
-
-    await client.query('COMMIT');
-    res.json({ success: true, transaction: transactionResult.rows[0] });
-
     // Auto-update product costs in background if an ingredient was adjusted
     if (ingredient_id) {
       updateProductCosts(req.company_id).catch(err => console.error('Background cost update error:', err));
     }
   } catch (error) {
-    if (client) await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
+    }
     console.error('Error adjusting inventory:', error);
-    res.status(500).json({ success: false, error: 'Failed to adjust inventory' });
+    res.status(500).json({ success: false, error: 'Failed to adjust inventory: ' + error.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
@@ -637,6 +635,36 @@ router.delete('/recipes/:productId/ingredients/:ingredientId', async (req, res) 
 });
 
 // ============== INVENTORY STATUS ==============
+
+// GET all batches with expiry dates
+router.get('/expiring-batches', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        it.id,
+        it.ingredient_id,
+        it.product_id,
+        it.quantity_change,
+        it.expiry_date,
+        it.created_at,
+        i.name as ingredient_name,
+        i.unit,
+        p.name as product_name
+      FROM inventory_transactions it
+      LEFT JOIN ingredients i ON it.ingredient_id = i.id AND it.company_id = i.company_id
+      LEFT JOIN products p ON it.product_id = p.id AND it.company_id = p.company_id
+      WHERE it.expiry_date IS NOT NULL 
+      AND it.company_id = $1
+      AND it.quantity_change > 0
+      ORDER BY it.expiry_date ASC
+    `, [req.company_id]);
+    
+    res.json({ success: true, batches: result.rows });
+  } catch (error) {
+    console.error('Error fetching expiring batches:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 // GET inventory status (all ingredients with stock levels)
 router.get('/status', async (req, res) => {

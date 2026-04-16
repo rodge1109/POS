@@ -40,7 +40,7 @@ pool = new Pool({
   ...poolConfig,
   max: isProduction ? 10 : 20,
   idleTimeoutMillis: isProduction ? 30000 : 60000,
-  connectionTimeoutMillis: isProduction ? 10000 : 5000,
+  connectionTimeoutMillis: isProduction ? 15000 : 20000,
 });
 
 
