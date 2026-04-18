@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
@@ -196,6 +196,24 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [pendingOrderNumber, setPendingOrderNumber] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    }
+  };
+
   const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
 
   // Products state
@@ -207,7 +225,6 @@ export default function App() {
   // Offline / Online state
   const [isOnline, setIsOnline] = useState(true); // optimistic default; confirmed by actual ping
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   // Real connectivity check — pings the health endpoint
   const checkServerReachable = useCallback(async () => {
@@ -851,7 +868,7 @@ export default function App() {
           employee={employee}
         />
       )}
-      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden pt-14 md:pt-16 pb-16 md:pb-0 md:pl-[50px]' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 pt-14 md:pt-16 md:pl-[50px]'}`}>
+      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16') + ' pb-16 md:pb-0 md:pl-[50px]' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16') + ' md:pl-[50px]'}`}>
         {currentPage === 'home' && (
           <HomePage
             setCurrentPage={setCurrentPage}
@@ -1423,6 +1440,15 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Floating Maximize Toggle for Mobile (if not in drawer) */}
+      <button 
+        onClick={toggleFullscreen}
+        className="fixed bottom-20 right-4 z-[150] md:hidden w-12 h-12 bg-white rounded-full shadow-2xl border-2 border-cyan-100 flex items-center justify-center text-cyan-600 active:scale-95 transition-all"
+      >
+        {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+      </button>
+
     </CartContext.Provider>
   );
 }
@@ -4544,11 +4570,11 @@ function EmployeeLoginPage({ onLogin, onBack, onAction, isOnline }) {
   const pinDots = loginStep === 'company' ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3];
 
   return (
-    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn p-4 md:p-8 font-dashboard">
-      <div className="bg-white w-full max-w-sm md:max-w-lg min-h-[400px] md:min-h-[440px] rounded-[2.5rem] shadow-[0_30px_70px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row border border-gray-100">
+    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn lg:p-8 font-dashboard">
+      <div className="bg-white w-full h-full lg:h-auto lg:max-w-sm lg:md:max-w-lg lg:min-h-[440px] lg:rounded-[2.5rem] shadow-[0_30px_70px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row border border-gray-100">
 
         {/* ── Keypad Section ── */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 relative">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-8 lg:p-6 relative">
           <div className="text-center w-full mb-4">
             <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">
               {loginStep === 'company' ? 'Store Key' : 'Staff Login'}
@@ -4800,8 +4826,8 @@ function AdminLoginPage({ onLogin, onBack }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn p-4">
-      <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100">
+    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center z-[110] animate-fadeIn">
+      <div className="bg-white w-full h-full lg:h-auto lg:max-w-sm lg:rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col justify-center">
         <div className="p-10 text-center">
           <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <User className="w-8 h-8 text-cyan-600" />
@@ -7028,12 +7054,12 @@ function POSPage({
                     {discountType === 'custom' && (
                       <div className="flex gap-3 animate-fadeIn">
                         <div className="flex-1 relative">
-                          <input type="number" placeholder="Percent" value={customDiscountPercent} onChange={(e) => { setCustomDiscountPercent(e.target.value); setCustomDiscountAmount(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pr-10 bg-gray-50" />
+                          <input type="number" inputMode="none" placeholder="Percent" value={customDiscountPercent} onChange={(e) => { setCustomDiscountPercent(e.target.value); setCustomDiscountAmount(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pr-10 bg-gray-50" />
                           <span className="absolute right-4 top-3 font-black text-gray-400">%</span>
                         </div>
                         <div className="flex-1 relative">
                           <span className="absolute left-4 top-3 font-black text-gray-400">₱</span>
-                          <input type="number" placeholder="Amount" value={customDiscountAmount} onChange={(e) => { setCustomDiscountAmount(e.target.value); setCustomDiscountPercent(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pl-10 bg-gray-50" />
+                          <input type="number" inputMode="none" placeholder="Amount" value={customDiscountAmount} onChange={(e) => { setCustomDiscountAmount(e.target.value); setCustomDiscountPercent(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pl-10 bg-gray-50" />
                         </div>
                       </div>
                     )}
@@ -7054,14 +7080,13 @@ function POSPage({
                               {amountReceived ? amountReceived : <span className="opacity-20">0.00</span>}
                             </div>
 
-                            {/* Hidden Input for Keyboard Support */}
+                            {/* Hidden Input for Keyboard Support (Suppressed Virtual Keyboard) */}
                             <input
                               type="text"
-                              inputMode="decimal"
+                              inputMode="none"
                               value={amountReceived}
                               onChange={(e) => setAmountReceived(e.target.value.replace(/[^0-9.]/g, ''))}
                               className="w-full h-full bg-transparent border-none outline-none text-transparent caret-cyan-600 text-[52px] text-center"
-                              autoFocus
                             />
                           </div>
                         </div>
@@ -14842,8 +14867,8 @@ function CustomerLoginPage({ setCustomer, setCurrentPage, companyId }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pt-24 pb-20 flex items-center justify-center px-4 font-dashboard">
-      <div className="bg-white rounded-[3rem] shadow-2xl shadow-cyan-900/5 max-w-lg w-full overflow-hidden border border-gray-100 animate-fadeIn">
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center lg:px-4 font-dashboard">
+      <div className="bg-white lg:rounded-[3rem] shadow-2xl shadow-cyan-900/5 lg:max-w-lg w-full h-screen lg:h-auto overflow-y-auto border border-gray-100 animate-fadeIn">
         <div className="bg-[#0A0F0D] p-12 text-center text-white relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
           <div className="w-20 h-20 bg-white/5 backdrop-blur-md rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-white/10 group hover:scale-110 transition-transform">
