@@ -20,6 +20,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.563.0",
     "node-cron": "^4.2.1",
@@ -28,8 +29,7 @@
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.0",
-    "html5-qrcode": "^2.3.8"
+    "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -45,6 +45,7 @@
     "nodemon": "^3.1.11",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vite-plugin-mkcert": "^1.17.12"
   }
 }

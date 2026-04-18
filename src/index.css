@@ -201,3 +201,14 @@ input.payment-amount-input {
   font-family: sans-serif;
   color: black;
 }
+
+/* Scanner Animation */
+@keyframes scanLine {
+  0% { top: 0%; opacity: 0.5; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 0.5; }
+}
+
+.animate-scan-line {
+  animation: scanLine 2s linear infinite;
+}

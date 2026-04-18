@@ -1,6 +1,7 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi } from 'lucide-react';
 
+
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
 let _offlineDB = null;
 const _noop = async () => {};
@@ -83,6 +84,44 @@ ChartJS.register(
   Legend,
   Filler
 );
+
+
+// ── Image Fallback Component ──
+function SafeImage({ src, alt, className, fallbackIcon: Icon = UtensilsCrossed }) {
+  const [error, setError] = useState(false);
+  const isUrl = src && (typeof src === 'string') && (src.startsWith('http') || src.startsWith('assets/') || src.startsWith('/') || src.startsWith('data:'));
+  
+  // If it's not a URL/path but looks like a filename (e.g. "product.png"), try prefixing with API_URL
+  const finalSrc = !isUrl && src && typeof src === 'string' && src.includes('.') 
+    ? `${API_URL}/uploads/${src}`
+    : src;
+
+  const isFinalUrl = finalSrc && (typeof finalSrc === 'string') && (finalSrc.startsWith('http') || finalSrc.startsWith('assets/') || finalSrc.startsWith('/') || finalSrc.startsWith('data:'));
+
+  if (!finalSrc || !isFinalUrl || error) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-50 text-gray-300`}>
+        {src && typeof src === 'string' && src.length < 5 ? (
+          <span className="text-2xl font-black uppercase tracking-widest">{src}</span>
+        ) : (
+          <Icon className="w-1/2 h-1/2 opacity-20" />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={finalSrc} 
+      alt={alt} 
+      className={className} 
+      onError={() => {
+        console.warn(`[Image] Failed to load: ${finalSrc}`);
+        setError(true);
+      }}
+    />
+  );
+}
 
 
 // Cart Context
@@ -252,6 +291,19 @@ export default function App() {
       localStorage.removeItem('customer');
     }
   }, [customer]);
+  
+  // Sidebar-driven stock refreshing:
+  // Refresh products/stock ONLY when navigating to pages that require updated inventory
+  // This fulfills the requirement of 'refreshing stock only after page is click on the sidebar'
+  useEffect(() => {
+    const stockRelevantPages = ['pos', 'products', 'inventory-stock', 'inventory-ingredients', 'reports-inventory'];
+    if (stockRelevantPages.includes(currentPage)) {
+      console.log(`[Lifecycle] Page changed to ${currentPage}: Refreshing stock data...`);
+      if (typeof fetchProducts === 'function') {
+        fetchProducts(true); // Perform a silent refresh (no full-screen loader)
+      }
+    }
+  }, [currentPage]);
 
   // Derived categories from menuData + persisted categories
   const categories = React.useMemo(() => {
@@ -3252,17 +3304,11 @@ function PopularItemCard({ item }) {
   return (
     <div className="bg-gray-50 rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group w-full h-96 flex flex-col">
       <div className="bg-gray-50 p-4 text-center flex-1 flex flex-col justify-center overflow-hidden">
-        {item.image && (item.image.startsWith('http') || item.image.startsWith('assets/') || item.image.startsWith('/')) ? (
-          <img src={item.image} alt={item.name} className="object-contain mx-auto rounded-lg h-48 w-48 group-hover:scale-110 transition-transform bg-gray-50" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 group-hover:scale-110 transition-transform">
-            {item.image && item.image.length < 5 ? (
-              <span className="text-9xl">{item.image}</span>
-            ) : (
-              <UtensilsCrossed className="w-32 h-32 opacity-20" />
-            )}
-          </div>
-        )}
+        <SafeImage 
+          src={item.image} 
+          alt={item.name} 
+          className="object-contain mx-auto rounded-lg h-48 w-48 group-hover:scale-110 transition-transform bg-gray-50"
+        />
       </div>
       <div className="p-6 flex flex-col justify-between h-40">
         <div className="flex items-start justify-between mb-2">
@@ -3360,11 +3406,11 @@ function MenuItem({ item }) {
     <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden group w-full flex flex-row h-auto min-h-[273px] sm:min-h-[293px]">
       {/* Left side - Product Image */}
       <div className="bg-gray-50 p-3 sm:p-4 flex items-center justify-center w-48 sm:w-54 md:w-60 flex-shrink-0 relative">
-        {item.image && item.image.startsWith('assets/') ? (
-          <img src={item.image} alt={item.name} className="object-contain w-full h-48 sm:h-54 md:h-60 rounded-lg group-hover:scale-110 transition-transform duration-300" />
-        ) : (
-          <div className="text-7xl sm:text-8xl md:text-9xl group-hover:scale-110 transition-transform duration-300">{item.image}</div>
-        )}
+        <SafeImage 
+          src={item.image} 
+          alt={item.name} 
+          className="object-contain w-full h-48 sm:h-54 md:h-60 rounded-lg group-hover:scale-110 transition-transform duration-300" 
+        />
         {item.popular && (
           <span className="absolute top-1 right-1 bg-cyan-600 text-white px-2 py-1 rounded-full text-xs font-black">
             HOT
@@ -5205,19 +5251,21 @@ function POSPage({
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [serviceType, setServiceType] = useState('dine-in');
   const [amountReceived, setAmountReceived] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scannerBuffer, setScannerBuffer] = useState('');
   const [lastKeyTime, setLastKeyTime] = useState(0);
+  const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [scannerError, setScannerError] = useState('');
-  const [activeCameraLabel, setActiveCameraLabel] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [scannerMode, setScannerMode] = useState('native'); // native | html5
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [scannerError, setScannerError] = useState('');
   const [scannerErrorDetail, setScannerErrorDetail] = useState('');
+  const [scannerMode, setScannerMode] = useState('html5');
+  const [activeCameraLabel, setActiveCameraLabel] = useState(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const html5ScannerRef = useRef(null);
-  const html5ScriptPromiseRef = useRef(null);
 
   // Customer state for credit purchases
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -5834,7 +5882,26 @@ function POSPage({
         handleQuickAdd(result.product);
         setBarcodeInput('');
       } else {
-        alert(`Product not found for barcode: ${barcode}`);
+        // Provide a clearer, styled warning for unknown barcodes
+        const errorMsg = `SCAN ERROR: Barcode [${barcode}] is not registered in the inventory.`;
+        console.warn(errorMsg);
+        
+        // Use a slight haptic/audio feedback if possible 
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(100, ctx.currentTime);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } catch(e) {}
+
+        alert(errorMsg);
       }
     } catch (error) {
       console.error('Error looking up barcode:', error);
@@ -5851,23 +5918,23 @@ function POSPage({
   };
 
   const stopScanner = () => {
-    try {
-      setScannerMode('native');
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-      if (html5ScannerRef.current) {
-        html5ScannerRef.current.stop().catch(() => { });
-        html5ScannerRef.current.clear().catch(() => { });
-        html5ScannerRef.current = null;
-      }
-    } catch (e) {
-      // ignore
-    }
     setIsScanning(false);
+    setIsCameraReady(false);
     setShowScanner(false);
-    setActiveCameraLabel(null);
+    
+    if (html5ScannerRef.current) {
+      try {
+        html5ScannerRef.current.stop();
+      } catch (e) {
+        console.warn('Error stopping scanner:', e);
+      }
+      html5ScannerRef.current = null;
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
   };
 
   useEffect(() => stopScanner, []);
@@ -5875,7 +5942,7 @@ function POSPage({
   const handleScanResult = (code) => {
     if (!code) return;
     lookupBarcode(code);
-    stopScanner();
+    stopScanner().catch(e => console.warn('Stop error:', e));
   };
 
   const startScanner = async () => {
@@ -5885,82 +5952,43 @@ function POSPage({
     setScannerErrorDetail('');
     setShowScanner(true);
     setIsScanning(true);
+    setIsCameraReady(false);
     
-    // Give React a frame to render the modal and the container div
+    // 100ms is the sweet spot that worked earlier
     setTimeout(async () => {
       try {
-        // Try to pick a rear-facing camera deviceId when available
         let preferredDeviceId = null;
-        let chosenLabel = null;
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const videoInputs = devices.filter(d => d.kind === 'videoinput');
           const rear = videoInputs.find(d => /rear|back|environment/i.test(d.label));
-          if (rear) {
-            preferredDeviceId = rear.deviceId;
-            chosenLabel = rear.label || 'Rear camera';
-          } else if (videoInputs.length > 0) {
-            preferredDeviceId = videoInputs[0].deviceId;
-            chosenLabel = videoInputs[0].label || 'Camera';
-          }
-        } catch (e) {
-          console.warn('Could not enumerate devices:', e);
-        }
+          preferredDeviceId = rear ? rear.deviceId : (videoInputs.length > 0 ? videoInputs[0].deviceId : null);
+        } catch (e) {}
 
-        // 1. Try Native BarcodeDetector (fastest, but limited support)
-        if ('BarcodeDetector' in window) {
-          setScannerMode('native');
-          try {
-            const constraints = preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' };
-            const stream = await navigator.mediaDevices.getUserMedia({ video: constraints });
-            streamRef.current = stream;
-            
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              await videoRef.current.play();
-              
-              const detector = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'code_128', 'upc_a'] });
-              const scanFrame = async () => {
-                if (!isScanning || !videoRef.current) return;
-                try {
-                  const barcodes = await detector.detect(videoRef.current);
-                  if (barcodes.length > 0) {
-                    handleScanResult(barcodes[0].rawValue);
-                    return;
-                  }
-                } catch (e) {}
-                requestAnimationFrame(scanFrame);
-              };
-              requestAnimationFrame(scanFrame);
-              return; // Success with native
-            }
-          } catch (nativeErr) {
-            console.warn('Native scanner failed, falling back:', nativeErr);
-          }
-        }
-
-        // 2. Fallback to html5-qrcode
-        setScannerMode('html5');
         const mod = await import('html5-qrcode');
         const Html5Class = mod.Html5Qrcode || (mod.default && mod.default.Html5Qrcode);
-        const SupportedFormats = mod.Html5QrcodeSupportedFormats || (mod.default && mod.default.Html5QrcodeSupportedFormats);
-
-        if (!Html5Class) throw new Error('Scanner library structure invalid');
-
-        const html5 = new Html5Class('html5-scanner-container', {
-          formatsToSupport: [0, 1, 5, 6, 9] // EAN_13, QR_CODE, CODE_128, etc.
-        });
+        
+        const html5 = new Html5Class('html5-scanner-container', { verbose: false });
         html5ScannerRef.current = html5;
         
         await html5.start(
           preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          { 
+            fps: 60, 
+            aspectRatio: 1.777778,
+            videoConstraints: {
+              width: { min: 640, ideal: 1280 },
+              height: { min: 480, ideal: 720 },
+              facingMode: { ideal: 'environment' }
+            }
+          },
           (text) => handleScanResult(text)
         );
+        
+        setIsCameraReady(true);
       } catch (err) {
-        console.error('Final Scanner Error:', err);
-        setScannerError(err.message || 'Camera access denied or library error');
-        setScannerErrorDetail(err.name === 'NotAllowedError' ? 'Browser blocked camera. Ensure you use HTTPS.' : err.stack);
+        console.error('Core Scanner Error:', err);
+        setScannerError(err.message || 'Camera Access Denied');
         setIsScanning(false);
       }
     }, 100);
@@ -6086,6 +6114,8 @@ function POSPage({
   };
 
   const processPayment = async () => {
+    if (isProcessingPayment) return;
+
     const received = parseFloat(amountReceived) || 0;
     if (paymentMethod === 'cash' && received < total) {
       alert('Insufficient amount received!');
@@ -6104,6 +6134,8 @@ function POSPage({
         return;
       }
     }
+
+    setIsProcessingPayment(true);
 
     const orderPayload = {
       items: cartItems.map(item => ({
@@ -6177,42 +6209,28 @@ function POSPage({
           customerName: selectedCustomer?.name
         });
 
-        // If credit purchase, update customer balance
-        if (paymentMethod === 'credit' && selectedCustomer) {
-          await fetchWithAuth(`${API_URL}/customers/${selectedCustomer.id}/adjustment`, {
-            method: 'POST',
-            body: JSON.stringify({
-              amount: total,
-              notes: `Credit purchase - Order ${result.orderNumber}`,
-              created_by: 'POS'
-            })
-          });
-        }
-
-        // Show success overlay
+        // Show success overlay IMMEDIATELY
         setSuccessOrderNumber(result.orderNumber);
         setSuccessChange(change);
         setSuccessMessage('Payment Successful!');
         setShowPaymentModal(false);
         setShowSuccessOverlay(true);
+        setIsProcessingPayment(false);
 
-        setIsRefreshingStock(true);
-        try {
-          if (onRefreshShift) await onRefreshShift();
-          if (onRefreshProducts) await onRefreshProducts();
-        } finally {
-          setIsRefreshingStock(false);
-        }
-
-        clearCart();
-        setAmountReceived('');
-        setServiceType('dine-in');
-        setSelectedCustomer(null);
-        setCustomerSearch('');
+        // Defer non-critical cleanup to next tick to keep UI snappy
+        setTimeout(() => {
+          clearCart();
+          setAmountReceived('');
+          setServiceType('dine-in');
+          setSelectedCustomer(null);
+          setCustomerSearch('');
+        }, 10);
       } else {
+        setIsProcessingPayment(false);
         alert('Error saving order: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
+      setIsProcessingPayment(false);
       console.error('Error processing payment:', error);
       // Detect real network failures: TypeError from fetch OR our normalized JSON-parse failure
       const isNetworkError = error._isNetworkFailure || (
@@ -6364,17 +6382,11 @@ function POSPage({
                     >
                       {/* Left Half - Image */}
                       <div className="w-2/5 md:w-1/2 bg-gray-50 flex items-center justify-center p-1 md:p-2 overflow-hidden border-r border-gray-100">
-                        {item.image && (item.image.startsWith('http') || item.image.startsWith('assets/') || item.image.startsWith('/')) ? (
-                          <img src={item.image} alt={item.name} className="object-contain h-full w-full group-hover:scale-105 transition-transform" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300 group-hover:scale-105 transition-transform">
-                            {item.image && item.image.length < 5 ? (
-                              <span className="text-2xl md:text-3xl">{item.image}</span>
-                            ) : (
-                              <UtensilsCrossed className="w-8 h-8 md:w-10 md:h-10 opacity-40" />
-                            )}
-                          </div>
-                        )}
+                        <SafeImage 
+                          src={item.image} 
+                          alt={item.name} 
+                          className="object-contain h-full w-full group-hover:scale-105 transition-transform" 
+                        />
                       </div>
                       {/* Right Half - Description */}
                       <div className="w-3/5 md:w-1/2 p-1 md:p-2 flex flex-col justify-center">
@@ -7166,10 +7178,11 @@ function POSPage({
                     <button
                       id="complete-payment-btn"
                       onClick={processPayment}
-                      className="w-full py-6 bg-cyan-600 text-white rounded-2xl font-black text-xl hover:bg-cyan-700 shadow-xl transition-all active:scale-95 uppercase tracking-widest flex items-center justify-center gap-3 group"
+                      disabled={isProcessingPayment}
+                      className={`w-full py-6 rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 uppercase tracking-widest flex items-center justify-center gap-3 group ${isProcessingPayment ? 'bg-gray-400 cursor-not-allowed' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}
                     >
                       <Zap className="w-6 h-6 fill-current group-hover:animate-bounce" />
-                      <span>COMPLETE & PRINT</span>
+                      <span>{isProcessingPayment ? 'PROCESSING...' : 'COMPLETE & PRINT'}</span>
                     </button>
                     <button
                       onClick={() => setShowPaymentModal(false)}
@@ -7190,10 +7203,11 @@ function POSPage({
                   </button>
                   <button
                     onClick={processPayment}
-                    className="flex-[2] py-4 bg-cyan-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                    disabled={isProcessingPayment}
+                    className={`flex-[2] py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 ${isProcessingPayment ? 'bg-gray-400 cursor-not-allowed' : 'bg-cyan-600 text-white'}`}
                   >
                     <Zap className="w-4 h-4 fill-current" />
-                    Complete
+                    <span>{isProcessingPayment ? '...' : 'Complete'}</span>
                   </button>
                 </div>
               </div>
@@ -7703,44 +7717,79 @@ function POSPage({
 
       {/* Scanner Overlay */}
       {showScanner && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="px-4 py-3 border-b flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Scan Barcode</p>
-                <p className="text-xs text-gray-500">Align the code within the frame</p>
-                {activeCameraLabel && (
-                  <p className="text-[11px] text-cyan-600 mt-1 truncate" title={activeCameraLabel}>
-                    Camera: {activeCameraLabel}
-                  </p>
-                )}
+        <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center sm:p-4 animate-fadeIn">
+          <div className="bg-black sm:bg-white sm:rounded-[2.5rem] shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl overflow-hidden flex flex-col relative">
+            <div className="absolute top-6 left-6 z-[110] pointer-events-none">
+              <p className="text-xl font-black text-white sm:text-gray-900 uppercase tracking-tight mb-1">
+                Scan Barcode
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(6,182,212,1)]"></div>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{activeCameraLabel || 'Initializing System...'}</p>
               </div>
-              <button onClick={stopScanner} className="text-gray-500 hover:text-gray-700 text-sm">Close</button>
             </div>
-            <div className="bg-black flex items-center justify-center aspect-video relative">
+
+            <button 
+              onClick={stopScanner} 
+              className="absolute top-6 right-6 z-[110] w-12 h-12 bg-white/10 hover:bg-white/20 sm:bg-gray-100 sm:hover:bg-gray-200 backdrop-blur-md rounded-2xl flex items-center justify-center transition-all group active:scale-95"
+            >
+              <X className="w-6 h-6 text-white sm:text-gray-600 group-hover:rotate-90 transition-transform" />
+            </button>
+
+            <div className="flex-1 bg-black flex items-center justify-center relative group min-h-[70vh]">
               {scannerMode === 'native' && (
                 <video ref={videoRef} className="w-full h-full object-contain" muted playsInline />
               )}
               {scannerMode === 'html5' && (
                 <div id="html5-scanner-container" className="absolute inset-0 w-full h-full"></div>
               )}
-            </div>
-            <div className="p-3 flex items-center justify-between">
-              <div className="text-xs text-gray-600 max-w-[70%]">
-                {scannerError ? (
-                  <div className="text-red-600 space-y-1">
-                    <div>{scannerError}</div>
-                    {scannerErrorDetail && <div className="text-red-500 text-[11px]">{scannerErrorDetail}</div>}
-                    <div className="text-gray-500 text-[11px]">Check camera permission or HTTPS, then retry.</div>
+              
+              {/* Visual Scanning Indicators */}
+              {!scannerError && isScanning && isCameraReady ? (
+                <>
+                  {/* Scanning Laser Line */}
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.8)] z-50 animate-scan-line pointer-events-none"></div>
+                  
+                  {/* Targeting Frame - Rectangular for 1D Barcodes */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+                    <div className="w-[85%] h-40 md:h-56 border-2 border-white/20 rounded-[2rem] relative shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+                      {/* Corner Brackets - Large and Bold */}
+                      <div className="absolute -top-1 -left-1 w-12 h-12 border-t-[6px] border-l-[6px] border-cyan-500 rounded-tl-[1.5rem]"></div>
+                      <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[6px] border-r-[6px] border-cyan-500 rounded-tr-[1.5rem]"></div>
+                      <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[6px] border-l-[6px] border-cyan-500 rounded-bl-[1.5rem]"></div>
+                      <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[6px] border-r-[6px] border-cyan-500 rounded-br-[1.5rem]"></div>
+                      
+                      <div className="absolute inset-0 flex items-center justify-center">
+                         <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] mt-24">Center Barcode Here</p>
+                      </div>
+                    </div>
                   </div>
-                ) : isScanning ? 'Scanning...' : 'Starting camera...'}
-              </div>
-              <button
-                onClick={stopScanner}
-                className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-              >
-                Cancel
-              </button>
+
+                </>
+              ) : isScanning && !scannerError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm z-[105]">
+                  <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+                  <p className="text-white text-[10px] font-black uppercase tracking-widest animate-pulse">Activating Hardware...</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="absolute bottom-10 left-0 right-0 z-[110] px-6 text-center pointer-events-none">
+              {scannerError ? (
+                <div className="bg-red-600 text-white p-4 rounded-3xl shadow-xl animate-scaleIn inline-block max-w-sm pointer-events-auto">
+                  <div className="flex items-center gap-3 mb-1">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span className="font-black text-sm uppercase tracking-tight">System Error</span>
+                  </div>
+                  <p className="text-xs font-bold opacity-90">{scannerError}</p>
+                </div>
+              ) : (
+                <div className="bg-black/40 backdrop-blur-md py-3 px-6 rounded-full border border-white/10 inline-block">
+                  <p className="text-white text-xs font-bold tracking-widest uppercase">
+                    {isCameraReady ? 'Scan in Progress...' : 'Activating Hardware...'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
