@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
@@ -20,6 +20,7 @@ const getCachedMenuData = (...a) => (_offlineDB || _safeOfflineDB).getCachedMenu
 const queueOrder        = (...a) => (_offlineDB || _safeOfflineDB).queueOrder(...a);
 const getPendingOrders  = (...a) => (_offlineDB || _safeOfflineDB).getPendingOrders(...a);
 const deleteQueuedOrder = (...a) => (_offlineDB || _safeOfflineDB).deleteQueuedOrder(...a);
+const updateQueuedOrder = (...a) => (_offlineDB || _safeOfflineDB).updateQueuedOrder ? (_offlineDB || _safeOfflineDB).updateQueuedOrder(...a) : Promise.resolve();
 // Fallback alias to avoid missing icon errors in dynamic builds
 const Settings2 = Settings;
 const LayoutIcon = Layout;
@@ -197,7 +198,38 @@ export default function App() {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [pendingOrderNumber, setPendingOrderNumber] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showTableView, setShowTableView] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  // 📲 App Install Logic
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      console.log('[PWA] Click-to-Install available');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      alert("Installation Preview: This button would normally trigger the native prompt if the app wasn't already installed.");
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`[PWA] User response to install prompt: ${outcome}`);
+    setDeferredPrompt(null);
+  };
 
   // Fullscreen toggle
   const toggleFullscreen = () => {
@@ -223,11 +255,24 @@ export default function App() {
   const [categoryList, setCategoryList] = useState([]);
 
   // Offline / Online state
-  const [isOnline, setIsOnline] = useState(true); // optimistic default; confirmed by actual ping
+  const [isOnline, setIsOnline] = useState(true); 
+  const [forceOffline, setForceOffline] = useState(() => localStorage.getItem('force_offline') === 'true');
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
+
+  const toggleForceOffline = () => {
+    const newVal = !forceOffline;
+    setForceOffline(newVal);
+    localStorage.setItem('force_offline', String(newVal));
+    if (newVal) {
+      setIsOnline(false);
+    } else {
+      handleOnline();
+    }
+  };
 
   // Real connectivity check — pings the health endpoint
   const checkServerReachable = useCallback(async () => {
+    if (forceOffline) return false;
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -240,7 +285,7 @@ export default function App() {
     } catch {
       return false;
     }
-  }, [API_URL]);
+  }, [API_URL, forceOffline]);
 
   // Customer state
   const [customer, setCustomer] = useState(() => {
@@ -567,7 +612,10 @@ export default function App() {
     if (!reachable) return;
     setIsSyncing(true);
     let synced = 0;
-    for (const order of pending) {
+    const totalCount = pending.length;
+    
+    for (const [index, order] of pending.entries()) {
+      setSyncProgress(`${index + 1}/${totalCount}`);
       try {
         const { localId, queuedAt, status, ...payload } = order;
         const response = await fetchWithAuth(`${API_URL}/orders`, {
@@ -578,26 +626,40 @@ export default function App() {
         if (result.success) {
           await deleteQueuedOrder(localId);
           synced++;
+        } else {
+          // 🚩 ERROR: Save why it failed to the local database so we can show it to the user
+          await updateQueuedOrder(localId, { 
+            status: 'failed', 
+            lastError: result.error || 'Server rejected the order' 
+          });
         }
       } catch (e) {
         console.warn('Sync failed for order', order.localId, e);
+        await updateQueuedOrder(order.localId, { 
+          status: 'failed', 
+          lastError: e.message || 'Network Timeout' 
+        });
       }
     }
     const remaining = await getPendingOrders();
     setPendingOrderCount(remaining.length);
     setIsSyncing(false);
+    setSyncProgress(null);
     if (synced > 0) {
       // Refresh local products to update stock if needed - SILENTLY to avoid UI jumps
       fetchProducts(true);
-      alert(`✅ ${synced} offline order(s) synced successfully!`);
     }
   }, [API_URL, checkServerReachable]);
 
   const handleOnline = useCallback(async () => {
+    if (forceOffline) {
+      setIsOnline(false);
+      return;
+    }
     const reachable = await checkServerReachable();
     setIsOnline(reachable);
     if (reachable) syncOfflineOrders();
-  }, [checkServerReachable, syncOfflineOrders]);
+  }, [checkServerReachable, syncOfflineOrders, forceOffline]);
 
   // ─── Listen for online/offline events ─────────────────────────────────────
   useEffect(() => {
@@ -849,31 +911,37 @@ export default function App() {
           opacity: 0.35;
         }
       `}</style>
-      <Header
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        setShowCart={setShowCart}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        customer={customer}
-        onLogout={handleLogout}
-        employee={employee}
-        onEmployeeLogout={handleEmployeeLogout}
-      />
+      {!isFullscreen && (
+        <Header
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          setShowCart={setShowCart}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          customer={customer}
+          onLogout={handleLogout}
+          employee={employee}
+          onEmployeeLogout={handleEmployeeLogout}
+          currentShift={currentShift}
+          onEndShift={() => setShowShiftEndModal(true)}
+        />
+      )}
 
-      {currentPage !== 'home' && (
+      {currentPage !== 'home' && !isFullscreen && (
         <Sidebar
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           employee={employee}
         />
       )}
-      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16') + ' pb-16 md:pb-0 md:pl-[50px]' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16') + ' md:pl-[50px]'}`}>
+      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (isFullscreen ? 'pt-0 md:pl-0' : (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : 'pt-14 md:pt-16') + ' md:pl-[50px]') + ' pb-16 md:pb-0' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (isFullscreen ? 'pt-0 md:pl-0' : (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : 'pt-14 md:pt-16') + ' md:pl-[50px]')}`}>
         {currentPage === 'home' && (
           <HomePage
             setCurrentPage={setCurrentPage}
             menuData={menuData}
             isLoading={isLoadingProducts}
+            deferredPrompt={deferredPrompt}
+            onInstallApp={handleInstallApp}
           />
         )}
         {currentPage === 'menu' && (
@@ -916,6 +984,8 @@ export default function App() {
                   isLoading={isLoadingProducts}
                   currentShift={currentShift}
                   employee={employee}
+                  showTableView={showTableView}
+                  setShowTableView={setShowTableView}
                   sysConfig={sysConfig}
                   setPrintMode={setPrintMode}
                   taxRate={sysConfig.tax_rate}
@@ -929,6 +999,7 @@ export default function App() {
                   setPendingOrderCount={setPendingOrderCount}
                   isSyncing={isSyncing}
                   syncOfflineOrders={syncOfflineOrders}
+                  forceOffline={forceOffline}
                   onEndShift={() => setShowShiftEndModal(true)}
                   onStartShift={() => setShowShiftStartModal(true)}
                   onRefreshShift={async () => {
@@ -1011,7 +1082,7 @@ export default function App() {
         {currentPage === 'dashboard' && (
           employee ? (
             hasPermission('dashboard') ? (
-              <DashboardPage setCurrentPage={setCurrentPage} employee={employee} />
+              <DashboardPage setCurrentPage={setCurrentPage} employee={employee} pendingOrderCount={pendingOrderCount} />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Analytics Dashboard." onBack={() => setCurrentPage('pos')} />
             )
@@ -1222,154 +1293,178 @@ export default function App() {
             </div>
           </nav>
         ) : employee && !['company-register', 'admin-login'].includes(currentPage) ? (
-          /* Staff/Operational Nav bar - Focused for POS vs General for others */
-          <nav className="fixed bottom-0 left-0 right-0 bg-cyan-700 md:hidden z-50 pb-safe">
-            {currentPage === 'pos' ? (
-              /* POS Focused Navigation - Only 3 Buttons as requested */
-              <div className="flex items-center justify-around py-2 px-4 gap-4">
-                {/* Scan Button */}
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('pos-open-scanner'))}
-                  className="flex flex-col items-center text-cyan-100 hover:text-white transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v4a1 1 0 001 1h4M21 7v4a1 1 0 01-1 1h-4M3 17v-4a1 1 0 011-1h4M21 17v-4a1 1 0 00-1-1h-4" />
-                  </svg>
-                  <span className="text-[10px] font-medium mt-1">Scan</span>
-                </button>
+          <>
+            {/* Context-Aware Navigation Bar */}
+            <nav className={`fixed bottom-0 left-0 right-0 md:hidden z-50 pb-safe transition-colors ${currentPage === 'pos' ? 'bg-cyan-700' : 'bg-white border-t border-gray-200'}`}>
+              <div className="flex justify-around items-center py-2 px-1">
+                {currentPage === 'pos' ? (
+                  /* POS Focused Navigation */
+                  <>
+                    <button onClick={() => window.dispatchEvent(new CustomEvent('pos-open-scanner'))} className="flex flex-col items-center min-w-[80px] text-cyan-100 transition-colors">
+                      <Search className="w-6 h-6 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Scan</span>
+                    </button>
+                    <button onClick={() => window.dispatchEvent(new CustomEvent('pos-open-payment'))} className="relative bg-white text-cyan-700 px-8 py-2.5 rounded-full flex items-center space-x-2 font-bold text-sm shadow-xl transform active:scale-95 transition-all">
+                      <ShoppingCart className="w-5 h-5" />
+                      <span>{getTotalItems() > 0 ? `Pay ₱${(getTotalPrice() + (getTotalPrice() * (parseFloat(sysConfig.tax_rate) / 100))).toFixed(0)}` : 'Checkout'}</span>
+                    </button>
+                    <button 
+                      onClick={() => setIsNavDrawerOpen(true)} 
+                      className={`flex flex-col items-center min-w-[80px] transition-colors ${forceOffline ? 'text-red-400' : 'text-cyan-100 opacity-80 hover:opacity-100'}`}
+                    >
+                      <div className="relative">
+                        <Menu className="w-6 h-6 mb-1" />
+                        {(pendingOrderCount > 0 || forceOffline) && (
+                          <span className={`absolute -top-1 -right-1 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold border-2 border-cyan-800 ${pendingOrderCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}>
+                            {pendingOrderCount > 0 ? pendingOrderCount : '!'}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold uppercase">More</span>
+                    </button>
+                  </>
+                ) : (
+                  /* 5-Item Admin Navigation */
+                  <>
+                    <button onClick={() => setCurrentPage('dashboard')} className={`flex flex-col items-center min-w-[64px] transition-colors ${currentPage === 'dashboard' ? 'text-cyan-600' : 'text-gray-400'}`}>
+                      <TrendingUp className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Analytics</span>
+                    </button>
+                    <button onClick={() => setCurrentPage('pos')} className={`flex flex-col items-center min-w-[64px] transition-colors ${currentPage === 'pos' ? 'text-cyan-600' : 'text-gray-400'}`}>
+                      <ShoppingCart className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">POS</span>
+                    </button>
+                    <button onClick={() => { setCurrentPage('pos'); setShowTableView(true); }} className={`flex flex-col items-center min-w-[64px] transition-colors ${showTableView && currentPage === 'pos' ? 'text-cyan-600' : 'text-gray-400'}`}>
+                      <LayoutGrid className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Tables</span>
+                    </button>
+                    <button onClick={() => setCurrentPage('orders-active')} className={`flex flex-col items-center min-w-[64px] transition-colors ${currentPage.startsWith('orders') ? 'text-cyan-600' : 'text-gray-400'}`}>
+                      <Receipt className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Orders</span>
+                    </button>
+                    <button 
+                      onClick={() => setIsNavDrawerOpen(true)} 
+                      className={`flex flex-col items-center min-w-[64px] transition-colors ${isNavDrawerOpen || forceOffline ? 'text-red-600 font-black' : 'text-gray-400'}`}
+                    >
+                      <div className="relative">
+                        <Menu className="w-5 h-5 mb-1" />
+                        {(pendingOrderCount > 0 || forceOffline) && (
+                          <span className={`absolute -top-1 -right-1 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold border-2 border-white ${pendingOrderCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-red-600'}`}>
+                            {pendingOrderCount > 0 ? pendingOrderCount : '!'}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold uppercase">More</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </nav>
 
-                {/* Checkout/Pay Button - Prominent */}
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('pos-open-payment'))}
-                  className="relative bg-white text-cyan-700 px-6 py-2.5 rounded-full flex items-center space-x-2 font-bold text-sm shadow-lg transform active:scale-95 transition-all"
-                  disabled={cartItems.length === 0}
-                >
-                  <ShoppingCart className="w-5 h-5 text-cyan-600" />
-                  <span>
-                    {cartItems.length > 0 ? `Pay ₱${(getTotalPrice() + (getTotalPrice() * (parseFloat(sysConfig.tax_rate) / 100))).toFixed(0)}` : 'Checkout'}
-                  </span>
-                  {getTotalItems() > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold animate-pulse shadow-md">
-                      {getTotalItems()}
-                    </span>
-                  )}
-                </button>
-
-                {/* End Shift Button */}
-                <button
-                  onClick={() => setShowShiftEndModal(true)}
-                  className="flex flex-col items-center text-orange-300 hover:text-orange-100 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-[10px] font-medium mt-1">End Shift</span>
+          {/* Moved outside the conditional blocks so it's available for both POS and General nav */}
+          {/* Drawer Menu */}
+          <div
+            className={`fixed left-0 right-0 bottom-0 bg-gray-50 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] rounded-t-[32px] transition-all duration-500 ease-out z-[100] ${isNavDrawerOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+            style={{ height: '50vh' }}
+          >
+            <div className="p-4 pt-8 h-full overflow-y-auto">
+              <div className="flex justify-end mb-4">
+                <button onClick={() => setIsNavDrawerOpen(false)} className="text-gray-400 p-2 hover:bg-gray-200 rounded-full transition-colors border border-gray-100">
+                  <X className="w-6 h-6" />
                 </button>
               </div>
-            ) : (
-              /* General Administration Nav bar - Expanded for full operational management */
-              <>
-                <div className="flex justify-around items-center py-1.5 px-2 bg-gray-100 z-50 relative">
-                  {/* Top 4 visible items */}
-                  <button onClick={() => setCurrentPage('dashboard')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage === 'dashboard' ? 'bg-cyan-100 text-cyan-700' : 'text-cyan-600 hover:bg-gray-200'}`}>
-                    <TrendingUp className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">Analytics</span>
+              <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
+                <button onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                  <ClipboardList className="w-7 h-7 mb-2" />
+                  <span className="text-[11px] font-bold">Kitchen</span>
+                </button>
+
+                {['admin', 'manager'].includes(employee.role) && (
+                  <button onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <UtensilsCrossed className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Menu</span>
                   </button>
-                  <button onClick={() => setCurrentPage('pos')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage === 'pos' ? 'bg-cyan-100 text-cyan-700' : 'text-cyan-600 hover:bg-gray-200'}`}>
-                    <ShoppingCart className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">POS</span>
-                  </button>
-                  <button onClick={() => setCurrentPage('pos')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage === 'pos' ? 'bg-cyan-100 text-cyan-700' : 'text-cyan-600 hover:bg-gray-200'}`}>
-                    <LayoutGrid className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">Tables</span>
-                  </button>
-                  <button onClick={() => setCurrentPage('orders-active')} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${currentPage.startsWith('orders') ? 'bg-cyan-100 text-cyan-700' : 'text-cyan-600 hover:bg-gray-200'}`}>
-                    <Receipt className="w-5 h-5" />
-                    <span className="text-[10px] font-medium mt-1">Orders</span>
-                  </button>
-
-                  {/* 5th Icon: Hamburger Drawer Toggle */}
-                  <button onClick={() => setIsNavDrawerOpen(prev => !prev)} className={`flex flex-col items-center min-w-[60px] py-1 rounded-lg transition-colors ${isNavDrawerOpen ? 'bg-cyan-100 text-cyan-700' : 'text-cyan-600 hover:bg-gray-200'}`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    <span className="text-[10px] font-medium mt-1">More</span>
-                  </button>
-                </div>
-
-                {/* Drawer Menu */}
-                <div
-                  className={`fixed left-0 right-0 bottom-14 bg-gray-50 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] rounded-t-3xl transition-transform duration-300 ease-in-out z-40 ${isNavDrawerOpen ? 'translate-y-0' : 'translate-y-full'}`}
-                  style={{ height: '40vh' }}
-                >
-                  <div className="p-4 pt-6 h-full overflow-y-auto">
-                    <div className="flex justify-between items-center mb-6 pb-2 border-b border-gray-200">
-                      <h3 className="font-black text-gray-800 tracking-wider">MORE OPTIONS</h3>
-                      <button onClick={() => setIsNavDrawerOpen(false)} className="text-gray-500 p-2 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {/* Grid of 3 columns */}
-                    <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
-                      <button onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                        <ClipboardList className="w-7 h-7 mb-2" />
-                        <span className="text-[11px] font-bold">Kitchen</span>
-                      </button>
-
-                      {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                          <UtensilsCrossed className="w-7 h-7 mb-2" />
-                          <span className="text-[11px] font-bold">Menu</span>
-                        </button>
-                      )}
-
-                      {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                          <Package className="w-7 h-7 mb-2" />
-                          <span className="text-[11px] font-bold">Inventory</span>
-                        </button>
-                      )}
-
-                      {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => { setCurrentPage('customers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'customers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                          <User className="w-7 h-7 mb-2" />
-                          <span className="text-[11px] font-bold">Clients</span>
-                        </button>
-                      )}
-
-                      {['admin', 'manager'].includes(employee.role) && (
-                        <button onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                          <Truck className="w-7 h-7 mb-2" />
-                          <span className="text-[11px] font-bold">Suppliers</span>
-                        </button>
-                      )}
-
-                      {employee.role === 'admin' && (
-                        <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                          <User className="w-7 h-7 mb-2 opacity-70" />
-                          <span className="text-[11px] font-bold">Staff</span>
-                        </button>
-                      )}
-
-                      {employee.role === 'admin' && (
-                        <button onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                          <Settings className="w-7 h-7 mb-2" />
-                          <span className="text-[11px] font-bold">System</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Overlay for clicking outside */}
-                {isNavDrawerOpen && (
-                  <div
-                    className="fixed inset-0 bg-black/40 z-30 transition-opacity backdrop-blur-sm"
-                    onClick={() => setIsNavDrawerOpen(false)}
-                  />
                 )}
-              </>
 
+                {['admin', 'manager'].includes(employee.role) && (
+                  <button onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <Package className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Inventory</span>
+                  </button>
+                )}
+
+                {['admin', 'manager'].includes(employee.role) && (
+                  <button onClick={() => { setCurrentPage('customers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'customers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <User className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Clients</span>
+                  </button>
+                )}
+
+                {['admin', 'manager'].includes(employee.role) && (
+                  <button onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <Truck className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Suppliers</span>
+                  </button>
+                )}
+
+                {employee.role === 'admin' && (
+                  <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <User className="w-7 h-7 mb-2 opacity-70" />
+                    <span className="text-[11px] font-bold">Staff</span>
+                  </button>
+                )}
+
+                <button onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                  <Settings className="w-7 h-7 mb-2" />
+                  <span className="text-[11px] font-bold">System</span>
+                </button>
+
+                {/* Network Mode Toggle / Sync Status */}
+                <button 
+                  onClick={() => { 
+                    if (isOnline && pendingOrderCount > 0) {
+                      syncOfflineOrders();
+                    } else {
+                      toggleForceOffline();
+                    }
+                    setIsNavDrawerOpen(false); 
+                  }} 
+                  className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all shadow-sm border border-gray-100 hover:shadow-md hover:scale-105 ${pendingOrderCount > 0 ? 'bg-amber-50 text-amber-600 border-amber-200' : forceOffline ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-cyan-600'}`}
+                >
+                  {isSyncing ? (
+                    <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-cyan-600 mb-2"></div>
+                  ) : pendingOrderCount > 0 ? (
+                    <Activity className="w-7 h-7 mb-2" />
+                  ) : forceOffline ? (
+                    <WifiOff className="w-7 h-7 mb-2" />
+                  ) : (
+                    <Wifi className="w-7 h-7 mb-2" />
+                  )}
+                  <span className="text-[11px] font-bold">
+                    {isSyncing ? `Syncing...` : pendingOrderCount > 0 ? `Sync ${pendingOrderCount} orders` : forceOffline ? 'Go Online' : 'Go Offline'}
+                  </span>
+                </button>
+
+                {/* 📲 Install App Button (Forced Preview) */}
+                <button 
+                  onClick={() => { handleInstallApp(); setIsNavDrawerOpen(false); }}
+                  className="flex flex-col items-center justify-center py-3 rounded-2xl transition-all shadow-sm border border-cyan-100 bg-cyan-100 text-cyan-600 hover:shadow-md hover:scale-105 animate-bounce-subtle"
+                >
+                  <Download className="w-7 h-7 mb-2" />
+                  <span className="text-[11px] font-bold uppercase tracking-tight">Install POS App</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Overlay for clicking outside */}
+          {isNavDrawerOpen && (
+            <div
+              className="fixed inset-0 bg-black/40 z-[90] transition-opacity backdrop-blur-sm"
+              onClick={() => setIsNavDrawerOpen(false)}
+            />
             )}
-          </nav>
+          </>
         ) : (
           /* Default/Auth fallback nav */
           <nav className="fixed bottom-0 left-0 right-0 bg-white md:hidden z-50 pb-safe">
@@ -1401,26 +1496,44 @@ export default function App() {
       </div>
 
       {/* ── Offline Status Banner ─────────────────────────────────────── */}
-      {(!isOnline || pendingOrderCount > 0) && (
-        <div className={`fixed bottom-0 left-0 right-0 z-[200] flex items-center justify-between px-4 py-2 text-xs font-bold shadow-lg transition-all
-          ${!isOnline ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}`}>
+      {(forceOffline || !isOnline || pendingOrderCount > 0) && (
+        <div className={`fixed left-0 right-0 z-[40] flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-md transition-all
+          ${forceOffline ? 'bg-slate-900 text-red-500 border-b border-red-500/20' : !isOnline ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}
+          ${isFullscreen ? 'top-0' : 'top-14 md:top-16'}`}>
           <div className="flex items-center gap-2">
-            {!isOnline ? (
+            {isSyncing ? (
+              <div className="flex items-center gap-2 text-white animate-pulse">
+                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>SYNCING {syncProgress} ...</span>
+              </div>
+            ) : forceOffline ? (
+              <Shield size={14} className="text-cyan-400" />
+            ) : !isOnline ? (
               <WifiOff size={14} />
             ) : (
               <Wifi size={14} />
             )}
-            {!isOnline
-              ? `OFFLINE MODE — Orders will be saved locally`
-              : `Back online`}
-            {pendingOrderCount > 0 && (
+            {!isSyncing && (
+              !isOnline
+                ? (forceOffline ? `FORCED OFFLINE — Local Mode Enabled` : `OFFLINE MODE — Orders will be saved locally`)
+                : `Back online`
+            )}
+            {!isSyncing && pendingOrderCount > 0 && (
               <span className="bg-white text-red-600 rounded-full px-2 py-0.5 text-[10px] font-black ml-1">
                 {pendingOrderCount} PENDING
               </span>
             )}
           </div>
           <div className="flex items-center gap-4">
-            {!isOnline && (
+            {!isSyncing && (
+              <button
+                onClick={toggleForceOffline}
+                className={`px-3 py-1 rounded-full text-[10px] font-black transition-all border ${forceOffline ? 'bg-white text-gray-800 border-gray-200' : 'bg-black/20 text-white border-white/20'}`}
+              >
+                {forceOffline ? 'ENABLE ONLINE' : 'FORCE OFFLINE'}
+              </button>
+            )}
+            {!isOnline && !forceOffline && !isSyncing && (
               <button
                 onClick={handleOnline}
                 className="bg-white text-red-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-red-100 transition-all border border-red-200"
@@ -1434,7 +1547,7 @@ export default function App() {
                 disabled={isSyncing}
                 className="bg-white text-amber-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-amber-100 disabled:opacity-60 transition-all"
               >
-                {isSyncing ? 'Syncing...' : `Sync ${pendingOrderCount} Order(s)`}
+                {isSyncing ? `Syncing ${syncProgress}` : `Sync ${pendingOrderCount} Order(s)`}
               </button>
             )}
           </div>
@@ -1494,7 +1607,7 @@ function SizeModal({ product, onClose, onSelectSize }) {
 }
 
 // Header Component
-function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, employee, onEmployeeLogout }) {
+function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, employee, onEmployeeLogout, currentShift, onEndShift }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const activeCompanyId = localStorage.getItem('active_company_id') || '';
 
@@ -1607,7 +1720,18 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Clock In/Out
                       </button>
-                      <div className="border-t border-gray-100 mt-1 pt-1">
+                      <div className="border-t border-gray-100 mt-1 pt-1 text-red-600">
+                        {currentShift && (
+                          <button
+                            onClick={() => {
+                              onEndShift();
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm font-bold hover:bg-red-50 flex items-center gap-2 border-b border-gray-100 uppercase tracking-tight"
+                          >
+                            <Clock className="w-4 h-4" />
+                            End Active Shift
+                          </button>
+                        )}
                         <button onClick={onEmployeeLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                           Log Out
@@ -2000,7 +2124,7 @@ function SubMenu({ currentPage, setCurrentPage, employee }) {
 }
 
 // Dashboard Page - Business Intelligence & Analytics
-function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => Number(amount) || 0, currency = 'PHP' }) {
+function DashboardPage({ setCurrentPage, employee, pendingOrderCount = 0, convertAmount = (amount) => Number(amount) || 0, currency = 'PHP' }) {
   const [salesData, setSalesData] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
@@ -2447,7 +2571,15 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">📊 Business Dashboard</h1>
-                <p className="text-gray-600">Real-time sales metrics, analytics & business intelligence</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-gray-600">Real-time sales metrics, analytics & business intelligence</p>
+                  {pendingOrderCount > 0 && (
+                    <div className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 animate-pulse border border-amber-200">
+                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                      {pendingOrderCount} Unsynced
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -2899,9 +3031,18 @@ function DashboardPage({ setCurrentPage, employee, convertAmount = (amount) => N
   );
 }
 
-// Home Page
-function HomePage({ setCurrentPage, menuData, isLoading }) {
+function HomePage({ setCurrentPage, menuData, isLoading, deferredPrompt, onInstallApp }) {
   const [activeTab, setActiveTab] = useState('features');
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    const checkIOS = () => {
+      const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      setIsIOS(isApple);
+    };
+    checkIOS();
+  }, []);
 
   return (
     <div className="bg-white">
@@ -2947,6 +3088,28 @@ function HomePage({ setCurrentPage, menuData, isLoading }) {
               >
                 <span>DEMO 14 DAYS</span>
               </button>
+              
+              {/* 📲 PWA Install CTA — Forced Preview */}
+              <button
+                onClick={onInstallApp}
+                className="w-full sm:w-auto border-2 border-cyan-400 bg-cyan-900/40 text-cyan-400 px-10 py-6 rounded-2xl font-black text-xl hover:bg-cyan-900/60 transition-all flex items-center justify-center space-x-3 group active:scale-95 animate-pulse"
+              >
+                <Download className="w-6 h-6 group-hover:scale-125 transition-transform" />
+                <span>INSTALL NATIVE APP</span>
+              </button>
+
+              {/* 🍎 iOS / iPad Instructions — Since Apple blocks the "Install" button */}
+              {isIOS && !deferredPrompt && (
+                <div className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-cyan-500/30 p-6 rounded-3xl flex items-center space-x-4">
+                  <div className="p-3 bg-cyan-600 rounded-2xl shadow-lg">
+                    <Maximize className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-black text-xs uppercase tracking-widest leading-none mb-1">iPad Standalone Mode</p>
+                    <p className="text-gray-400 text-[10px] font-bold">Tap <span className="text-cyan-400 font-black">Share</span> → <span className="text-white font-black italic underline underline-offset-4">Add to Home Screen</span></p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 border-t border-white/10 pt-12">
@@ -5267,9 +5430,10 @@ function ShiftReportModal({ report, onClose }) {
 
 // POS (Point of Sale) Page
 function POSPage({ 
-  menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts, 
+menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts, 
+  showTableView, setShowTableView,
   categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode,
-  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders 
+  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders, forceOffline 
 }) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -5317,7 +5481,6 @@ function POSPage({
 
   // Table management state
   const [tables, setTables] = useState([]);
-  const [showTableView, setShowTableView] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
   const [isAddingToTable, setIsAddingToTable] = useState(false);
   const [tableCheck, setTableCheck] = useState(null);
@@ -6192,6 +6355,13 @@ function POSPage({
     };
 
     try {
+      // ✅ RESPECT FORCED OFFLINE: If user manually went offline, skip the server attempt
+      if (forceOffline) {
+        const netErr = new TypeError('Failed to fetch (Forced Offline)');
+        netErr._isNetworkFailure = true;
+        throw netErr;
+      }
+
       // Save order to PostgreSQL
       const response = await fetchWithAuth(`${API_URL}/orders`, {
         method: 'POST',
@@ -9961,7 +10131,9 @@ function KitchenReportPage() {
 // Orders Page
 function OrdersPage({ currentView, setCurrentPage }) {
   const [orders, setOrders] = useState([]);
+  const [pendingOrders, setPendingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const [filter, setFilter] = useState('all');
   const [ordersReconciliation, setOrdersReconciliation] = useState(null);
   const [ordersReconciliationError, setOrdersReconciliationError] = useState('');
@@ -9979,6 +10151,10 @@ function OrdersPage({ currentView, setCurrentPage }) {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      // ✅ Fetch local offline orders first
+      const pending = await getPendingOrders().catch(() => []);
+      setPendingOrders(pending);
+
       const url = currentView === 'orders-refunds'
         ? `${API_URL}/orders?include_adjustments=true`
         : `${API_URL}/orders`;
@@ -10026,9 +10202,74 @@ function OrdersPage({ currentView, setCurrentPage }) {
   return (
     <div className="orders-lineitems min-h-screen bg-gray-100 pt-0">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-800">Orders</h1>
+          {pendingOrders.length > 0 && (
+            <div className="bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest animate-pulse">
+              {pendingOrders.length} OFFLINE
+            </div>
+          )}
         </div>
+        {/* 🚨 Offline Orders Section */}
+        {pendingOrders.length > 0 && (
+          <div className="mb-6 bg-white rounded-xl shadow-lg border-2 border-amber-500 overflow-hidden">
+            <div className="bg-amber-500 text-white px-6 py-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-xs uppercase tracking-widest">Saved Locally (Unsynced)</h3>
+                <p className="text-[10px] opacity-90 mt-0.5">These orders are saved to this device and will sync automatically when online.</p>
+              </div>
+              <button 
+                onClick={async () => {
+                  const syncBtn = document.querySelector('[data-sync-btn]');
+                  if (syncBtn) { syncBtn.click(); setTimeout(() => fetchOrders(), 2000); }
+                }}
+                className="bg-white text-amber-600 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all active:scale-95"
+              >
+                Sync Now
+              </button>
+            </div>
+            <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+              {pendingOrders.map((o, idx) => (
+                <div key={idx} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                  <div>
+                    <div className="flex items-center gap-2">
+                       <p className="font-black text-[10px] text-gray-400">LOCAL ID: {idx + 1}</p>
+                       {o.status === 'failed' && (
+                         <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Sync Error</span>
+                       )}
+                    </div>
+                    <p className="font-bold text-sm text-gray-800">{o.customerName || 'Walk-in'} · {o.service_type}</p>
+                    {o.lastError && (
+                      <p className="text-[10px] text-red-600 font-bold mt-0.5 italic">⚠️ {o.lastError}</p>
+                    )}
+                  </div>
+                   <div className="text-right flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-black text-sm text-amber-600">₱{o.total_amount?.toFixed(2)}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase">{o.date ? new Date(o.date).toLocaleTimeString() : 'Recent'}</p>
+                      </div>
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm("Permanently delete this unsynced order? It will be lost forever.")) {
+                            await deleteQueuedOrder(o.localId);
+                            fetchOrders();
+                          }
+                        }}
+                        className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all border border-red-100"
+                        title="Delete failed order"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mb-4">
           <ReconciliationAssistant message={ordersAssistantMessage} mood={ordersAssistantMood} />
         </div>

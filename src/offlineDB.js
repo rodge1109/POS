@@ -93,6 +93,24 @@ export async function deleteQueuedOrder(localId) {
   });
 }
 
+export async function updateQueuedOrder(localId, updates) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_QUEUE, 'readwrite');
+    const store = tx.objectStore(STORE_QUEUE);
+    const getReq = store.get(localId);
+    getReq.onsuccess = () => {
+      const data = getReq.result;
+      if (!data) return resolve();
+      const updated = { ...data, ...updates };
+      const putReq = store.put(updated);
+      putReq.onsuccess = resolve;
+      putReq.onerror = (e) => reject(e.target.error);
+    };
+    getReq.onerror = (e) => reject(e.target.error);
+  });
+}
+
 export async function clearOrderQueue() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
