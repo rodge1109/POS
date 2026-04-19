@@ -1,10 +1,9 @@
-import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
 import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
 let _offlineDB = null;
-const _noop = async () => {};
 const _safeOfflineDB = {
   cacheMenuData:    async () => {},
   getCachedMenuData:async () => null,
@@ -38,8 +37,10 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import ProductManagementPage from './components/ProductManagementPage';
-import BackOfficeAccounting from './components/BackOfficeAccounting';
+
+// 🚀 Lazy load large management components to keep the main POS bundle small
+const ProductManagementPage = lazy(() => import('./components/ProductManagementPage'));
+const BackOfficeAccounting = lazy(() => import('./components/BackOfficeAccounting'));
 
 const currencySymbols = {
   PHP: '₱',
@@ -258,6 +259,7 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(true); 
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem('force_offline') === 'true');
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState(0);
 
   const toggleForceOffline = () => {
     const newVal = !forceOffline;
@@ -295,13 +297,13 @@ export default function App() {
 
   // Employee state (for POS/Management access)
   const [employee, setEmployee] = useState(() => {
-    const saved = sessionStorage.getItem('employee');
+    const saved = localStorage.getItem('employee');
     return saved ? JSON.parse(saved) : null;
   });
 
   // Shift state (for POS shift tracking)
   const [currentShift, setCurrentShift] = useState(() => {
-    const saved = sessionStorage.getItem('currentShift');
+    const saved = localStorage.getItem('currentShift');
     return saved ? JSON.parse(saved) : null;
   });
   const [showShiftStartModal, setShowShiftStartModal] = useState(false);
@@ -381,21 +383,21 @@ export default function App() {
     });
   }, [menuData, categoryList]);
 
-  // Save employee to sessionStorage when it changes
+  // Save employee to localStorage when it changes
   useEffect(() => {
     if (employee) {
-      sessionStorage.setItem('employee', JSON.stringify(employee));
+      localStorage.setItem('employee', JSON.stringify(employee));
     } else {
-      sessionStorage.removeItem('employee');
+      localStorage.removeItem('employee');
     }
   }, [employee]);
 
-  // Save shift to sessionStorage when it changes
+  // Save shift to localStorage when it changes
   useEffect(() => {
     if (currentShift) {
-      sessionStorage.setItem('currentShift', JSON.stringify(currentShift));
+      localStorage.setItem('currentShift', JSON.stringify(currentShift));
     } else {
-      sessionStorage.removeItem('currentShift');
+      localStorage.removeItem('currentShift');
     }
   }, [currentShift]);
 
@@ -645,6 +647,7 @@ export default function App() {
     setPendingOrderCount(remaining.length);
     setIsSyncing(false);
     setSyncProgress(null);
+    setLastSyncTime(Date.now());
     if (synced > 0) {
       // Refresh local products to update stock if needed - SILENTLY to avoid UI jumps
       fetchProducts(true);
@@ -957,12 +960,21 @@ export default function App() {
         {(currentPage.startsWith('menu-') || currentPage === 'products') && (
           employee ? (
             hasPermission('products') ? (
-              <ProductManagementPage
-                menuData={menuData}
-                refreshProducts={fetchProducts}
-                currentView={currentPage}
-                categories={categories}
-              />
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <div className="text-center">
+                    <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500 font-medium">Loading Management Tools...</p>
+                  </div>
+                </div>
+              }>
+                <ProductManagementPage
+                  menuData={menuData}
+                  refreshProducts={fetchProducts}
+                  currentView={currentPage}
+                  categories={categories}
+                />
+              </Suspense>
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Menu setup." onBack={() => setCurrentPage('dashboard')} />
             )
@@ -1094,7 +1106,11 @@ export default function App() {
         {currentPage.startsWith('orders') && (
           employee ? (
             hasPermission('orders') ? (
-              <OrdersPage currentView={currentPage} setCurrentPage={setCurrentPage} />
+              <OrdersPage 
+                currentView={currentPage} 
+                setCurrentPage={setCurrentPage} 
+                lastSyncTime={lastSyncTime}
+              />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Orders." onBack={() => setCurrentPage('dashboard')} />
             )
@@ -1125,7 +1141,16 @@ export default function App() {
         {currentPage === 'accounting' && (
           employee ? (
             hasPermission('accounting') ? (
-              <BackOfficeAccounting />
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <div className="text-center">
+                    <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500 font-medium">Initializing Back Office...</p>
+                  </div>
+                </div>
+              }>
+                <BackOfficeAccounting />
+              </Suspense>
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Back Office Accounting." onBack={() => setCurrentPage('dashboard')} />
             )
@@ -5025,8 +5050,8 @@ function ShiftStartModal({ onClose, onShiftStarted }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Get employee info from sessionStorage
-  const employee = JSON.parse(sessionStorage.getItem('employee') || '{}');
+  // Get employee info from localStorage
+  const employee = JSON.parse(localStorage.getItem('employee') || '{}');
 
   const handleStartShift = async (forceNew = false) => {
     setError('');
@@ -6063,38 +6088,73 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
 
   // Lookup product by barcode and add to cart
   const lookupBarcode = async (barcode) => {
+    const searchLocal = () => {
+      const barcodeStr = String(barcode).toLowerCase();
+      const localProduct = (menuData || []).find(p => 
+        (p.barcode && String(p.barcode).toLowerCase() === barcodeStr) || 
+        (p.sku && String(p.sku).toLowerCase() === barcodeStr)
+      );
+      
+      if (localProduct) {
+        console.log('[Scanner] Found product in local cache:', localProduct.name);
+        handleQuickAdd(localProduct);
+        setBarcodeInput('');
+        return true;
+      }
+      return false;
+    };
+
+    // 1. If forced offline, skip network entirely
+    if (forceOffline) {
+      if (!searchLocal()) {
+        alert(`OFFLINE ERROR: Barcode [${barcode}] not found in local cache.`);
+      }
+      return;
+    }
+
+    // 2. Try network lookup
     try {
       const response = await fetchWithAuth(`${API_URL}/products/barcode/${barcode}`);
+      
+      // Handle non-200 responses as potential network/server issues
+      if (!response.ok) {
+        throw new Error('Network response not ok');
+      }
+      
       const result = await response.json();
 
       if (result.success && result.product) {
         handleQuickAdd(result.product);
         setBarcodeInput('');
       } else {
-        // Provide a clearer, styled warning for unknown barcodes
-        const errorMsg = `SCAN ERROR: Barcode [${barcode}] is not registered in the inventory.`;
-        console.warn(errorMsg);
-        
-        // Use a slight haptic/audio feedback if possible 
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(100, ctx.currentTime);
-          gain.gain.setValueAtTime(0.1, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.3);
-        } catch(e) {}
+        // Not found on server, try local as a last resort (maybe cache is newer/different)
+        if (!searchLocal()) {
+          const errorMsg = `SCAN ERROR: Barcode [${barcode}] is not registered in the inventory.`;
+          console.warn(errorMsg);
+          
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+          } catch(e) {}
 
-        alert(errorMsg);
+          alert(errorMsg);
+        }
       }
     } catch (error) {
-      console.error('Error looking up barcode:', error);
-      alert('Error looking up barcode. Please try again.');
+      console.warn('Network barcode lookup failed, falling back to local cache:', error);
+      // 3. Network failed (offline), try local cache
+      if (!searchLocal()) {
+        alert(`CONNECTION ERROR: Could not reach server and barcode [${barcode}] was not found in local cache.`);
+      }
     }
   };
 
@@ -10129,7 +10189,7 @@ function KitchenReportPage() {
 }
 
 // Orders Page
-function OrdersPage({ currentView, setCurrentPage }) {
+function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
   const [orders, setOrders] = useState([]);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10146,7 +10206,7 @@ function OrdersPage({ currentView, setCurrentPage }) {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentView]);
+  }, [currentView, lastSyncTime]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -10221,7 +10281,7 @@ function OrdersPage({ currentView, setCurrentPage }) {
               <button 
                 onClick={async () => {
                   const syncBtn = document.querySelector('[data-sync-btn]');
-                  if (syncBtn) { syncBtn.click(); setTimeout(() => fetchOrders(), 2000); }
+                  if (syncBtn) { syncBtn.click(); }
                 }}
                 className="bg-white text-amber-600 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all active:scale-95"
               >
@@ -10243,26 +10303,26 @@ function OrdersPage({ currentView, setCurrentPage }) {
                       <p className="text-[10px] text-red-600 font-bold mt-0.5 italic">⚠️ {o.lastError}</p>
                     )}
                   </div>
-                   <div className="text-right flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <p className="font-black text-sm text-amber-600">₱{o.total_amount?.toFixed(2)}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase">{o.date ? new Date(o.date).toLocaleTimeString() : 'Recent'}</p>
-                      </div>
-                      <button 
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (confirm("Permanently delete this unsynced order? It will be lost forever.")) {
-                            await deleteQueuedOrder(o.localId);
-                            fetchOrders();
-                          }
-                        }}
-                        className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all border border-red-100"
-                        title="Delete failed order"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-black text-sm text-cyan-700">₱{(o.total_amount || 0).toFixed(2)}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">{o.date ? new Date(o.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Recent'}</p>
                     </div>
+                    <button 
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        // Get the real identifier from IndexedDB
+                        const id = o.localId || o.id; 
+                        if (confirm("Permanently delete this unsynced order? It will be lost forever.")) {
+                          await deleteQueuedOrder(id);
+                          fetchOrders();
+                        }
+                      }}
+                      className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100 shadow-sm active:scale-90"
+                      title="Force delete order"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               ))}

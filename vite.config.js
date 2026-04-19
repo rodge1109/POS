@@ -15,5 +15,17 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-charts': ['chart.js', 'react-chartjs-2'],
+          'vendor-utils': ['axios', 'html5-qrcode'],
+          'vendor-icons': ['lucide-react'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
   }
 })

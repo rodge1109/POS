@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Search, Trash2, Upload, X, UtensilsCrossed } from 'lucide-react';
+import { Plus, Search, Trash2, Upload, X, UtensilsCrossed, Camera, Maximize } from 'lucide-react';
 import { API_URL, fetchWithAuth } from '../App';
 
 // Product Management Page
@@ -49,46 +49,124 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [bulkDeleteState, setBulkDeleteState] = useState({ running: false, total: 0, done: 0, current: '' });
 
+  // Barcode Scanner Local State
+  const [isScanningBarcode, setIsScanningBarcode] = useState(false);
+  const html5ScannerRef = useRef(null);
+
+  const startBarcodeScanner = async () => {
+    setIsScanningBarcode(true);
+    // Give state time to render the container
+    setTimeout(async () => {
+      try {
+        const mod = await import('html5-qrcode');
+        const Html5Class = mod.Html5Qrcode || (mod.default && mod.default.Html5Qrcode);
+        const html5 = new Html5Class('product-barcode-scanner');
+        html5ScannerRef.current = html5;
+
+        await html5.start(
+          { facingMode: 'environment' },
+          { fps: 30, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 },
+          (text) => {
+            setFormData(prev => ({ ...prev, barcode: text }));
+            stopBarcodeScanner();
+          },
+          () => {} // error callback
+        );
+      } catch (err) {
+        console.error('Scanner start failed:', err);
+        alert('Could not start camera scanner. Please check permissions.');
+        setIsScanningBarcode(false);
+      }
+    }, 100);
+  };
+
+  const stopBarcodeScanner = () => {
+    if (html5ScannerRef.current) {
+      try { html5ScannerRef.current.stop(); } catch (e) {}
+      html5ScannerRef.current = null;
+    }
+    setIsScanningBarcode(false);
+  };
+
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG at 0.7 quality
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handlePhotoUpload = async (file, type = 'product') => {
     if (!file) return;
     
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File is too large. Max 5MB allowed.');
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file.');
       return;
     }
 
     setImageUploading(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-        const base64data = reader.result;
-        
-        const response = await fetchWithAuth(`${API_URL}/upload`, {
-          method: 'POST',
-          body: JSON.stringify({
-            fileName: file.name,
-            fileData: base64data,
-            contentType: file.type
-          })
-        });
+      // 🚀 COMPRESS IMAGE BEFORE UPLOAD
+      // This solves the 5MB limit and mobile memory pressure issues
+      const compressedBase64 = await compressImage(file);
+      
+      const response = await fetchWithAuth(`${API_URL}/upload`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fileName: file.name.replace(/\.[^/.]+$/, "") + ".jpg", // Force .jpg extension
+          fileData: compressedBase64,
+          contentType: 'image/jpeg'
+        })
+      });
 
-        const result = await response.json();
-        if (result.success) {
-          if (type === 'combo') {
-            setComboFormData(prev => ({ ...prev, image: result.url }));
-          } else {
-            setFormData(prev => ({ ...prev, image: result.url }));
-          }
+      const result = await response.json();
+      if (result.success) {
+        if (type === 'combo') {
+          setComboFormData(prev => ({ ...prev, image: result.url }));
         } else {
-          alert('Upload failed: ' + result.error);
+          setFormData(prev => ({ ...prev, image: result.url }));
         }
-        setImageUploading(false);
-      };
+      } else {
+        alert('Upload failed: ' + result.error);
+      }
     } catch (error) {
       console.error('Photo upload error:', error);
-      alert('Failed to upload image. Please check your connection.');
+      alert('Failed to upload image. Try a smaller file or pick from gallery.');
+    } finally {
       setImageUploading(false);
     }
   };
@@ -339,8 +417,9 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   }, [isDraggingProductModal]);
 
   const openAddModal = () => {
-    setEditingProduct(null);
-    setFormData({
+    // Check for draft
+    const draft = localStorage.getItem('product_form_draft');
+    const initialData = draft ? JSON.parse(draft) : {
       name: '',
       category: 'Pizza',
       price: '',
@@ -355,12 +434,25 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       low_stock_threshold: 10,
       send_to_kitchen: true,
       cost: ''
-    });
-    setHasSizes(false);
+    };
+
+    setEditingProduct(null);
+    setFormData(initialData);
+    setHasSizes(initialData.sizes && initialData.sizes.length > 0);
     setSelectedModifierIds([]);
     setProductModalPos(getDefaultProductModalPos());
     setShowModal(true);
   };
+
+  // Sync draft to localStorage while editing a NEW product
+  useEffect(() => {
+    if (showModal && !editingProduct) {
+      localStorage.setItem('product_form_draft', JSON.stringify(formData));
+    }
+  }, [formData, showModal, editingProduct]);
+
+  // Clear draft on successful save
+  const clearDraft = () => localStorage.removeItem('product_form_draft');
 
   const openEditModal = (product) => {
     setEditingProduct(product);
@@ -438,6 +530,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
       const result = await response.json();
 
       if (result.success) {
+        clearDraft();
         alert(editingProduct ? 'Product updated!' : 'Product created!');
         setShowModal(false);
         refreshProducts();
@@ -1573,13 +1666,23 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
-                  <input
-                    type="text"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-                    placeholder="Scan or enter barcode"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 font-mono"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.barcode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                      placeholder="Scan or enter"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 font-mono text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={startBarcodeScanner}
+                      className="p-2 bg-gray-100 hover:bg-cyan-50 border border-gray-200 rounded-lg text-gray-500 hover:text-cyan-600 transition-colors"
+                      title="Scan Barcode"
+                    >
+                      <Maximize className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
@@ -1717,6 +1820,21 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                         <Upload className="w-5 h-5 text-gray-500 group-hover:text-cyan-600" />
                       )}
                     </label>
+                    <label className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-cyan-50 border border-gray-200 cursor-pointer transition-all group" title="Take a Photo">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment"
+                        className="hidden" 
+                        onChange={(e) => handlePhotoUpload(e.target.files[0], 'product')}
+                        disabled={imageUploading}
+                      />
+                      {imageUploading ? (
+                        <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Camera className="w-5 h-5 text-gray-500 group-hover:text-cyan-600" />
+                      )}
+                    </label>
                   </div>
                   {formData.image && (
                     <div className="mt-2 relative inline-block group">
@@ -1804,6 +1922,30 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                   </div>
                 </div>
               </div>
+
+              {/* Barcode Scanner Overlay (Inside Modal) */}
+              {isScanningBarcode && (
+                <div className="absolute inset-0 bg-black z-50 flex flex-col">
+                  <div className="p-4 flex justify-between items-center bg-gray-900 border-b border-gray-800">
+                    <h3 className="text-white font-bold">Center Barcode in Frame</h3>
+                    <button 
+                      type="button"
+                      onClick={stopBarcodeScanner}
+                      className="text-white hover:text-red-400"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                  <div className="flex-1 bg-black relative">
+                    <div id="product-barcode-scanner" className="w-full h-full"></div>
+                    {/* Laser Line Animation (CSS) */}
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-pulse"></div>
+                  </div>
+                  <div className="p-6 bg-gray-900 text-center">
+                    <p className="text-gray-400 text-xs">Point at the 1D/2D barcode to automatically capture</p>
+                  </div>
+                </div>
+              )}
 
               {/* Modifier Assignment */}
               {modifiers.length > 0 && (
@@ -1953,6 +2095,21 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                       <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
                     ) : (
                       <Upload className="w-5 h-5 text-gray-500 group-hover:text-cyan-600" />
+                    )}
+                  </label>
+                  <label className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-cyan-50 border border-gray-200 cursor-pointer transition-all group" title="Take a Photo">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment"
+                      className="hidden" 
+                      onChange={(e) => handlePhotoUpload(e.target.files[0], 'combo')}
+                      disabled={imageUploading}
+                    />
+                    {imageUploading ? (
+                      <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Camera className="w-5 h-5 text-gray-500 group-hover:text-cyan-600" />
                     )}
                   </label>
                 </div>
