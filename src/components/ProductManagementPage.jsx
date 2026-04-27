@@ -34,6 +34,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   const [productModalPos, setProductModalPos] = useState({ x: 24, y: 24 });
   const [isDraggingProductModal, setIsDraggingProductModal] = useState(false);
   const [csvImporting, setCsvImporting] = useState(false);
+  const [csvStatus, setCsvStatus] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [renameFrom, setRenameFrom] = useState('');
   const [renameTo, setRenameTo] = useState('');
@@ -48,6 +49,10 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   const [productSaving, setProductSaving] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [bulkDeleteState, setBulkDeleteState] = useState({ running: false, total: 0, done: 0, current: '' });
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   // Barcode Scanner Local State
   const [isScanningBarcode, setIsScanningBarcode] = useState(false);
@@ -246,13 +251,29 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
   // Get only regular products (not combos)
   const regularProducts = menuData.filter(item => !item.isCombo);
 
-  const filteredProducts = regularProducts.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-  const isAllFilteredSelected = filteredProducts.length > 0 &&
+  const filteredProducts = useMemo(() => {
+    return regularProducts.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                          (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [regularProducts, searchTerm, selectedCategory]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory]);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProducts, currentPage]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const isAllFilteredSelected = filteredProducts.length > 0 && 
     filteredProducts.every(p => selectedProductIds.includes(String(p.id)));
 
   // Combo handlers
@@ -919,95 +940,53 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
     if (!file) return;
 
     setCsvImporting(true);
-    try {
-      const raw = await file.text();
-      const lines = raw
-        .split(/\r?\n/)
-        .map(l => l.trim())
-        .filter(Boolean);
+    setCsvStatus(`Reading ${file.name}...`);
+    
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const raw = e.target.result;
+      setCsvStatus('Sending to server...');
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-      if (lines.length < 2) {
-        alert('CSV file has no data rows.');
-        return;
-      }
-
-      const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
-      const requiredHeaders = ['name', 'category', 'price'];
-      const missing = requiredHeaders.filter(h => !headers.includes(h));
-      if (missing.length > 0) {
-        alert(`Missing required column(s): ${missing.join(', ')}`);
-        return;
-      }
-
-      let successCount = 0;
-      const errors = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const row = parseCsvLine(lines[i]);
-        if (row.length === 1 && !row[0]) continue;
-
-        const getVal = (key) => {
-          const idx = headers.indexOf(key);
-          return idx >= 0 ? (row[idx] ?? '') : '';
-        };
-
-        const name = getVal('name');
-        const category = getVal('category');
-        const price = parseFloat(getVal('price'));
-
-        if (!name || !category || !Number.isFinite(price)) {
-          errors.push(`Row ${i + 1}: invalid name/category/price`);
-          continue;
+      try {
+        const response = await fetchWithAuth(`${API_URL}/products/bulk`, {
+          method: 'POST',
+          body: JSON.stringify({ csv: raw }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        const result = await response.json().catch(() => ({}));
+        
+        if (response.ok && result.success) {
+          setCsvStatus('Refreshing list...');
+          await refreshProducts();
+          alert(`Successfully imported/updated ${result.imported || 0} products.`);
+        } else {
+          alert(`Failed to import: ${result.error || 'Unknown error'}`);
         }
-
-        const payload = {
-          name,
-          category,
-          price,
-          sku: getVal('sku') || null,
-          barcode: getVal('barcode') || null,
-          stock_quantity: parseInt(getVal('stock_quantity'), 10) || 0,
-          low_stock_threshold: parseInt(getVal('low_stock_threshold'), 10) || 10,
-          description: getVal('description') || '',
-          image: getVal('image') || '',
-          active: normalizeCsvBoolean(getVal('active'), true),
-          popular: normalizeCsvBoolean(getVal('popular'), false),
-          send_to_kitchen: normalizeCsvBoolean(getVal('send_to_kitchen'), true),
-          cost: parseFloat(getVal('cost')) || 0,
-          sizes: null
-        };
-
-        try {
-          const response = await fetchWithAuth(`${API_URL}/products`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
-          const result = await response.json().catch(() => ({}));
-          if (response.ok && result.success) {
-            successCount++;
-          } else {
-            errors.push(`Row ${i + 1}: ${result.error || 'failed to create product'}`);
-          }
-        } catch (err) {
-          errors.push(`Row ${i + 1}: ${err.message}`);
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          alert('Server timeout. The import might still finish in the background.');
+        } else {
+          alert(`Error: ${err.message}`);
         }
+      } finally {
+        setCsvImporting(false);
+        setCsvStatus('');
+        if (event.target) event.target.value = '';
       }
+    };
 
-      await refreshProducts();
-
-      if (errors.length > 0) {
-        const preview = errors.slice(0, 5).join('\n');
-        alert(`CSV import done.\nSuccess: ${successCount}\nFailed: ${errors.length}\n\n${preview}`);
-      } else {
-        alert(`CSV import complete. ${successCount} products added.`);
-      }
-    } catch (error) {
-      console.error('CSV import error:', error);
-      alert(`Failed to import CSV: ${error.message}`);
-    } finally {
+    reader.onerror = () => {
+      alert('Failed to read the file locally.');
       setCsvImporting(false);
-      if (event.target) event.target.value = '';
-    }
+      setCsvStatus('');
+    };
+
+    reader.readAsText(file);
   };
 
   return (
@@ -1047,7 +1026,23 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                     onClick={() => csvInputRef.current?.click()}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {csvImporting ? 'Importing...' : 'Upload CSV'}
+                    {csvImporting ? (csvStatus || 'Importing...') : 'Upload CSV'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const start = Date.now();
+                        const res = await fetchWithAuth(`${API_URL}/health`);
+                        const data = await res.json();
+                        alert(`Server Connection: OK!\nResponse Time: ${Date.now() - start}ms\nMode: ${data.env}`);
+                      } catch (e) {
+                        alert(`Server Connection: FAILED!\nError: ${e.message}\nAPI_URL: ${API_URL}`);
+                      }
+                    }}
+                    className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors text-xs"
+                  >
+                    Test Connection
                   </button>
                   {selectedProductIds.length > 0 && (
                     <button
@@ -1172,7 +1167,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredProducts.map(product => (
+                    {paginatedProducts.map(product => (
                       <tr key={product.id} className="hover:bg-gray-50">
                         <td className="px-3 py-3 text-center">
                           <input
@@ -1274,6 +1269,82 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredProducts.length)}</span> of{' '}
+                        <span className="font-medium">{filteredProducts.length}</span> results
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          <span className="sr-only">Previous</span>
+                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => {
+                          const pageNum = i + 1;
+                          // Only show first, last, and pages around current
+                          if (pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)) {
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  currentPage === pageNum
+                                    ? 'z-10 bg-cyan-50 border-cyan-500 text-cyan-600'
+                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          } else if (pageNum === currentPage - 3 || pageNum === currentPage + 3) {
+                            return <span key={pageNum} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>;
+                          }
+                          return null;
+                        })}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          <span className="sr-only">Next</span>
+                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

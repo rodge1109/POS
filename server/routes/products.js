@@ -1,5 +1,8 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { parseCsvLine } from '../utils/csvParser.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
@@ -9,21 +12,40 @@ router.get('/', async (req, res) => {
   try {
     const { all } = req.query;
 
-    // Get products (filter by active unless ?all=true)
-    const productsResult = await pool.query(
-      all === 'true'
-        ? 'SELECT p.*, (SELECT COUNT(*) FROM product_composition pc WHERE pc.product_id = p.id AND pc.company_id = p.company_id) as ingredient_count FROM products p WHERE p.company_id = $1 ORDER BY p.category, p.name'
-        : 'SELECT p.*, (SELECT COUNT(*) FROM product_composition pc WHERE pc.product_id = p.id AND pc.company_id = p.company_id) as ingredient_count FROM products p WHERE p.active = true AND p.company_id = $1 ORDER BY p.category, p.name',
-      [req.company_id]
-    );
+    // 1. Get products with composition count in a single query
+    const productsQuery = `
+      SELECT p.*, 
+             COALESCE(pc.count, 0) as ingredient_count
+      FROM products p
+      LEFT JOIN (
+        SELECT product_id, COUNT(*) as count 
+        FROM product_composition 
+        WHERE company_id = $1 
+        GROUP BY product_id
+      ) pc ON p.id = pc.product_id
+      WHERE p.company_id = $1
+      ${all === 'true' ? '' : 'AND p.active = true'}
+      ORDER BY p.category, p.name
+    `;
+    const productsResult = await pool.query(productsQuery, [req.company_id]);
 
-    // Get all sizes
+    // 2. Get all sizes and group them by product_id
     const sizesResult = await pool.query(
-      'SELECT * FROM product_sizes WHERE company_id = $1 ORDER BY product_id, price',
+      'SELECT id, product_id, size_name, price, cost FROM product_sizes WHERE company_id = $1 ORDER BY price',
       [req.company_id]
     );
+    const sizesMap = {};
+    for (const size of sizesResult.rows) {
+      if (!sizesMap[size.product_id]) sizesMap[size.product_id] = [];
+      sizesMap[size.product_id].push({
+        id: size.id,
+        name: size.size_name,
+        price: parseFloat(size.price),
+        cost: parseFloat(size.cost || 0)
+      });
+    }
 
-    // Get all product-modifier assignments
+    // 3. Get all product-modifier assignments and group them
     const pmResult = await pool.query(
       'SELECT product_id, modifier_id FROM product_modifiers WHERE company_id = $1',
       [req.company_id]
@@ -34,38 +56,26 @@ router.get('/', async (req, res) => {
       pmMap[row.product_id].push(row.modifier_id);
     }
 
-    // Map sizes to products
-    const products = productsResult.rows.map(product => {
-      const sizes = sizesResult.rows
-        .filter(size => size.product_id === product.id)
-        .map(size => ({
-          id: size.id,
-          name: size.size_name,
-          price: parseFloat(size.price),
-          cost: parseFloat(size.cost || 0)
-        }));
+    // 4. Map everything together efficiently
+    const products = productsResult.rows.map(product => ({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price ? parseFloat(product.price) : null,
+      sizes: sizesMap[product.id] || null,
+      modifier_ids: pmMap[product.id] || [],
+      description: product.description,
+      image: product.image,
+      popular: product.popular,
+      barcode: product.barcode,
+      sku: product.sku,
+      cost: product.cost ? parseFloat(product.cost) : 0,
+      active: product.active,
+      stock_quantity: product.stock_quantity || 0,
+      low_stock_threshold: product.low_stock_threshold || 10,
+      ingredient_count: parseInt(product.ingredient_count) || 0
+    }));
 
-      return {
-        id: product.id,
-        name: product.name,
-        category: product.category,
-        price: product.price ? parseFloat(product.price) : null,
-        sizes: sizes.length > 0 ? sizes : null,
-        modifier_ids: pmMap[product.id] || [],
-        description: product.description,
-        image: product.image,
-        popular: product.popular,
-        barcode: product.barcode,
-        sku: product.sku,
-        cost: product.cost ? parseFloat(product.cost) : 0,
-        active: product.active,
-        stock_quantity: product.stock_quantity || 0,
-        low_stock_threshold: product.low_stock_threshold || 10,
-        ingredient_count: parseInt(product.ingredient_count) || 0
-      };
-    });
-
-    // Count low stock items
     const lowStockCount = products.filter(p => p.stock_quantity <= p.low_stock_threshold).length;
 
     res.json({ success: true, products, lowStockCount });
@@ -448,33 +458,96 @@ router.post('/seed-demo', async (req, res) => {
 
 // POST bulk upload products via CSV
 router.post('/bulk', async (req, res) => {
+  const logPath = path.join(process.cwd(), 'import_log.txt');
+  const log = (msg) => fs.appendFileSync(logPath, `${new Date().toISOString()} - ${msg}\n`);
+  
+  log(`Starting bulk import for company ${req.company_id}`);
   const client = await pool.connect();
   try {
     const { csv } = req.body;
     if (!csv || typeof csv !== 'string') {
+      log('Error: CSV content is missing');
       return res.status(400).json({ success: false, error: 'CSV content is required' });
     }
+    log(`CSV size: ${csv.length} characters`);
 
     const lines = csv.split(/\r?\n/).filter(l => l.trim().length > 0);
     if (lines.length <= 1) {
       return res.status(400).json({ success: false, error: 'No data rows found in CSV' });
     }
 
+    // CSV parsing helper to handle quotes and commas
+    const parseCsvLine = (line) => {
+      const out = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          out.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur.trim());
+      return out;
+    };
+
+    const cleanHeader = (h) => h.toLowerCase().trim().replace(/^\uFEFF/, '');
+    const parseSafeFloat = (val, defaultVal = 0) => {
+      if (!val) return defaultVal;
+      const clean = String(val).replace(/[^\d.-]/g, '');
+      const n = parseFloat(clean);
+      return isFinite(n) ? n : defaultVal;
+    };
+
+    const headers = parseCsvLine(lines[0]).map(cleanHeader);
+    const nameIdx = headers.indexOf('name');
+    const catIdx = headers.indexOf('category');
+    const priceIdx = headers.indexOf('price');
+    const skuIdx = headers.indexOf('sku');
+    const costIdx = headers.indexOf('cost');
+    
+    // Flexible header matching for stock
+    let stockIdx = headers.indexOf('stock_quantity');
+    if (stockIdx === -1) stockIdx = headers.indexOf('current_stock');
+    if (stockIdx === -1) stockIdx = headers.indexOf('stock');
+    
+    // Flexible header matching for threshold
+    let lowIdx = headers.indexOf('low_stock_threshold');
+    if (lowIdx === -1) lowIdx = headers.indexOf('low_stock');
+    if (lowIdx === -1) lowIdx = headers.indexOf('threshold');
+    if (lowIdx === -1) lowIdx = headers.indexOf('reorder_level');
+
+    if (nameIdx === -1 || catIdx === -1) {
+      return res.status(400).json({ success: false, error: 'CSV must contain "name" and "category" headers' });
+    }
+
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',').map(p => p.trim());
+      const parts = parseCsvLine(lines[i]);
       if (parts.length < 2) continue;
-      // Format: name,category,price,sku,cost,stock_quantity,low_stock_threshold
-      const [name, category, price = 0, sku = null, cost = 0, stock_quantity = 0, low_stock_threshold = 10] = parts;
+
+      const name = parts[nameIdx];
+      const category = parts[catIdx];
       if (!name || !category) continue;
+
       rows.push({
-        name,
-        category,
-        price: parseFloat(price) || 0,
-        sku: sku || null,
-        cost: parseFloat(cost) || 0,
-        stock_quantity: parseFloat(stock_quantity) || 0,
-        low_stock_threshold: parseFloat(low_stock_threshold) || 10
+        name: name.trim(),
+        category: category.trim(),
+        price: priceIdx !== -1 ? parseSafeFloat(parts[priceIdx]) : 0,
+        sku: skuIdx !== -1 ? (parts[skuIdx] ? parts[skuIdx].trim() : null) : null,
+        cost: costIdx !== -1 ? parseSafeFloat(parts[costIdx]) : 0,
+        stock_quantity: stockIdx !== -1 ? parseSafeFloat(parts[stockIdx]) : 0,
+        low_stock_threshold: lowIdx !== -1 ? parseSafeFloat(parts[lowIdx], 10) : 10
       });
     }
 
@@ -482,29 +555,81 @@ router.post('/bulk', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No valid rows to import' });
     }
 
-    await client.query('BEGIN');
-    const inserted = [];
-    for (const r of rows) {
-      const result = await client.query(
-        `INSERT INTO products (name, category, price, sku, cost, stock_quantity, low_stock_threshold, company_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (name, company_id) DO UPDATE SET
-           category = EXCLUDED.category,
-           price = EXCLUDED.price,
-           sku = EXCLUDED.sku,
-           cost = EXCLUDED.cost,
-           updated_at = CURRENT_TIMESTAMP
-         RETURNING *`,
-        [r.name, r.category, r.price, r.sku, r.cost, r.stock_quantity, r.low_stock_threshold, req.company_id]
-      );
-      inserted.push(result.rows[0]);
+    // Safety: Deduplicate rows by name (keeping the last one)
+    const uniqueRowsMap = new Map();
+    for (const row of rows) {
+      uniqueRowsMap.set(row.name, row);
     }
-    await client.query('COMMIT');
-    res.json({ success: true, imported: inserted.length, products: inserted });
+    const finalRows = Array.from(uniqueRowsMap.values());
+    log(`Found ${lines.length} lines in CSV, deduplicated to ${finalRows.length} unique products`);
+
+    await client.query('BEGIN');
+    try {
+      log('Starting database transaction...');
+      const names = finalRows.map(r => r.name);
+      const categories = finalRows.map(r => r.category);
+      const prices = finalRows.map(r => r.price);
+      const skus = finalRows.map(r => r.sku);
+      const costs = finalRows.map(r => r.cost);
+      const stocks = finalRows.map(r => r.stock_quantity);
+      const lows = finalRows.map(r => r.low_stock_threshold);
+      const companies = finalRows.map(() => req.company_id);
+
+      const query = `
+        INSERT INTO products (name, category, price, sku, cost, stock_quantity, low_stock_threshold, company_id)
+        SELECT * FROM UNNEST($1::text[], $2::text[], $3::numeric[], $4::text[], $5::numeric[], $6::numeric[], $7::numeric[], $8::uuid[])
+        ON CONFLICT (name, company_id) DO UPDATE SET
+          category = EXCLUDED.category,
+          price = EXCLUDED.price,
+          sku = EXCLUDED.sku,
+          cost = EXCLUDED.cost,
+          stock_quantity = EXCLUDED.stock_quantity,
+          low_stock_threshold = EXCLUDED.low_stock_threshold,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id, name, stock_quantity
+      `;
+      
+      log('Inserting/Updating products...');
+      const result = await client.query(query, [names, categories, prices, skus, costs, stocks, lows, companies]);
+      const insertedProducts = result.rows;
+      log(`Database operation finished. ${insertedProducts.length} rows processed.`);
+
+      // Batch insert ledger entries for ALL products at once
+      if (insertedProducts.length > 0) {
+        log('Inserting inventory ledger entries...');
+        const pIds = insertedProducts.map(p => p.id);
+        const pStocks = insertedProducts.map(p => p.stock_quantity);
+        const pTypes = insertedProducts.map(() => 'manual_adjustment');
+        const pChanges = insertedProducts.map(() => 0);
+        const pNotes = insertedProducts.map(() => 'Bulk CSV Import/Update');
+        const pActors = insertedProducts.map(() => 'admin');
+        const pCompanies = insertedProducts.map(() => req.company_id);
+
+        await client.query(`
+          INSERT INTO inventory_transactions (product_id, transaction_type, quantity_change, quantity_after, notes, created_by, company_id)
+          SELECT * FROM UNNEST($1::int[], $2::text[], $3::numeric[], $4::numeric[], $5::text[], $6::text[], $7::uuid[])
+        `, [pIds, pTypes, pChanges, pStocks, pNotes, pActors, pCompanies]);
+        log('Ledger entries inserted.');
+      }
+
+      await client.query('COMMIT');
+      log('Transaction committed successfully.');
+      res.json({ success: true, imported: insertedProducts.length, products: insertedProducts });
+    } catch (err) {
+      log(`DATABASE ERROR: ${err.message}`);
+      await client.query('ROLLBACK');
+      console.error('Error during products bulk transaction:', err);
+      throw err;
+    }
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Error bulk uploading products:', error);
-    res.status(500).json({ success: false, error: 'Failed to import products' });
+    // Return detailed error message to help debug
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to import products',
+      detail: error.detail || null,
+      code: error.code || null
+    });
   } finally {
     client.release();
   }

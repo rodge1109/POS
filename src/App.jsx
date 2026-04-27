@@ -41,6 +41,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 // 🚀 Lazy load large management components to keep the main POS bundle small
 const ProductManagementPage = lazy(() => import('./components/ProductManagementPage'));
 const BackOfficeAccounting = lazy(() => import('./components/BackOfficeAccounting'));
+import { parseCsvLine } from './utils/csvParser';
 
 const currencySymbols = {
   PHP: '₱',
@@ -10447,7 +10448,7 @@ function BulkReceiveModal({ ingredients, API_URL, onRefresh, onClose }) {
       }
 
       // Parse header
-      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+      const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
       const nameIdx = headers.indexOf('ingredient_name');
       const qtyIdx = headers.indexOf('quantity');
       const supplierIdx = headers.indexOf('supplier');
@@ -10463,7 +10464,7 @@ function BulkReceiveModal({ ingredients, API_URL, onRefresh, onClose }) {
 
       lines.slice(1).forEach((line, idx) => {
         if (!line.trim()) return;
-        const cols = line.split(',').map(c => c.replace(/"/g, '').trim());
+        const cols = parseCsvLine(line);
         const name = cols[nameIdx] || '';
         const qty = parseFloat(cols[qtyIdx]);
         const supplier = supplierIdx !== -1 ? (cols[supplierIdx] || '') : '';

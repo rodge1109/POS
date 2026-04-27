@@ -1,6 +1,8 @@
  import express from 'express';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
@@ -274,6 +276,12 @@ router.get('/me', (req, res) => {
 export const verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    
+    // Quick log to see if request even arrives
+    try {
+      const logPath = path.join(process.cwd(), 'import_log.txt');
+      fs.appendFileSync(logPath, `${new Date().toISOString()} - [AUTH] ${req.method} ${req.originalUrl}\n`);
+    } catch (e) {}
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ success: false, error: 'No token provided' });

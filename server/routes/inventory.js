@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { parseCsvLine } from '../utils/csvParser.js';
 
 const router = express.Router();
 const toNum = (value) => {
@@ -166,19 +167,67 @@ router.post('/ingredients/bulk', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No data rows found in CSV' });
     }
 
+    // CSV parsing helper
+    const parseCsvLine = (line) => {
+      const out = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          out.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur.trim());
+      return out;
+    };
+
+    // Parse headers to be more flexible
+    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().trim().replace(/^\uFEFF/, ''));
+    const nameIdx = headers.indexOf('name');
+    const unitIdx = headers.indexOf('unit');
+    const stockIdx = headers.indexOf('current_stock');
+    const reorderIdx = headers.indexOf('reorder_level');
+    const costIdx = headers.indexOf('cost_per_unit');
+    const supplierIdx = headers.indexOf('supplier');
+
+    if (nameIdx === -1 || unitIdx === -1) {
+      return res.status(400).json({ success: false, error: 'CSV must contain "name" and "unit" headers' });
+    }
+
+    const parseSafeFloat = (val, defaultVal = 0) => {
+      if (!val) return defaultVal;
+      const clean = String(val).replace(/[^\d.-]/g, '');
+      const n = parseFloat(clean);
+      return isFinite(n) ? n : defaultVal;
+    };
+
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',').map(p => p.trim());
+      const parts = parseCsvLine(lines[i]);
       if (parts.length < 2) continue;
-      const [name, unit, current_stock = 0, reorder_level = 0, cost_per_unit = 0, supplier = null] = parts;
+
+      const name = parts[nameIdx];
+      const unit = parts[unitIdx];
       if (!name || !unit) continue;
+
       rows.push({
         name,
         unit,
-        current_stock: parseFloat(current_stock) || 0,
-        reorder_level: parseFloat(reorder_level) || 0,
-        cost_per_unit: parseFloat(cost_per_unit) || 0,
-        supplier: supplier || null
+        current_stock: stockIdx !== -1 ? parseSafeFloat(parts[stockIdx]) : 0,
+        reorder_level: reorderIdx !== -1 ? parseSafeFloat(parts[reorderIdx]) : 0,
+        cost_per_unit: costIdx !== -1 ? parseSafeFloat(parts[costIdx]) : 0,
+        supplier: supplierIdx !== -1 ? (parts[supplierIdx] || null) : null
       });
     }
 
@@ -186,29 +235,70 @@ router.post('/ingredients/bulk', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No valid rows to import' });
     }
 
-    await client.query('BEGIN');
-    const inserted = [];
-    for (const r of rows) {
-      const result = await client.query(
-        `INSERT INTO ingredients (name, unit, current_stock, reorder_level, supplier, cost_per_unit, company_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (name, company_id) DO UPDATE SET
-           unit = EXCLUDED.unit,
-           reorder_level = EXCLUDED.reorder_level,
-           cost_per_unit = EXCLUDED.cost_per_unit,
-           supplier = EXCLUDED.supplier,
-           updated_at = CURRENT_TIMESTAMP
-         RETURNING id, name, unit, current_stock, reorder_level, cost_per_unit`,
-        [r.name, r.unit, r.current_stock, r.reorder_level, r.supplier, r.cost_per_unit, req.company_id]
-      );
-      inserted.push(result.rows[0]);
+    // Safety: Deduplicate rows by name (keeping the last one)
+    const uniqueRowsMap = new Map();
+    for (const row of rows) {
+      uniqueRowsMap.set(row.name, row);
     }
-    await client.query('COMMIT');
-    res.json({ success: true, imported: inserted.length, ingredients: inserted });
+    const finalRows = Array.from(uniqueRowsMap.values());
+
+    await client.query('BEGIN');
+    try {
+      const names = finalRows.map(r => r.name);
+      const units = finalRows.map(r => r.unit);
+      const stocks = finalRows.map(r => r.current_stock);
+      const reorders = finalRows.map(r => r.reorder_level);
+      const costs = finalRows.map(r => r.cost_per_unit);
+      const suppliers = finalRows.map(r => r.supplier);
+      const companies = finalRows.map(() => req.company_id);
+
+      const query = `
+        INSERT INTO ingredients (name, unit, current_stock, reorder_level, cost_per_unit, supplier, company_id)
+        SELECT * FROM UNNEST($1::text[], $2::text[], $3::numeric[], $4::numeric[], $5::numeric[], $6::text[], $7::uuid[])
+        ON CONFLICT (name, company_id) DO UPDATE SET
+          unit = EXCLUDED.unit,
+          current_stock = EXCLUDED.current_stock,
+          reorder_level = EXCLUDED.reorder_level,
+          cost_per_unit = EXCLUDED.cost_per_unit,
+          supplier = EXCLUDED.supplier,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id, name, current_stock
+      `;
+      
+      const result = await client.query(query, [names, units, stocks, reorders, costs, suppliers, companies]);
+      const insertedIngredients = result.rows;
+
+      // Batch insert ledger entries for ALL ingredients
+      if (insertedIngredients.length > 0) {
+        const iIds = insertedIngredients.map(i => i.id);
+        const iStocks = insertedIngredients.map(i => i.current_stock);
+        const iTypes = insertedIngredients.map(() => 'manual_adjustment');
+        const iChanges = insertedIngredients.map(() => 0);
+        const iNotes = insertedIngredients.map(() => 'Bulk CSV Import/Update');
+        const iActors = insertedIngredients.map(() => 'admin');
+        const iCompanies = insertedIngredients.map(() => req.company_id);
+
+        await client.query(`
+          INSERT INTO inventory_transactions (ingredient_id, transaction_type, quantity_change, quantity_after, notes, created_by, company_id)
+          SELECT * FROM UNNEST($1::int[], $2::text[], $3::numeric[], $4::numeric[], $5::text[], $6::text[], $7::uuid[])
+        `, [iIds, iTypes, iChanges, iStocks, iNotes, iActors, iCompanies]);
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true, imported: insertedIngredients.length, ingredients: insertedIngredients });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Error during ingredients bulk transaction:', err);
+      throw err;
+    }
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Error bulk uploading ingredients:', error);
-    res.status(500).json({ success: false, error: 'Failed to import ingredients' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to import ingredients',
+      detail: error.detail || null,
+      code: error.code || null
+    });
   } finally {
     client.release();
   }
