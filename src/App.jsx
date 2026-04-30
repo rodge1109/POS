@@ -324,7 +324,8 @@ export default function App() {
     loyalty_points_per_php: '0.02', // 1 point per 50 Php
     loyalty_silver_threshold: '100', loyalty_silver_discount: '5',
     loyalty_gold_threshold: '500', loyalty_gold_discount: '10',
-    loyalty_diamond_threshold: '1000', loyalty_diamond_discount: '15'
+    loyalty_diamond_threshold: '1000', loyalty_diamond_discount: '15',
+    inventory_allow_negative: 'false'
   });
 
   const currencySymbol = getCurrencySymbol(sysConfig.currency || 'PHP');
@@ -3617,42 +3618,75 @@ function MenuPage({ selectedCategory, setSelectedCategory, searchQuery, menuData
 function MenuItem({ item }) {
   const { addToCart } = useCart();
 
+  // Determine stock status
+  const isMadeToOrder = (item.ingredient_count || 0) > 0 || item.isCombo;
+  const isOutOfStock = !isMadeToOrder && (item.stock_quantity !== null && item.stock_quantity !== undefined) && item.stock_quantity <= 0;
+  
+  const displayPrice = item.sizes 
+    ? `From ₱${Math.min(...item.sizes.map(s => s.price)).toFixed(2)}`
+    : `₱${(item.price || 0).toFixed(2)}`;
+
   return (
-    <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden group w-full flex flex-row h-auto min-h-[273px] sm:min-h-[293px]">
+    <div className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden group w-full flex flex-row h-auto min-h-[273px] sm:min-h-[293px] relative ${isOutOfStock ? 'opacity-75' : ''}`}>
       {/* Left side - Product Image */}
-      <div className="bg-gray-50 p-3 sm:p-4 flex items-center justify-center w-48 sm:w-54 md:w-60 flex-shrink-0 relative">
+      <div className="bg-gray-50 p-3 sm:p-4 flex items-center justify-center w-48 sm:w-54 md:w-60 flex-shrink-0 relative overflow-hidden">
         <SafeImage 
           src={item.image} 
           alt={item.name} 
-          className="object-contain w-full h-48 sm:h-54 md:h-60 rounded-lg group-hover:scale-110 transition-transform duration-300" 
+          className={`object-contain w-full h-48 sm:h-54 md:h-60 rounded-lg group-hover:scale-110 transition-transform duration-300 ${isOutOfStock ? 'grayscale' : ''}`} 
         />
+        
+        {/* Floating Price Badge */}
+        <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg border border-white/20">
+          {displayPrice}
+        </div>
+
+        {/* Hot Badge */}
         {item.popular && (
-          <span className="absolute top-1 right-1 bg-cyan-600 text-white px-2 py-1 rounded-full text-xs font-black">
-            HOT
+          <span className="absolute top-4 left-4 bg-orange-500 text-white px-2 py-1 rounded-lg text-[10px] font-black shadow-sm uppercase tracking-tighter">
+            Popular
           </span>
         )}
+
+        {/* Stock Status Badge on Image */}
+        <div className={`absolute top-4 right-4 px-2 py-1 rounded-lg text-[10px] font-black shadow-sm uppercase tracking-tighter ${isOutOfStock ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+          {isOutOfStock ? 'Out of Stock' : (isMadeToOrder ? 'Ready' : 'On Stock')}
+        </div>
       </div>
 
       {/* Right side - Product Details */}
-      <div className="p-4 sm:p-5 md:p-6 flex flex-col justify-start flex-1 min-w-0">
+      <div className="p-4 sm:p-5 md:p-6 flex flex-col justify-start flex-1 min-w-0 bg-white">
         <div className="mb-4">
-          <h3 className="text-base sm:text-lg md:text-xl font-bold text-cyan-600 mb-2 break-words">{item.name}</h3>
-          <p className="text-gray-600 text-sm sm:text-base mb-3 line-clamp-2 font-normal">{item.description}</p>
-        </div>
-        <div className="flex flex-col gap-2 mt-auto">
-          {item.sizes ? (
-            <span className="text-sm sm:text-base md:text-lg font-semibold text-cyan-600 break-words">
-              From Php {Math.min(...item.sizes.map(s => s.price)).toFixed(2)}
-            </span>
-          ) : (
-            <span className="text-sm sm:text-base md:text-lg font-semibold text-cyan-600 break-words">Php {item.price.toFixed(2)}</span>
+          <div className="flex justify-between items-start mb-1">
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 break-words line-clamp-2">{item.name}</h3>
+          </div>
+          <p className="text-gray-500 text-sm sm:text-base mb-3 line-clamp-2 font-normal leading-relaxed">{item.description}</p>
+          
+          {!isMadeToOrder && !isOutOfStock && (
+             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+               Stock: <span className="text-gray-600">{item.stock_quantity} available</span>
+             </p>
           )}
+        </div>
+        
+        <div className="flex flex-col gap-2 mt-auto">
           <button
-            onClick={() => addToCart(item)}
-            className="bg-cyan-600 text-white px-4 sm:px-5 py-3 rounded-lg hover:bg-cyan-700 transition-all flex items-center justify-center space-x-1 text-sm font-bold hover:scale-105 w-full whitespace-nowrap"
+            onClick={() => !isOutOfStock && addToCart(item)}
+            disabled={isOutOfStock}
+            className={`w-full py-3 rounded-lg transition-all flex items-center justify-center space-x-1 text-sm font-bold shadow-sm active:scale-95 ${
+              isOutOfStock 
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                : 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-md'
+            }`}
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span>ADD</span>
+            {isOutOfStock ? (
+              <span>UNAVAILABLE</span>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>ADD TO ORDER</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -6631,27 +6665,41 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1 md:gap-2.5 lg:gap-2">
-                  {filteredItems.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleQuickAdd(item)}
-                      className="bg-white hover:bg-gray-50 text-left transition-all hover:shadow-md border border-gray-200 hover:border-cyan-500 group flex overflow-hidden h-16 md:h-28 lg:h-24"
-                    >
-                      {/* Left Half - Image */}
-                      <div className="w-2/5 md:w-1/2 bg-gray-50 flex items-center justify-center p-1 md:p-2 overflow-hidden border-r border-gray-100">
-                        <SafeImage 
-                          src={item.image} 
-                          alt={item.name} 
-                          className="object-contain h-full w-full group-hover:scale-105 transition-transform" 
-                        />
-                      </div>
-                      {/* Right Half - Description */}
-                      <div className="w-3/5 md:w-1/2 p-1 md:p-2 flex flex-col justify-center">
-                        <h3 className="text-gray-800 font-semibold text-xs md:text-sm leading-[1.3] md:leading-[1.35] mb-0.5 md:mb-1 line-clamp-2 min-h-[2.4em] md:min-h-[2.7em]">{item.name}</h3>
-                        <p className="text-gray-500 text-[10px] md:text-xs line-clamp-1 md:line-clamp-2 hidden md:block">{item.description || item.category}</p>
-                      </div>
-                    </button>
-                  ))}
+                    {filteredItems.map(item => {
+                      const isMadeToOrder = (item.ingredient_count || 0) > 0 || item.isCombo;
+                      const allowNegative = sysConfig.inventory_allow_negative === 'true';
+                      const isOutOfStock = !isMadeToOrder && (item.stock_quantity !== null && item.stock_quantity !== undefined) && item.stock_quantity <= 0 && !allowNegative;
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => !isOutOfStock && handleQuickAdd(item)}
+                          disabled={isOutOfStock}
+                          className={`bg-white hover:bg-gray-50 text-left transition-all border border-gray-200 hover:border-cyan-500 group flex overflow-hidden h-16 md:h-28 lg:h-24 relative ${isOutOfStock ? 'opacity-60 grayscale' : 'hover:shadow-md'}`}
+                        >
+                          {/* Left Half - Image */}
+                          <div className="w-2/5 md:w-1/2 bg-gray-50 flex items-center justify-center p-1 md:p-2 overflow-hidden border-r border-gray-100 relative">
+                            <SafeImage 
+                              src={item.image} 
+                              alt={item.name} 
+                              className="object-contain h-full w-full group-hover:scale-105 transition-transform" 
+                            />
+                          </div>
+                          {/* Right Half - Details */}
+                          <div className="w-3/5 md:w-1/2 p-1 md:p-2 flex flex-col justify-center">
+                            <h3 className="text-gray-800 font-bold text-[10px] md:text-sm leading-tight mb-0.5 line-clamp-2">{item.name}</h3>
+                            <div className="flex flex-col">
+                              <p className={`text-[8px] md:text-[11px] font-black uppercase tracking-tight ${isOutOfStock ? 'text-red-600' : 'text-green-600'}`}>
+                                {isOutOfStock ? 'Out of Stock' : (isMadeToOrder ? 'On Stock' : `Stock: ${item.stock_quantity}`)}
+                              </p>
+                              <p className="text-cyan-600 font-bold text-[10px] md:text-xs">
+                                {currencySymbol}{item.sizes ? Math.min(...item.sizes.map(s => s.price)).toFixed(2) : (item.price || 0).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -14452,6 +14500,23 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
               )}
             </div>
 
+            {/* Inventory Settings */}
+            <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+              <h3 className="font-semibold text-gray-800 text-base">Inventory Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Allow Out-of-Stock Transactions</p>
+                    <p className="text-xs text-gray-400">If enabled, the POS will allow selling items even if they have zero or negative stock.</p>
+                  </div>
+                  <button onClick={() => toggle('inventory_allow_negative')}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${sysConfig['inventory_allow_negative'] === 'true' ? 'bg-cyan-600' : 'bg-gray-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${sysConfig['inventory_allow_negative'] === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Save + Test */}
             <div className="flex items-center gap-3 flex-wrap">
               <button onClick={saveConfig} disabled={configSaving}
@@ -15778,7 +15843,10 @@ function PrintableReceipt({ order, config }) {
 
         <div className="text-center mt-6 mb-2">
           <p className="text-[10px]">{config.printer_footer || 'Thank you for dining with us!'}</p>
-          <p className="text-[8px] text-gray-400 mt-1 italic">Software by AntiGravity POS</p>
+          <p className="text-[8px] text-gray-400 mt-1 italic flex items-center justify-center">
+            Software by AntiGravity POS
+            <span className="ml-2 bg-cyan-900/50 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800 not-italic font-bold tracking-tighter">v1.2.0</span>
+          </p>
         </div>
       </div>
 

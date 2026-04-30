@@ -19,6 +19,13 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId,
     const deductedItems = [];
     const insufficientStockItems = [];
 
+    // Check if we allow negative stock/out-of-stock transactions
+    const settingRes = await client.query(
+      "SELECT value FROM system_settings WHERE key = 'inventory_allow_negative' AND company_id = $1",
+      [companyId]
+    );
+    const allowNegative = settingRes.rows[0]?.value === 'true';
+
     for (const item of items) {
       let productCompositions = [];
       const productId = item.product_id || item.id;
@@ -89,7 +96,7 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId,
 
           if (ingredientResult.rows.length > 0) {
             const ingredient = ingredientResult.rows[0];
-            if (ingredient.current_stock < comp.quantity) {
+            if (ingredient.current_stock < comp.quantity && !allowNegative) {
               insufficientStockItems.push({
                 ingredient: ingredient.name,
                 required: comp.quantity,
@@ -107,7 +114,7 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId,
         );
         if (productResult.rows.length > 0) {
           const product = productResult.rows[0];
-          if (product.stock_quantity < item.quantity) {
+          if (product.stock_quantity < item.quantity && !allowNegative) {
             insufficientStockItems.push({
               ingredient: product.name,
               required: item.quantity,
@@ -232,6 +239,14 @@ export const getLowStockIngredients = async (companyId) => {
 export const checkInventoryAvailability = async (items, companyId) => {
   try {
     const insufficientItems = [];
+
+    // Check if we allow negative stock/out-of-stock transactions
+    const settingRes = await pool.query(
+      "SELECT value FROM system_settings WHERE key = 'inventory_allow_negative' AND company_id = $1",
+      [companyId]
+    );
+    const allowNegative = settingRes.rows[0]?.value === 'true';
+
     for (const item of items) {
       const isCombo = item.isCombo || (typeof item.id === 'string' && item.id.startsWith('combo-'));
       let productCompositions = [];
@@ -299,7 +314,7 @@ export const checkInventoryAvailability = async (items, companyId) => {
 
           if (ingredientResult.rows.length > 0) {
             const ingredient = ingredientResult.rows[0];
-            if (ingredient.current_stock < comp.quantity) {
+            if (ingredient.current_stock < comp.quantity && !allowNegative) {
               insufficientItems.push({
                 ingredient: ingredient.name,
                 required: comp.quantity,
@@ -317,7 +332,7 @@ export const checkInventoryAvailability = async (items, companyId) => {
         );
         if (productResult.rows.length > 0) {
           const product = productResult.rows[0];
-          if (product.stock_quantity < item.quantity) {
+          if (product.stock_quantity < item.quantity && !allowNegative) {
             insufficientItems.push({
               ingredient: product.name,
               required: item.quantity,
