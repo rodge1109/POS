@@ -5,19 +5,19 @@ import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Sh
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
 let _offlineDB = null;
 const _safeOfflineDB = {
-  cacheMenuData:    async () => {},
-  getCachedMenuData:async () => null,
-  queueOrder:       async () => Date.now(),  // returns a fake localId
+  cacheMenuData: async () => { },
+  getCachedMenuData: async () => null,
+  queueOrder: async () => Date.now(),  // returns a fake localId
   getPendingOrders: async () => [],
-  deleteQueuedOrder:async () => {},
+  deleteQueuedOrder: async () => { },
 };
 import('./offlineDB.js')
   .then(mod => { _offlineDB = mod; })
   .catch(err => { console.warn('[OfflineDB] Failed to load, offline mode disabled:', err); });
-const cacheMenuData     = (...a) => (_offlineDB || _safeOfflineDB).cacheMenuData(...a);
+const cacheMenuData = (...a) => (_offlineDB || _safeOfflineDB).cacheMenuData(...a);
 const getCachedMenuData = (...a) => (_offlineDB || _safeOfflineDB).getCachedMenuData(...a);
-const queueOrder        = (...a) => (_offlineDB || _safeOfflineDB).queueOrder(...a);
-const getPendingOrders  = (...a) => (_offlineDB || _safeOfflineDB).getPendingOrders(...a);
+const queueOrder = (...a) => (_offlineDB || _safeOfflineDB).queueOrder(...a);
+const getPendingOrders = (...a) => (_offlineDB || _safeOfflineDB).getPendingOrders(...a);
 const deleteQueuedOrder = (...a) => (_offlineDB || _safeOfflineDB).deleteQueuedOrder(...a);
 const updateQueuedOrder = (...a) => (_offlineDB || _safeOfflineDB).updateQueuedOrder ? (_offlineDB || _safeOfflineDB).updateQueuedOrder(...a) : Promise.resolve();
 // Fallback alias to avoid missing icon errors in dynamic builds
@@ -93,9 +93,9 @@ ChartJS.register(
 function SafeImage({ src, alt, className, fallbackIcon: Icon = UtensilsCrossed }) {
   const [error, setError] = useState(false);
   const isUrl = src && (typeof src === 'string') && (src.startsWith('http') || src.startsWith('assets/') || src.startsWith('/') || src.startsWith('data:'));
-  
+
   // If it's not a URL/path but looks like a filename (e.g. "product.png"), try prefixing with API_URL
-  const finalSrc = !isUrl && src && typeof src === 'string' && src.includes('.') 
+  const finalSrc = !isUrl && src && typeof src === 'string' && src.includes('.')
     ? `${API_URL}/uploads/${src}`
     : src;
 
@@ -114,10 +114,10 @@ function SafeImage({ src, alt, className, fallbackIcon: Icon = UtensilsCrossed }
   }
 
   return (
-    <img 
-      src={finalSrc} 
-      alt={alt} 
-      className={className} 
+    <img
+      src={finalSrc}
+      alt={alt}
+      className={className}
       onError={() => {
         console.warn(`[Image] Failed to load: ${finalSrc}`);
         setError(true);
@@ -257,7 +257,7 @@ export default function App() {
   const [categoryList, setCategoryList] = useState([]);
 
   // Offline / Online state
-  const [isOnline, setIsOnline] = useState(true); 
+  const [isOnline, setIsOnline] = useState(true);
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem('force_offline') === 'true');
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState(0);
@@ -325,7 +325,7 @@ export default function App() {
     loyalty_silver_threshold: '100', loyalty_silver_discount: '5',
     loyalty_gold_threshold: '500', loyalty_gold_discount: '10',
     loyalty_diamond_threshold: '1000', loyalty_diamond_discount: '15',
-    inventory_allow_negative: 'false'
+    inventory_allow_negative: 'true'
   });
 
   const currencySymbol = getCurrencySymbol(sysConfig.currency || 'PHP');
@@ -357,7 +357,7 @@ export default function App() {
       localStorage.removeItem('customer');
     }
   }, [customer]);
-  
+
   // Sidebar-driven stock refreshing:
   // Refresh products/stock ONLY when navigating to pages that require updated inventory
   // This fulfills the requirement of 'refreshing stock only after page is click on the sidebar'
@@ -457,7 +457,7 @@ export default function App() {
     }
     setEmployee(null);
     setCurrentShift(null);
-    setCurrentPage('dashboard');
+    setCurrentPage('home');
     // Clear company context to ensure fresh login starts with 6-digit PIN
     localStorage.removeItem('active_company_id');
     localStorage.removeItem('active_company_name');
@@ -617,7 +617,7 @@ export default function App() {
     setIsSyncing(true);
     let synced = 0;
     const totalCount = pending.length;
-    
+
     for (const [index, order] of pending.entries()) {
       setSyncProgress(`${index + 1}/${totalCount}`);
       try {
@@ -632,16 +632,16 @@ export default function App() {
           synced++;
         } else {
           // 🚩 ERROR: Save why it failed to the local database so we can show it to the user
-          await updateQueuedOrder(localId, { 
-            status: 'failed', 
-            lastError: result.error || 'Server rejected the order' 
+          await updateQueuedOrder(localId, {
+            status: 'failed',
+            lastError: result.error || 'Server rejected the order'
           });
         }
       } catch (e) {
         console.warn('Sync failed for order', order.localId, e);
-        await updateQueuedOrder(order.localId, { 
-          status: 'failed', 
-          lastError: e.message || 'Network Timeout' 
+        await updateQueuedOrder(order.localId, {
+          status: 'failed',
+          lastError: e.message || 'Network Timeout'
         });
       }
     }
@@ -672,13 +672,13 @@ export default function App() {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     // Auto-ping the server to detect recovery
     const interval = setInterval(handleOnline, 10000);
 
     // Initial check and pending count
     handleOnline();
-    getPendingOrders().then(p => setPendingOrderCount(p.length)).catch(() => {});
+    getPendingOrders().then(p => setPendingOrderCount(p.length)).catch(() => { });
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -981,7 +981,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Menu setup." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'cart' && <CartPage setCurrentPage={setCurrentPage} taxRate={sysConfig.tax_rate} />}
@@ -1061,7 +1061,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access the Terminal." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
 
@@ -1078,7 +1078,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Reports." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'customers' && (
@@ -1089,7 +1089,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Customers." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Dashboard - Redirect to POS or Login */}
@@ -1101,23 +1101,23 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Analytics Dashboard." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Orders Pages */}
         {currentPage.startsWith('orders') && (
           employee ? (
             hasPermission('orders') ? (
-              <OrdersPage 
-                currentView={currentPage} 
-                setCurrentPage={setCurrentPage} 
+              <OrdersPage
+                currentView={currentPage}
+                setCurrentPage={setCurrentPage}
                 lastSyncTime={lastSyncTime}
               />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Orders." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Kitchen Display */}
@@ -1129,7 +1129,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access the Kitchen." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Kitchen Report */}
@@ -1137,7 +1137,7 @@ export default function App() {
           employee ? (
             <KitchenReportPage />
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'accounting' && (
@@ -1169,7 +1169,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Inventory." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Staff Pages */}
@@ -1181,7 +1181,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Staff Management." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('dashboard'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Settings Pages */}
@@ -1335,8 +1335,8 @@ export default function App() {
                       <ShoppingCart className="w-5 h-5" />
                       <span>{getTotalItems() > 0 ? `Pay ₱${(getTotalPrice() + (getTotalPrice() * (parseFloat(sysConfig.tax_rate) / 100))).toFixed(0)}` : 'Checkout'}</span>
                     </button>
-                    <button 
-                      onClick={() => setIsNavDrawerOpen(true)} 
+                    <button
+                      onClick={() => setIsNavDrawerOpen(true)}
                       className={`flex flex-col items-center min-w-[80px] transition-colors ${forceOffline ? 'text-red-400' : 'text-cyan-100 opacity-80 hover:opacity-100'}`}
                     >
                       <div className="relative">
@@ -1369,8 +1369,8 @@ export default function App() {
                       <Receipt className="w-5 h-5 mb-1" />
                       <span className="text-[10px] font-bold uppercase">Orders</span>
                     </button>
-                    <button 
-                      onClick={() => setIsNavDrawerOpen(true)} 
+                    <button
+                      onClick={() => setIsNavDrawerOpen(true)}
                       className={`flex flex-col items-center min-w-[64px] transition-colors ${isNavDrawerOpen || forceOffline ? 'text-red-600 font-black' : 'text-gray-400'}`}
                     >
                       <div className="relative">
@@ -1388,108 +1388,108 @@ export default function App() {
               </div>
             </nav>
 
-          {/* Moved outside the conditional blocks so it's available for both POS and General nav */}
-          {/* Drawer Menu */}
-          <div
-            className={`fixed left-0 right-0 bottom-0 bg-gray-50 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] rounded-t-[32px] transition-all duration-500 ease-out z-[100] ${isNavDrawerOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
-            style={{ height: '50vh' }}
-          >
-            <div className="p-4 pt-8 h-full overflow-y-auto">
-              <div className="flex justify-end mb-4">
-                <button onClick={() => setIsNavDrawerOpen(false)} className="text-gray-400 p-2 hover:bg-gray-200 rounded-full transition-colors border border-gray-100">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
-                <button onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                  <ClipboardList className="w-7 h-7 mb-2" />
-                  <span className="text-[11px] font-bold">Kitchen</span>
-                </button>
-
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                    <UtensilsCrossed className="w-7 h-7 mb-2" />
-                    <span className="text-[11px] font-bold">Menu</span>
+            {/* Moved outside the conditional blocks so it's available for both POS and General nav */}
+            {/* Drawer Menu */}
+            <div
+              className={`fixed left-0 right-0 bottom-0 bg-gray-50 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] rounded-t-[32px] transition-all duration-500 ease-out z-[100] ${isNavDrawerOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+              style={{ height: '50vh' }}
+            >
+              <div className="p-4 pt-8 h-full overflow-y-auto">
+                <div className="flex justify-end mb-4">
+                  <button onClick={() => setIsNavDrawerOpen(false)} className="text-gray-400 p-2 hover:bg-gray-200 rounded-full transition-colors border border-gray-100">
+                    <X className="w-6 h-6" />
                   </button>
-                )}
-
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                    <Package className="w-7 h-7 mb-2" />
-                    <span className="text-[11px] font-bold">Inventory</span>
+                </div>
+                <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
+                  <button onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <ClipboardList className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Kitchen</span>
                   </button>
-                )}
 
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button onClick={() => { setCurrentPage('customers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'customers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                    <User className="w-7 h-7 mb-2" />
-                    <span className="text-[11px] font-bold">Clients</span>
-                  </button>
-                )}
-
-                {['admin', 'manager'].includes(employee.role) && (
-                  <button onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                    <Truck className="w-7 h-7 mb-2" />
-                    <span className="text-[11px] font-bold">Suppliers</span>
-                  </button>
-                )}
-
-                {employee.role === 'admin' && (
-                  <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                    <User className="w-7 h-7 mb-2 opacity-70" />
-                    <span className="text-[11px] font-bold">Staff</span>
-                  </button>
-                )}
-
-                <button onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                  <Settings className="w-7 h-7 mb-2" />
-                  <span className="text-[11px] font-bold">System</span>
-                </button>
-
-                {/* Network Mode Toggle / Sync Status */}
-                <button 
-                  onClick={() => { 
-                    if (isOnline && pendingOrderCount > 0) {
-                      syncOfflineOrders();
-                    } else {
-                      toggleForceOffline();
-                    }
-                    setIsNavDrawerOpen(false); 
-                  }} 
-                  className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all shadow-sm border border-gray-100 hover:shadow-md hover:scale-105 ${pendingOrderCount > 0 ? 'bg-amber-50 text-amber-600 border-amber-200' : forceOffline ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-cyan-600'}`}
-                >
-                  {isSyncing ? (
-                    <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-cyan-600 mb-2"></div>
-                  ) : pendingOrderCount > 0 ? (
-                    <Activity className="w-7 h-7 mb-2" />
-                  ) : forceOffline ? (
-                    <WifiOff className="w-7 h-7 mb-2" />
-                  ) : (
-                    <Wifi className="w-7 h-7 mb-2" />
+                  {['admin', 'manager'].includes(employee.role) && (
+                    <button onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                      <UtensilsCrossed className="w-7 h-7 mb-2" />
+                      <span className="text-[11px] font-bold">Menu</span>
+                    </button>
                   )}
-                  <span className="text-[11px] font-bold">
-                    {isSyncing ? `Syncing...` : pendingOrderCount > 0 ? `Sync ${pendingOrderCount} orders` : forceOffline ? 'Go Online' : 'Go Offline'}
-                  </span>
-                </button>
 
-                {/* 📲 Install App Button (Forced Preview) */}
-                <button 
-                  onClick={() => { handleInstallApp(); setIsNavDrawerOpen(false); }}
-                  className="flex flex-col items-center justify-center py-3 rounded-2xl transition-all shadow-sm border border-cyan-100 bg-cyan-100 text-cyan-600 hover:shadow-md hover:scale-105 animate-bounce-subtle"
-                >
-                  <Download className="w-7 h-7 mb-2" />
-                  <span className="text-[11px] font-bold uppercase tracking-tight">Install POS App</span>
-                </button>
+                  {['admin', 'manager'].includes(employee.role) && (
+                    <button onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                      <Package className="w-7 h-7 mb-2" />
+                      <span className="text-[11px] font-bold">Inventory</span>
+                    </button>
+                  )}
+
+                  {['admin', 'manager'].includes(employee.role) && (
+                    <button onClick={() => { setCurrentPage('reports'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'reports' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                      <FileText className="w-7 h-7 mb-2" />
+                      <span className="text-[11px] font-bold">Reports</span>
+                    </button>
+                  )}
+
+                  {['admin', 'manager'].includes(employee.role) && (
+                    <button onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                      <Truck className="w-7 h-7 mb-2" />
+                      <span className="text-[11px] font-bold">Suppliers</span>
+                    </button>
+                  )}
+
+                  {employee.role === 'admin' && (
+                    <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                      <User className="w-7 h-7 mb-2 opacity-70" />
+                      <span className="text-[11px] font-bold">Staff</span>
+                    </button>
+                  )}
+
+                  <button onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                    <Settings className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">System</span>
+                  </button>
+
+                  {/* Network Mode Toggle / Sync Status */}
+                  <button
+                    onClick={() => {
+                      if (isOnline && pendingOrderCount > 0) {
+                        syncOfflineOrders();
+                      } else {
+                        toggleForceOffline();
+                      }
+                      setIsNavDrawerOpen(false);
+                    }}
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all shadow-sm border border-gray-100 hover:shadow-md hover:scale-105 ${pendingOrderCount > 0 ? 'bg-amber-50 text-amber-600 border-amber-200' : forceOffline ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-cyan-600'}`}
+                  >
+                    {isSyncing ? (
+                      <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-cyan-600 mb-2"></div>
+                    ) : pendingOrderCount > 0 ? (
+                      <Activity className="w-7 h-7 mb-2" />
+                    ) : forceOffline ? (
+                      <WifiOff className="w-7 h-7 mb-2" />
+                    ) : (
+                      <Wifi className="w-7 h-7 mb-2" />
+                    )}
+                    <span className="text-[11px] font-bold">
+                      {isSyncing ? `Syncing...` : pendingOrderCount > 0 ? `Sync ${pendingOrderCount} orders` : forceOffline ? 'Go Online' : 'Go Offline'}
+                    </span>
+                  </button>
+
+                  {/* 📲 Install App Button (Forced Preview) */}
+                  <button
+                    onClick={() => { handleInstallApp(); setIsNavDrawerOpen(false); }}
+                    className="flex flex-col items-center justify-center py-3 rounded-2xl transition-all shadow-sm border border-cyan-100 bg-cyan-100 text-cyan-600 hover:shadow-md hover:scale-105 animate-bounce-subtle"
+                  >
+                    <Download className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold uppercase tracking-tight">Install POS App</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Overlay for clicking outside */}
-          {isNavDrawerOpen && (
-            <div
-              className="fixed inset-0 bg-black/40 z-[90] transition-opacity backdrop-blur-sm"
-              onClick={() => setIsNavDrawerOpen(false)}
-            />
+            {/* Overlay for clicking outside */}
+            {isNavDrawerOpen && (
+              <div
+                className="fixed inset-0 bg-black/40 z-[90] transition-opacity backdrop-blur-sm"
+                onClick={() => setIsNavDrawerOpen(false)}
+              />
             )}
           </>
         ) : (
@@ -1582,7 +1582,7 @@ export default function App() {
       )}
 
       {/* Floating Maximize Toggle for Mobile (if not in drawer) */}
-      <button 
+      <button
         onClick={toggleFullscreen}
         className="fixed bottom-20 right-4 z-[150] md:hidden w-12 h-12 bg-white rounded-full shadow-2xl border-2 border-cyan-100 flex items-center justify-center text-cyan-600 active:scale-95 transition-all"
       >
@@ -3064,8 +3064,8 @@ function HomePage({ setCurrentPage, menuData, isLoading, deferredPrompt, onInsta
 
   useEffect(() => {
     const checkIOS = () => {
-      const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       setIsIOS(isApple);
     };
     checkIOS();
@@ -3115,7 +3115,7 @@ function HomePage({ setCurrentPage, menuData, isLoading, deferredPrompt, onInsta
               >
                 <span>DEMO 14 DAYS</span>
               </button>
-              
+
               {/* 📲 PWA Install CTA — Forced Preview */}
               <button
                 onClick={onInstallApp}
@@ -3520,9 +3520,9 @@ function PopularItemCard({ item }) {
   return (
     <div className="bg-gray-50 rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group w-full h-96 flex flex-col">
       <div className="bg-gray-50 p-4 text-center flex-1 flex flex-col justify-center overflow-hidden">
-        <SafeImage 
-          src={item.image} 
-          alt={item.name} 
+        <SafeImage
+          src={item.image}
+          alt={item.name}
           className="object-contain mx-auto rounded-lg h-48 w-48 group-hover:scale-110 transition-transform bg-gray-50"
         />
       </div>
@@ -3621,8 +3621,8 @@ function MenuItem({ item }) {
   // Determine stock status
   const isMadeToOrder = (item.ingredient_count || 0) > 0 || item.isCombo;
   const isOutOfStock = !isMadeToOrder && (item.stock_quantity !== null && item.stock_quantity !== undefined) && item.stock_quantity <= 0;
-  
-  const displayPrice = item.sizes 
+
+  const displayPrice = item.sizes
     ? `From ₱${Math.min(...item.sizes.map(s => s.price)).toFixed(2)}`
     : `₱${(item.price || 0).toFixed(2)}`;
 
@@ -3630,12 +3630,12 @@ function MenuItem({ item }) {
     <div className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden group w-full flex flex-row h-auto min-h-[273px] sm:min-h-[293px] relative ${isOutOfStock ? 'opacity-75' : ''}`}>
       {/* Left side - Product Image */}
       <div className="bg-gray-50 p-3 sm:p-4 flex items-center justify-center w-48 sm:w-54 md:w-60 flex-shrink-0 relative overflow-hidden">
-        <SafeImage 
-          src={item.image} 
-          alt={item.name} 
-          className={`object-contain w-full h-48 sm:h-54 md:h-60 rounded-lg group-hover:scale-110 transition-transform duration-300 ${isOutOfStock ? 'grayscale' : ''}`} 
+        <SafeImage
+          src={item.image}
+          alt={item.name}
+          className={`object-contain w-full h-48 sm:h-54 md:h-60 rounded-lg group-hover:scale-110 transition-transform duration-300 ${isOutOfStock ? 'grayscale' : ''}`}
         />
-        
+
         {/* Floating Price Badge */}
         <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg border border-white/20">
           {displayPrice}
@@ -3661,23 +3661,22 @@ function MenuItem({ item }) {
             <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 break-words line-clamp-2">{item.name}</h3>
           </div>
           <p className="text-gray-500 text-sm sm:text-base mb-3 line-clamp-2 font-normal leading-relaxed">{item.description}</p>
-          
+
           {!isMadeToOrder && !isOutOfStock && (
-             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-               Stock: <span className="text-gray-600">{item.stock_quantity} available</span>
-             </p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Stock: <span className="text-gray-600">{item.stock_quantity} available</span>
+            </p>
           )}
         </div>
-        
+
         <div className="flex flex-col gap-2 mt-auto">
           <button
             onClick={() => !isOutOfStock && addToCart(item)}
             disabled={isOutOfStock}
-            className={`w-full py-3 rounded-lg transition-all flex items-center justify-center space-x-1 text-sm font-bold shadow-sm active:scale-95 ${
-              isOutOfStock 
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+            className={`w-full py-3 rounded-lg transition-all flex items-center justify-center space-x-1 text-sm font-bold shadow-sm active:scale-95 ${isOutOfStock
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-md'
-            }`}
+              }`}
           >
             {isOutOfStock ? (
               <span>UNAVAILABLE</span>
@@ -4695,13 +4694,13 @@ function EmployeeLoginPage({ onLogin, onBack, onAction, isOnline }) {
         method: 'POST',
         body: JSON.stringify({ pin: enteredPin })
       });
-      
+
       let data;
       let rawText;
-      try { 
+      try {
         rawText = await response.text();
-        data = JSON.parse(rawText); 
-      } catch (e) { 
+        data = JSON.parse(rawText);
+      } catch (e) {
         data = { error: rawText ? rawText.slice(0, 100) : `Server error (${response.status})` };
       }
 
@@ -4746,7 +4745,7 @@ function EmployeeLoginPage({ onLogin, onBack, onAction, isOnline }) {
         method: 'POST',
         body: JSON.stringify({ pin: enteredPin, company_id })
       });
-      
+
       let data;
       try { data = await response.json(); } catch (e) { /* ignore */ }
 
@@ -5489,11 +5488,11 @@ function ShiftReportModal({ report, onClose }) {
 }
 
 // POS (Point of Sale) Page
-function POSPage({ 
-menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts, 
+function POSPage({
+  menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts,
   showTableView, setShowTableView,
   categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode,
-  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders, forceOffline 
+  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders, forceOffline
 }) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -6125,11 +6124,11 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
   const lookupBarcode = async (barcode) => {
     const searchLocal = () => {
       const barcodeStr = String(barcode).toLowerCase();
-      const localProduct = (menuData || []).find(p => 
-        (p.barcode && String(p.barcode).toLowerCase() === barcodeStr) || 
+      const localProduct = (menuData || []).find(p =>
+        (p.barcode && String(p.barcode).toLowerCase() === barcodeStr) ||
         (p.sku && String(p.sku).toLowerCase() === barcodeStr)
       );
-      
+
       if (localProduct) {
         console.log('[Scanner] Found product in local cache:', localProduct.name);
         handleQuickAdd(localProduct);
@@ -6150,12 +6149,12 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
     // 2. Try network lookup
     try {
       const response = await fetchWithAuth(`${API_URL}/products/barcode/${barcode}`);
-      
+
       // Handle non-200 responses as potential network/server issues
       if (!response.ok) {
         throw new Error('Network response not ok');
       }
-      
+
       const result = await response.json();
 
       if (result.success && result.product) {
@@ -6166,7 +6165,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
         if (!searchLocal()) {
           const errorMsg = `SCAN ERROR: Barcode [${barcode}] is not registered in the inventory.`;
           console.warn(errorMsg);
-          
+
           try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
@@ -6179,7 +6178,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
             gain.connect(ctx.destination);
             osc.start();
             osc.stop(ctx.currentTime + 0.3);
-          } catch(e) {}
+          } catch (e) { }
 
           alert(errorMsg);
         }
@@ -6205,7 +6204,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
     setIsScanning(false);
     setIsCameraReady(false);
     setShowScanner(false);
-    
+
     if (html5ScannerRef.current) {
       try {
         html5ScannerRef.current.stop();
@@ -6214,7 +6213,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
       }
       html5ScannerRef.current = null;
     }
-    
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -6237,7 +6236,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
     setShowScanner(true);
     setIsScanning(true);
     setIsCameraReady(false);
-    
+
     // 100ms is the sweet spot that worked earlier
     setTimeout(async () => {
       try {
@@ -6247,18 +6246,18 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
           const videoInputs = devices.filter(d => d.kind === 'videoinput');
           const rear = videoInputs.find(d => /rear|back|environment/i.test(d.label));
           preferredDeviceId = rear ? rear.deviceId : (videoInputs.length > 0 ? videoInputs[0].deviceId : null);
-        } catch (e) {}
+        } catch (e) { }
 
         const mod = await import('html5-qrcode');
         const Html5Class = mod.Html5Qrcode || (mod.default && mod.default.Html5Qrcode);
-        
+
         const html5 = new Html5Class('html5-scanner-container', { verbose: false });
         html5ScannerRef.current = html5;
-        
+
         await html5.start(
           preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: 'environment' },
-          { 
-            fps: 60, 
+          {
+            fps: 60,
             aspectRatio: 1.777778,
             videoConstraints: {
               width: { min: 640, ideal: 1280 },
@@ -6268,7 +6267,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
           },
           (text) => handleScanResult(text)
         );
-        
+
         setIsCameraReady(true);
       } catch (err) {
         console.error('Core Scanner Error:', err);
@@ -6280,10 +6279,12 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
 
   const filteredItems = (menuData || []).filter(item => {
     const isActive = item.active !== false;
-    const matchesSearch = !barcodeInput.trim() ||
-      String(item.name || '').toLowerCase().includes(barcodeInput.toLowerCase()) ||
-      (item.barcode && String(item.barcode).toLowerCase().includes(barcodeInput.toLowerCase())) ||
-      (item.sku && String(item.sku).toLowerCase().includes(barcodeInput.toLowerCase()));
+    const searchTokens = barcodeInput.toLowerCase().trim().split(/\s+/);
+    const matchesSearch = !barcodeInput.trim() || searchTokens.every(token =>
+      String(item.name || '').toLowerCase().includes(token) ||
+      (item.barcode && String(item.barcode).toLowerCase().includes(token)) ||
+      (item.sku && String(item.sku).toLowerCase().includes(token))
+    );
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return isActive && matchesSearch && matchesCategory;
   });
@@ -6665,41 +6666,41 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1 md:gap-2.5 lg:gap-2">
-                    {filteredItems.map(item => {
-                      const isMadeToOrder = (item.ingredient_count || 0) > 0 || item.isCombo;
-                      const allowNegative = sysConfig.inventory_allow_negative === 'true';
-                      const isOutOfStock = !isMadeToOrder && (item.stock_quantity !== null && item.stock_quantity !== undefined) && item.stock_quantity <= 0 && !allowNegative;
-                      
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => !isOutOfStock && handleQuickAdd(item)}
-                          disabled={isOutOfStock}
-                          className={`bg-white hover:bg-gray-50 text-left transition-all border border-gray-200 hover:border-cyan-500 group flex overflow-hidden h-16 md:h-28 lg:h-24 relative ${isOutOfStock ? 'opacity-60 grayscale' : 'hover:shadow-md'}`}
-                        >
-                          {/* Left Half - Image */}
-                          <div className="w-2/5 md:w-1/2 bg-gray-50 flex items-center justify-center p-1 md:p-2 overflow-hidden border-r border-gray-100 relative">
-                            <SafeImage 
-                              src={item.image} 
-                              alt={item.name} 
-                              className="object-contain h-full w-full group-hover:scale-105 transition-transform" 
-                            />
+                  {filteredItems.map(item => {
+                    const isMadeToOrder = (item.ingredient_count || 0) > 0 || item.isCombo;
+                    const allowNegative = sysConfig.inventory_allow_negative === 'true';
+                    const isOutOfStock = !isMadeToOrder && (item.stock_quantity !== null && item.stock_quantity !== undefined) && item.stock_quantity <= 0 && !allowNegative;
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => !isOutOfStock && handleQuickAdd(item)}
+                        disabled={isOutOfStock}
+                        className={`bg-white hover:bg-gray-50 text-left transition-all border border-gray-200 hover:border-cyan-500 group flex overflow-hidden h-16 md:h-28 lg:h-24 relative ${isOutOfStock ? 'opacity-60 grayscale' : 'hover:shadow-md'}`}
+                      >
+                        {/* Left Half - Image */}
+                        <div className="w-2/5 md:w-1/2 bg-gray-50 flex items-center justify-center p-1 md:p-2 overflow-hidden border-r border-gray-100 relative">
+                          <SafeImage
+                            src={item.image}
+                            alt={item.name}
+                            className="object-contain h-full w-full group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+                        {/* Right Half - Details */}
+                        <div className="w-3/5 md:w-1/2 p-1 md:p-2 flex flex-col justify-center">
+                          <h3 className="text-gray-800 font-bold text-[10px] md:text-sm leading-tight mb-0.5 line-clamp-2">{item.name}</h3>
+                          <div className="flex flex-col">
+                            <p className={`text-[8px] md:text-[11px] font-black uppercase tracking-tight ${isOutOfStock ? 'text-red-600' : 'text-green-600'}`}>
+                              {isOutOfStock ? 'Out of Stock' : (isMadeToOrder ? 'On Stock' : `Stock: ${item.stock_quantity}`)}
+                            </p>
+                            <p className="text-cyan-600 font-bold text-[10px] md:text-xs">
+                              {currencySymbol}{item.sizes ? Math.min(...item.sizes.map(s => s.price)).toFixed(2) : (item.price || 0).toFixed(2)}
+                            </p>
                           </div>
-                          {/* Right Half - Details */}
-                          <div className="w-3/5 md:w-1/2 p-1 md:p-2 flex flex-col justify-center">
-                            <h3 className="text-gray-800 font-bold text-[10px] md:text-sm leading-tight mb-0.5 line-clamp-2">{item.name}</h3>
-                            <div className="flex flex-col">
-                              <p className={`text-[8px] md:text-[11px] font-black uppercase tracking-tight ${isOutOfStock ? 'text-red-600' : 'text-green-600'}`}>
-                                {isOutOfStock ? 'Out of Stock' : (isMadeToOrder ? 'On Stock' : `Stock: ${item.stock_quantity}`)}
-                              </p>
-                              <p className="text-cyan-600 font-bold text-[10px] md:text-xs">
-                                {currencySymbol}{item.sizes ? Math.min(...item.sizes.map(s => s.price)).toFixed(2) : (item.price || 0).toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -6754,16 +6755,14 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                               <button
                                 key={size.name}
                                 onClick={() => setItemPickerSize(size)}
-                                className={`py-3 px-2 rounded-xl font-bold text-xs transition-all border-2 ${
-                                  itemPickerSize?.name === size.name
+                                className={`py-3 px-2 rounded-xl font-bold text-xs transition-all border-2 ${itemPickerSize?.name === size.name
                                     ? 'bg-cyan-600 border-cyan-600 text-white shadow-sm'
                                     : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
-                                }`}
+                                  }`}
                               >
                                 {size.name.toUpperCase()}
-                                <div className={`text-[10px] mt-0.5 font-medium ${
-                                  itemPickerSize?.name === size.name ? 'text-cyan-100' : 'text-gray-400'
-                                }`}>
+                                <div className={`text-[10px] mt-0.5 font-medium ${itemPickerSize?.name === size.name ? 'text-cyan-100' : 'text-gray-400'
+                                  }`}>
                                   {currencySymbol}{Number(size.price).toFixed(2)}
                                 </div>
                               </button>
@@ -6786,16 +6785,14 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                                 <button
                                   key={mod.id}
                                   onClick={() => setItemPickerMods(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
-                                  className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${
-                                    checked
+                                  className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${checked
                                       ? 'bg-cyan-600 border-cyan-600 text-white'
                                       : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
-                                  }`}
+                                    }`}
                                 >
                                   <div className="font-bold text-[11px] uppercase">{mod.name}</div>
-                                  <div className={`text-[11px] font-medium mt-0.5 ${
-                                    checked ? 'text-cyan-100' : 'text-gray-400'
-                                  }`}>
+                                  <div className={`text-[11px] font-medium mt-0.5 ${checked ? 'text-cyan-100' : 'text-gray-400'
+                                    }`}>
                                     {parseFloat(mod.price) > 0 ? `+${currencySymbol}${parseFloat(mod.price).toFixed(2)}` : 'Free'}
                                   </div>
                                 </button>
@@ -6827,16 +6824,14 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                                       return next;
                                     });
                                   }}
-                                  className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${
-                                    checked
+                                  className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${checked
                                       ? 'bg-cyan-600 border-cyan-600 text-white'
                                       : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
-                                  }`}
+                                    }`}
                                 >
                                   <div className="font-bold text-[11px] uppercase">{mod.name}</div>
-                                  <div className={`text-[11px] font-medium mt-0.5 ${
-                                    checked ? 'text-cyan-100' : 'text-gray-400'
-                                  }`}>
+                                  <div className={`text-[11px] font-medium mt-0.5 ${checked ? 'text-cyan-100' : 'text-gray-400'
+                                    }`}>
                                     {parseFloat(mod.price) > 0 ? `+${currencySymbol}${parseFloat(mod.price).toFixed(2)}` : 'Free'}
                                   </div>
                                 </button>
@@ -6852,11 +6847,10 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                     <div className="px-5 py-4 border-t border-gray-200">
                       <button
                         onClick={() => { if (canAdd) { playRegisterBeep(); confirmItemPicker(); } }}
-                        className={`w-full py-3.5 rounded-xl font-black text-sm transition-all ${
-                          canAdd
+                        className={`w-full py-3.5 rounded-xl font-black text-sm transition-all ${canAdd
                             ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm'
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
+                          }`}
                       >
                         {!canAdd
                           ? 'Select a size to continue'
@@ -7957,23 +7951,23 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                   </svg>
                 </div>
               </div>
-              
+
               <h2 className="text-3xl md:text-2xl font-black mb-2 text-white uppercase tracking-tight">{successMessage || 'Payment Successful!'}</h2>
               <p className="text-cyan-100 text-lg md:text-base mb-1 font-bold">Order: {successOrderNumber}</p>
-              
+
               <div className="h-8 flex items-center justify-center my-1">
                 {isRefreshingStock && (
                   <p className="text-cyan-50 text-xs md:text-sm animate-pulse font-medium bg-white/10 px-3 py-1 rounded-full">Refreshing stock...</p>
                 )}
               </div>
-              
+
               {successChange > 0 && (
                 <div className="mt-6 bg-white/10 p-6 rounded-[2.5rem] border border-white/20 shadow-inner">
                   <p className="text-cyan-100 text-xs uppercase font-black tracking-[0.2em] mb-2 opacity-90">Change Due</p>
                   <p className="text-white text-7xl md:text-5xl font-black tabular-nums tracking-tighter drop-shadow-lg">{money(successChange)}</p>
                 </div>
               )}
-              
+
               <div className="flex flex-col gap-3 mt-10 w-full max-w-xs">
                 <button
                   onClick={() => window.print()}
@@ -8033,8 +8027,8 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
               </div>
             </div>
 
-            <button 
-              onClick={stopScanner} 
+            <button
+              onClick={stopScanner}
               className="absolute top-6 right-6 z-[110] w-12 h-12 bg-white/10 hover:bg-white/20 sm:bg-gray-100 sm:hover:bg-gray-200 backdrop-blur-md rounded-2xl flex items-center justify-center transition-all group active:scale-95"
             >
               <X className="w-6 h-6 text-white sm:text-gray-600 group-hover:rotate-90 transition-transform" />
@@ -8047,13 +8041,13 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
               {scannerMode === 'html5' && (
                 <div id="html5-scanner-container" className="absolute inset-0 w-full h-full"></div>
               )}
-              
+
               {/* Visual Scanning Indicators */}
               {!scannerError && isScanning && isCameraReady ? (
                 <>
                   {/* Scanning Laser Line */}
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.8)] z-50 animate-scan-line pointer-events-none"></div>
-                  
+
                   {/* Targeting Frame - Rectangular for 1D Barcodes */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
                     <div className="w-[85%] h-40 md:h-56 border-2 border-white/20 rounded-[2rem] relative shadow-[0_0_100px_rgba(0,0,0,0.5)]">
@@ -8062,9 +8056,9 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                       <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[6px] border-r-[6px] border-cyan-500 rounded-tr-[1.5rem]"></div>
                       <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[6px] border-l-[6px] border-cyan-500 rounded-bl-[1.5rem]"></div>
                       <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[6px] border-r-[6px] border-cyan-500 rounded-br-[1.5rem]"></div>
-                      
+
                       <div className="absolute inset-0 flex items-center justify-center">
-                         <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] mt-24">Center Barcode Here</p>
+                        <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] mt-24">Center Barcode Here</p>
                       </div>
                     </div>
                   </div>
@@ -8077,7 +8071,7 @@ menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefresh
                 </div>
               )}
             </div>
-            
+
             <div className="absolute bottom-10 left-0 right-0 z-[110] px-6 text-center pointer-events-none">
               {scannerError ? (
                 <div className="bg-red-600 text-white p-4 rounded-3xl shadow-xl animate-scaleIn inline-block max-w-sm pointer-events-auto">
@@ -10327,7 +10321,7 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
                 <h3 className="font-black text-xs uppercase tracking-widest">Saved Locally (Unsynced)</h3>
                 <p className="text-[10px] opacity-90 mt-0.5">These orders are saved to this device and will sync automatically when online.</p>
               </div>
-              <button 
+              <button
                 onClick={async () => {
                   const syncBtn = document.querySelector('[data-sync-btn]');
                   if (syncBtn) { syncBtn.click(); }
@@ -10342,10 +10336,10 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
                 <div key={idx} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                   <div>
                     <div className="flex items-center gap-2">
-                       <p className="font-black text-[10px] text-gray-400">LOCAL ID: {idx + 1}</p>
-                       {o.status === 'failed' && (
-                         <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Sync Error</span>
-                       )}
+                      <p className="font-black text-[10px] text-gray-400">LOCAL ID: {idx + 1}</p>
+                      {o.status === 'failed' && (
+                        <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Sync Error</span>
+                      )}
                     </div>
                     <p className="font-bold text-sm text-gray-800">{o.customerName || 'Walk-in'} · {o.service_type}</p>
                     {o.lastError && (
@@ -10355,13 +10349,13 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="font-black text-sm text-cyan-700">₱{(o.total_amount || 0).toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase">{o.date ? new Date(o.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Recent'}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">{o.date ? new Date(o.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}</p>
                     </div>
-                    <button 
+                    <button
                       onClick={async (e) => {
                         e.stopPropagation();
                         // Get the real identifier from IndexedDB
-                        const id = o.localId || o.id; 
+                        const id = o.localId || o.id;
                         if (confirm("Permanently delete this unsynced order? It will be lost forever.")) {
                           await deleteQueuedOrder(id);
                           fetchOrders();
@@ -11473,7 +11467,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
       setModalMessage({ type: 'error', text: `✗ Error adding ingredient: ${error.message}` });
     }
   };
-  
+
   const fetchExpiringBatches = async () => {
     try {
       const res = await fetchWithAuth(`${API_URL}/inventory/expiring-batches`);
@@ -11690,7 +11684,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
           const data = await res.json();
           if (data.success) {
             // Filter only positive arrivals with expiry dates
-            const arrivalBatches = data.transactions.filter(t => 
+            const arrivalBatches = data.transactions.filter(t =>
               t.quantity_change > 0 && t.expiry_date
             );
             setBatches(arrivalBatches);
@@ -11733,7 +11727,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-xs text-blue-700">
                   <span className="font-bold">Pro Tip:</span> Always consume the batch with the <strong>Soonest Expiry</strong> first (FIFO).
                 </div>
-                
+
                 <table className="w-full text-xs border-collapse">
                   <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] font-black border-b">
                     <tr>
@@ -11752,7 +11746,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                       const isCritical = days <= 15;
                       const isSixMonths = days <= 180;
                       const isOneYear = days <= 365;
-                      
+
                       return (
                         <tr key={batch.id} className={isExpired ? 'bg-red-50/30' : ''}>
                           <td className="px-3 py-3 border-b">
@@ -11793,9 +11787,9 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               </div>
             )}
           </div>
-          
+
           <div className="p-4 bg-gray-50 border-t flex justify-end">
-            <button 
+            <button
               onClick={onClose}
               className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-bold transition-all"
             >
@@ -11806,6 +11800,14 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
       </div>
     );
   };
+
+  const filteredRecipes = recipes.filter(r => {
+    const name = (r.name || '').toLowerCase();
+    const cat = (r.category || '').toLowerCase();
+    const sku = (r.sku || '').toLowerCase();
+    const term = (searchTerm || '').toLowerCase();
+    return name.includes(term) || cat.includes(term) || sku.includes(term);
+  });
 
   const filteredProducts = products
     .filter(p => {
@@ -11834,9 +11836,9 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
   return (
     <div className="inventory-lineitems min-h-screen bg-gray-50 pt-0">
       {showBatchesModal && selectedItemForBatches && (
-        <BatchManagementModal 
-          item={selectedItemForBatches} 
-          onClose={() => { setShowBatchesModal(false); setSelectedItemForBatches(null); }} 
+        <BatchManagementModal
+          item={selectedItemForBatches}
+          onClose={() => { setShowBatchesModal(false); setSelectedItemForBatches(null); }}
         />
       )}
       <div className="w-full px-2 py-2">
@@ -12189,13 +12191,13 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
               </button>
             </div>
             <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-              {recipes.length === 0 ? (
+              {filteredRecipes.length === 0 ? (
                 <div className="px-4 py-8 text-center text-gray-500 text-xs">
-                  No products available.
+                  No products found matching "{searchTerm}".
                 </div>
               ) : (
                 <div className="space-y-0">
-                  {recipes.map((product, idx) => {
+                  {filteredRecipes.map((product, idx) => {
                     const ingredientCount = product.ingredient_count || 0;
                     const isExpanded = expandedProductId === product.id;
                     const ingredientsList = productIngredients[product.id] || [];
@@ -12341,6 +12343,9 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                 </div>
               )}
             </div>
+            <div className="px-2 py-1 bg-gray-100 text-[10px] text-gray-500 border-t">
+              Showing {filteredRecipes.length} of {recipes.length} products
+            </div>
           </div>
         )}
 
@@ -12446,7 +12451,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                       const isOneYear = days <= 365;
                       const itemType = item.ingredient_id ? 'Raw Material' : 'Retail Product';
                       const itemName = item.ingredient_name || item.product_name || 'Unknown Item';
-                      
+
                       return (
                         <tr key={`batch-${item.id}`} className={isExpired ? 'bg-red-50/30' : ''}>
                           <td className="px-4 py-3">
@@ -12459,7 +12464,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
                             <div className="text-[9px] text-gray-400">Batch ID: #{item.id} • Received {new Date(item.created_at).toLocaleDateString()}</div>
                           </td>
                           <td className="px-4 py-3 text-center font-bold text-gray-600">
-                             {parseFloat(item.quantity_change).toFixed(1)} <span className="text-[10px] font-normal">{item.unit || 'pc'}</span>
+                            {parseFloat(item.quantity_change).toFixed(1)} <span className="text-[10px] font-normal">{item.unit || 'pc'}</span>
                           </td>
                           <td className="px-4 py-3 text-center font-mono">
                             {new Date(item.expiry_date).toLocaleDateString()}
@@ -13039,7 +13044,7 @@ function StaffPage({ currentView, setCurrentPage }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ username: '', password: '', name: '', role: 'cashier' });
+  const [formData, setFormData] = useState({ username: '', pin: '', name: '', role: 'cashier' });
   const [formError, setFormError] = useState('');
 
   // Permissions related state
@@ -13433,7 +13438,7 @@ function StaffPage({ currentView, setCurrentPage }) {
       if (data.success) {
         fetchEmployees();
         setShowModal(false);
-        setFormData({ username: '', password: '', name: '', role: 'cashier' });
+        setFormData({ username: '', pin: '', name: '', role: 'cashier' });
         setFormError('');
       } else {
         setFormError(data.error || 'Failed to create employee');
@@ -14002,8 +14007,8 @@ function StaffPage({ currentView, setCurrentPage }) {
                       type="text"
                       required
                       maxLength={4}
-                      value={formData.PIN || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, PIN: e.target.value }))}
+                      value={formData.pin || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pin: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium text-sm tracking-[.5em]"
                       placeholder="0000"
                     />
@@ -14139,12 +14144,12 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
   const triggerMigration = async () => {
     if (!selectedFile) return setUploadStatus({ type: 'error', msg: 'Please select a file first.' });
     setUploadLoading(true);
-    
+
     try {
       const text = await selectedFile.text();
       let endpoint = '';
-      
-      switch(activeTool) {
+
+      switch (activeTool) {
         case 'products': endpoint = '/products/bulk'; break;
         case 'raw': endpoint = '/inventory/ingredients/bulk'; break;
         case 'customers': endpoint = '/customers/bulk'; break;
@@ -14158,7 +14163,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csv: text })
       });
-      
+
       const data = await res.json();
       if (data.success) {
         setUploadStatus({ type: 'success', msg: `Protocol Success: Imported ${data.imported || 0} entries into ${activeTool}.` });
@@ -15101,7 +15106,7 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
                   <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Header Mapping Requirements</p>
-                      <button 
+                      <button
                         onClick={() => downloadTemplate(activeTool)}
                         className="text-[10px] font-black text-cyan-600 uppercase tracking-widest hover:underline flex items-center gap-1"
                       >
@@ -16260,25 +16265,25 @@ function SuppliersPage({ setCurrentPage }) {
                 )}
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Legal Name</label>
-                  <input required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="e.g. Global Supplies Corp" />
+                  <input required type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="e.g. Global Supplies Corp" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Key Contact</label>
-                    <input type="text" value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Representative Name" />
+                    <input type="text" value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Representative Name" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone Pulse</label>
-                    <input type="text" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="+63 900 000 0000" />
+                    <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="+63 900 000 0000" />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Electronic Mail</label>
-                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="vendor@protocol.com" />
+                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="vendor@protocol.com" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Physical HQ Address</label>
-                  <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none h-20 resize-none" placeholder="Full logistics address..." />
+                  <textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 font-bold text-sm focus:ring-2 focus:ring-cyan-500 outline-none h-20 resize-none" placeholder="Full logistics address..." />
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowAddModal(false)} className="px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-all">Cancel</button>

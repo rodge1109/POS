@@ -24,7 +24,7 @@ export const deductInventoryForOrder = async (client, items, orderId, companyId,
       "SELECT value FROM system_settings WHERE key = 'inventory_allow_negative' AND company_id = $1",
       [companyId]
     );
-    const allowNegative = settingRes.rows[0]?.value === 'true';
+    const allowNegative = settingRes.rows[0]?.value !== 'false';
 
     for (const item of items) {
       let productCompositions = [];
@@ -245,7 +245,7 @@ export const checkInventoryAvailability = async (items, companyId) => {
       "SELECT value FROM system_settings WHERE key = 'inventory_allow_negative' AND company_id = $1",
       [companyId]
     );
-    const allowNegative = settingRes.rows[0]?.value === 'true';
+    const allowNegative = settingRes.rows[0]?.value !== 'false';
 
     for (const item of items) {
       const isCombo = item.isCombo || (typeof item.id === 'string' && item.id.startsWith('combo-'));

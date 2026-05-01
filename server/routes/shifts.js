@@ -131,6 +131,23 @@ router.post('/end', async (req, res) => {
       [closing_cash || 0, expectedCash, cashVariance, notes, shift.id, req.company_id]
     );
 
+    // Automatically clear all tables for this company when shift ends
+    try {
+      await pool.query(
+        "UPDATE tables SET status = 'available', current_order_id = NULL WHERE company_id = $1",
+        [req.company_id]
+      );
+      
+      // Update any "open" orders to "pending" so they stay in the system but off the tables
+      await pool.query(
+        "UPDATE orders SET order_status = 'pending' WHERE company_id = $1 AND order_status = 'open' AND order_type = 'pos'",
+        [req.company_id]
+      );
+    } catch (clearErr) {
+      console.error('Error clearing tables on shift end:', clearErr);
+      // Non-blocking error, shift is already closed
+    }
+
     const breakdownResult = await pool.query(
       `SELECT payment_method, COUNT(*) as order_count,
         COALESCE(SUM(total_amount), 0) as total
