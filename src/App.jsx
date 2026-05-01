@@ -314,7 +314,7 @@ export default function App() {
   // System settings state
   const [sysConfig, setSysConfig] = useState({
     business_name: '', owner_name: '', owner_email: '', business_address: '',
-    currency: 'PHP', tax_rate: '12', timezone: 'Asia/Manila',
+    currency: 'PHP', tax_rate: '0', timezone: 'Asia/Manila',
     report_daily: 'false', report_weekly: 'false', report_monthly: 'false', report_kitchen: 'false',
     smtp_host: 'smtp.gmail.com', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from: '',
     printer_auto_receipt: 'true', printer_auto_kitchen: 'true', printer_width: '58mm',
@@ -409,17 +409,22 @@ export default function App() {
   useEffect(() => {
     const initializeAppData = async () => {
       try {
-        // Fetch system settings globally (publicly if needed)
-        const settingsRes = await fetchWithAuth(`${API_URL}/settings/public`);
-        const settingsData = await settingsRes.json();
-        if (settingsData.success) {
-          setSysConfig(prev => ({ ...prev, ...settingsData.settings }));
-          if (settingsData.company_id) {
-            setPublicCompanyId(settingsData.company_id);
-          }
+        // 1. Fetch public settings (basic branding, currency for kiosk/login)
+        const publicRes = await fetchWithAuth(`${API_URL}/settings/public`);
+        const publicData = await publicRes.json();
+        if (publicData.success) {
+          setSysConfig(prev => ({ ...prev, ...publicData.settings }));
+          if (publicData.company_id) setPublicCompanyId(publicData.company_id);
         }
 
+        // 2. If logged in, fetch company-specific private settings (Tax, SMTP, etc.)
         if (employee) {
+          const authRes = await fetchWithAuth(`${API_URL}/settings`);
+          const authData = await authRes.json();
+          if (authData.success) {
+            setSysConfig(prev => ({ ...prev, ...authData.settings }));
+          }
+
           // Give a small delay to ensure localStorage is updated
           await new Promise(r => setTimeout(r, 100));
 
