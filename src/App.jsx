@@ -191,7 +191,12 @@ const fallbackMenuData = [
 // Main App Component
 export default function App() {
   const [cartItems, setCartItems] = useState([]);
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState(() => {
+    const savedEmp = localStorage.getItem('employee');
+    const savedPage = localStorage.getItem('current_page');
+    if (!savedEmp) return 'home';
+    return savedPage || 'dashboard';
+  });
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
@@ -349,6 +354,12 @@ export default function App() {
   const [lastOrderData, setLastOrderData] = useState(null);
   const [printMode, setPrintMode] = useState('receipt'); // 'receipt' or 'kitchen'
 
+  // --- Bluetooth Printer State ---
+  const [btStatus, setBtStatus] = useState('disconnected'); // 'disconnected', 'connecting', 'connected'
+  const [btPrinter, setBtPrinter] = useState(null);
+  const [btCharacteristic, setBtCharacteristic] = useState(null);
+  const [btMessage, setBtMessage] = useState('');
+
   // Save customer to localStorage when it changes
   useEffect(() => {
     if (customer) {
@@ -357,6 +368,11 @@ export default function App() {
       localStorage.removeItem('customer');
     }
   }, [customer]);
+
+  // Save current page to localStorage for refresh persistence
+  useEffect(() => {
+    localStorage.setItem('current_page', currentPage);
+  }, [currentPage]);
 
   // Sidebar-driven stock refreshing:
   // Refresh products/stock ONLY when navigating to pages that require updated inventory
@@ -402,6 +418,18 @@ export default function App() {
       localStorage.removeItem('currentShift');
     }
   }, [currentShift]);
+
+  // Auto-kiosk mode on load if logged in
+  useEffect(() => {
+    if (employee && !document.fullscreenElement) {
+      // Small delay to allow the DOM to be ready
+      const timer = setTimeout(() => {
+        document.documentElement.requestFullscreen().catch(e => console.warn('Kiosk mode start failed:', e));
+        setIsFullscreen(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [employee]);
 
   const [publicCompanyId, setPublicCompanyId] = useState('00000000-0000-0000-0000-000000000000');
 
@@ -466,6 +494,226 @@ export default function App() {
     // Clear company context to ensure fresh login starts with 6-digit PIN
     localStorage.removeItem('active_company_id');
     localStorage.removeItem('active_company_name');
+  };
+
+  // Centralized Employee Login Handler
+  const handleEmployeeLogin = (emp, targetPage = 'dashboard') => {
+    setEmployee(emp);
+    setCurrentPage(targetPage);
+    
+    // Auto-enter Kiosk Mode (Fullscreen) after login
+    // This is often required for the silent-printing browser flags to work correctly
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn(`Fullscreen error: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    }
+  };
+
+  // --- Bluetooth Printing Logic ---
+  const connectBluetoothPrinter = async () => {
+    if (!navigator.bluetooth) {
+      alert('Bluetooth is not supported by your browser/device.');
+      return false;
+    }
+
+    try {
+      setBtStatus('connecting');
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [
+          '000018f0-0000-1000-8000-00805f9b34fb', 
+          '49535343-fe7d-4ae5-8fa9-9fafd205e455', 
+          'e7e11000-49f1-4d50-9465-052410530247',
+          '0000ff00-0000-1000-8000-00805f9b34fb'
+        ]
+      });
+
+      device.addEventListener('gattserverdisconnected', () => {
+        setBtStatus('disconnected');
+        setBtCharacteristic(null);
+        setBtPrinter(null);
+      });
+
+      const server = await device.gatt.connect();
+      const services = await server.getPrimaryServices();
+      let charFound = null;
+      
+      for (const service of services) {
+        try {
+          const characteristics = await service.getCharacteristics();
+          for (const char of characteristics) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              charFound = char;
+              break;
+            }
+          }
+        } catch (e) { console.warn('Service char skip:', e); }
+        if (charFound) break;
+      }
+
+      if (charFound) {
+        setBtPrinter(device);
+        setBtCharacteristic(charFound);
+        setBtStatus('connected');
+        localStorage.setItem('last_bt_device_id', device.id);
+        return true;
+      } else {
+        throw new Error('No writable characteristic found on this device.');
+      }
+    } catch (error) {
+      console.error('Bluetooth connection failed:', error);
+      setBtStatus('disconnected');
+      if (error.name !== 'NotFoundError') alert('Bluetooth error: ' + error.message);
+      return false;
+    }
+  };
+
+  const autoReconnectBluetooth = async () => {
+    if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return;
+    
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      const lastId = localStorage.getItem('last_bt_device_id');
+      const device = devices.find(d => d.id === lastId);
+      
+      if (device) {
+        setBtStatus('connecting');
+        setBtMessage('Auto-reconnecting...');
+        
+        const server = await device.gatt.connect();
+        const services = await server.getPrimaryServices();
+        let charFound = null;
+        
+        for (const service of services) {
+          try {
+            const characteristics = await service.getCharacteristics();
+            for (const char of characteristics) {
+              if (char.properties.write || char.properties.writeWithoutResponse) {
+                charFound = char;
+                break;
+              }
+            }
+          } catch (e) { }
+          if (charFound) break;
+        }
+
+        if (charFound) {
+          setBtPrinter(device);
+          setBtCharacteristic(charFound);
+          setBtStatus('connected');
+          setBtMessage('Reconnected!');
+          setTimeout(() => setBtMessage(''), 2000);
+        } else {
+          setBtStatus('disconnected');
+        }
+      }
+    } catch (err) {
+      console.warn('Auto-reconnect failed:', err);
+      setBtStatus('disconnected');
+    }
+  };
+
+  // Check for previously paired devices on mount
+  useEffect(() => {
+    const checkPreviousDevices = async () => {
+      if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+        const devices = await navigator.bluetooth.getDevices();
+        const lastId = localStorage.getItem('last_bt_device_id');
+        if (devices.find(d => d.id === lastId)) {
+          // We found the device, but we still need a user click to connect GATT
+          setBtMessage('Previously paired printer found.');
+        }
+      }
+    };
+    checkPreviousDevices();
+  }, []);
+
+  const printViaBluetooth = async (order, config = sysConfig) => {
+    if (!btCharacteristic) return false;
+    try {
+      const encoder = new TextEncoder();
+      const esc = {
+        init: [0x1B, 0x40], center: [0x1B, 0x61, 0x01], left: [0x1B, 0x61, 0x00],
+        boldOn: [0x1B, 0x45, 0x01], boldOff: [0x1B, 0x45, 0x00],
+        doubleOn: [0x1B, 0x21, 0x30], doubleOff: [0x1B, 0x21, 0x00],
+        feed: [0x0A], cut: [0x1D, 0x56, 0x41, 0x03]
+      };
+
+      let buffer = [];
+      const add = (arr) => buffer.push(...arr);
+      const addText = (text) => buffer.push(...encoder.encode(text));
+
+      add(esc.init); add(esc.center); add(esc.doubleOn);
+      addText((config.printer_header || config.business_name || 'POS') + '\n');
+      add(esc.doubleOff); addText((config.business_address || '') + '\n');
+      addText('--------------------------------\n');
+      add(esc.left); add(esc.boldOn); addText(`ORDER: ${order.orderNumber}\n`);
+      add(esc.boldOff); addText(`DATE: ${new Date().toLocaleString()}\n`);
+      addText('--------------------------------\n');
+
+      if (order.items) {
+        order.items.forEach(item => {
+          const qty = item.quantity.toString().padEnd(3);
+          const name = item.name.slice(0, 19).padEnd(20);
+          const price = (item.price * item.quantity).toFixed(2).padStart(8);
+          addText(`${qty}${name}${price}\n`);
+          if (item.selectedSize) addText(`   Size: ${item.selectedSize.name || item.selectedSize}\n`);
+        });
+      }
+
+      addText('--------------------------------\n');
+      addText(`TOTAL`.padEnd(24) + (order.total_amount || 0).toFixed(2).padStart(8) + '\n');
+      addText('--------------------------------\n');
+      add(esc.center); addText((config.printer_footer || 'Thank you!') + '\n\n');
+      add(esc.feed); add(esc.feed); add(esc.feed);
+      if (config.printer_manual_tear !== 'true') add(esc.cut);
+      else { add(esc.feed); add(esc.feed); }
+
+      const data = new Uint8Array(buffer);
+      const chunkSize = 20;
+      setBtMessage(`Printing ${data.length} bytes...`);
+      
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        setBtMessage(`Sending chunk ${i / chunkSize + 1}/${Math.ceil(data.length / chunkSize)}...`);
+        
+        // Timeout protection for each write
+        await Promise.race([
+          (async () => {
+            if (btCharacteristic.writeValueWithoutResponse) {
+              await btCharacteristic.writeValueWithoutResponse(chunk);
+            } else {
+              await btCharacteristic.writeValue(chunk);
+            }
+          })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Write timeout')), 5000))
+        ]);
+        
+        await new Promise(r => setTimeout(r, 20));
+      }
+      setBtMessage('Print complete!');
+      setTimeout(() => setBtMessage(''), 3000);
+      return true;
+    } catch (error) {
+      console.error('Bluetooth printing failed:', error);
+      setBtMessage('Print failed: ' + error.message);
+      return false;
+    }
+  };
+
+  const triggerPrint = async (order = lastOrderData) => {
+    if (btStatus === 'connected') {
+      const printOrder = order || {
+        orderNumber: 'TEST-PRINT',
+        total_amount: 0,
+        items: [{ quantity: 1, name: 'TEST CONNECTION', price: 0 }]
+      };
+      const success = await printViaBluetooth(printOrder);
+      if (success) return; 
+    }
+    window.print();
   };
 
   // Start a new shift
@@ -937,14 +1185,14 @@ export default function App() {
         />
       )}
 
-      {currentPage !== 'home' && !isFullscreen && (
+      {currentPage !== 'home' && (
         <Sidebar
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           employee={employee}
         />
       )}
-      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (isFullscreen ? 'pt-0 md:pl-0' : (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : 'pt-14 md:pt-16') + ' md:pl-[50px]') + ' pb-16 md:pb-0' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (isFullscreen ? 'pt-0 md:pl-0' : (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : 'pt-14 md:pt-16') + ' md:pl-[50px]')}`}>
+      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16')) + ' md:pl-[50px] pb-16 md:pb-0' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16')) + ' md:pl-[50px]'}`}>
         {currentPage === 'home' && (
           <HomePage
             setCurrentPage={setCurrentPage}
@@ -986,12 +1234,20 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Menu setup." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'cart' && <CartPage setCurrentPage={setCurrentPage} taxRate={sysConfig.tax_rate} />}
         {currentPage === 'checkout' && <CheckoutPage setCurrentPage={setCurrentPage} clearCart={clearCart} setPendingOrderNumber={setPendingOrderNumber} taxRate={sysConfig.tax_rate} />}
-        {currentPage === 'confirmation' && <ConfirmationPage setCurrentPage={setCurrentPage} orderNumber={pendingOrderNumber} paymentStatus={paymentStatus} />}
+        {currentPage === 'confirmation' && (
+          <ConfirmationPage 
+            setCurrentPage={setCurrentPage} 
+            orderNumber={pendingOrderNumber} 
+            paymentStatus={paymentStatus} 
+            triggerPrint={triggerPrint}
+            lastOrderData={lastOrderData}
+          />
+        )}
         {currentPage === 'payment-failed' && <PaymentFailedPage setCurrentPage={setCurrentPage} orderNumber={pendingOrderNumber} />}
         {currentPage === 'pos' && (
           employee ? (
@@ -1019,6 +1275,8 @@ export default function App() {
                   isSyncing={isSyncing}
                   syncOfflineOrders={syncOfflineOrders}
                   forceOffline={forceOffline}
+                  setCurrentPage={setCurrentPage}
+                  triggerPrint={triggerPrint}
                   onEndShift={() => setShowShiftEndModal(true)}
                   onStartShift={() => setShowShiftStartModal(true)}
                   onRefreshShift={async () => {
@@ -1066,7 +1324,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access the Terminal." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
 
@@ -1083,7 +1341,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Reports." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'customers' && (
@@ -1094,7 +1352,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Customers." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Dashboard - Redirect to POS or Login */}
@@ -1106,7 +1364,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Analytics Dashboard." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Orders Pages */}
@@ -1122,7 +1380,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Orders." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Kitchen Display */}
@@ -1134,7 +1392,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access the Kitchen." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Kitchen Report */}
@@ -1142,7 +1400,7 @@ export default function App() {
           employee ? (
             <KitchenReportPage />
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'accounting' && (
@@ -1162,7 +1420,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Back Office Accounting." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('accounting'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={(emp) => handleEmployeeLogin(emp, 'accounting')} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Inventory Pages */}
@@ -1174,7 +1432,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Inventory." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Staff Pages */}
@@ -1186,7 +1444,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied. You do not have permission to access Staff Management." onBack={() => setCurrentPage('dashboard')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {/* Settings Pages */}
@@ -1198,7 +1456,7 @@ export default function App() {
               <AccessDeniedPage message="Access Denied" onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage.startsWith('settings-') && (
@@ -1211,12 +1469,17 @@ export default function App() {
                 employee={employee}
                 sysConfig={sysConfig}
                 setSysConfig={setSysConfig}
+                btStatus={btStatus}
+                btPrinter={btPrinter}
+                btMessage={btMessage}
+                connectBluetoothPrinter={connectBluetoothPrinter}
+                triggerPrint={triggerPrint}
               />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Settings." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
-            <EmployeeLoginPage onLogin={(emp) => { setEmployee(emp); setCurrentPage('pos'); }} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
+            <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
           )
         )}
         {currentPage === 'customer-login' && <CustomerLoginPage setCustomer={setCustomer} setCurrentPage={setCurrentPage} companyId={publicCompanyId} />}
@@ -1225,19 +1488,13 @@ export default function App() {
         {/* Multi-Tenant Registration & Admin Login */}
         {currentPage === 'company-register' && (
           <CompanyRegistrationPage
-            onSuccess={(emp, token) => {
-              setEmployee(emp);
-              setCurrentPage('pos');
-            }}
+            onSuccess={(emp, token) => handleEmployeeLogin(emp, 'dashboard')}
             onBack={() => setCurrentPage('home')}
           />
         )}
         {currentPage === 'admin-login' && (
           <AdminLoginPage
-            onLogin={(emp, token) => {
-              setEmployee(emp);
-              setCurrentPage('pos');
-            }}
+            onLogin={(emp, token) => handleEmployeeLogin(emp, 'dashboard')}
             onBack={() => setCurrentPage('home')}
           />
         )}
@@ -1670,7 +1927,7 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
         <div className="w-full h-14 md:h-16 px-4 md:px-8">
           <div className="flex items-center justify-between gap-4 h-full">
             {/* Logo - hidden on mobile when search is shown */}
-            <div className={`flex items-center space-x-3 cursor-pointer ${(currentPage === 'home' || currentPage === 'menu') ? 'hidden md:flex' : 'flex'}`} onClick={() => setCurrentPage('home')}>
+            <div className={`flex items-center space-x-3 cursor-pointer ${(currentPage === 'home' || currentPage === 'menu') ? 'hidden md:flex' : 'flex'}`} onClick={() => setCurrentPage(employee ? 'pos' : 'home')}>
               <img src="/assets/images/lumina-logo.png" alt="Lumina Logo" className="w-10 h-10 object-contain drop-shadow-md" />
               <div className="hidden md:block">
                 <h1 className="text-lg font-black text-white tracking-wider uppercase">Lumina POS</h1>
@@ -1875,7 +2132,14 @@ const navItems = [
   },
   { id: 'customers', icon: User, label: 'Clients', roles: ['admin', 'manager'] },
   { id: 'staff-employees', icon: LayoutGrid, label: 'Team', roles: ['admin'] },
-  { id: 'settings-general', icon: Settings, label: 'Config', roles: ['admin'] },
+  {
+    id: 'settings', icon: Settings, label: 'Settings', roles: ['admin', 'manager'], sub: [
+      { id: 'settings-general', label: 'System Config' },
+      { id: 'settings-printers', label: 'Thermal Printers' },
+      { id: 'settings-integrations', label: 'Integrations' },
+      { id: 'settings-migration', label: 'Migration Tools' }
+    ]
+  },
 ];
 
 // Global Sidebar Component
@@ -4403,7 +4667,7 @@ function CheckoutPage({ setCurrentPage, clearCart, setPendingOrderNumber, taxRat
 }
 
 // Confirmation Page
-function ConfirmationPage({ setCurrentPage, orderNumber, paymentStatus }) {
+function ConfirmationPage({ setCurrentPage, orderNumber, paymentStatus, triggerPrint, lastOrderData }) {
   const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
   const displayOrderNumber = orderNumber || `ORD-${Date.now()}`;
   const [orderStatus, setOrderStatus] = useState('received');
@@ -4433,7 +4697,7 @@ function ConfirmationPage({ setCurrentPage, orderNumber, paymentStatus }) {
   // Auto-print receipt when confirmation page is shown
   useEffect(() => {
     const timer = setTimeout(() => {
-      window.print();
+      triggerPrint(lastOrderData);
     }, 1200);
     return () => clearTimeout(timer);
   }, []);
@@ -4574,7 +4838,7 @@ function ConfirmationPage({ setCurrentPage, orderNumber, paymentStatus }) {
         {/* Action Buttons */}
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => window.print()}
+            onClick={() => triggerPrint(lastOrderData)}
             className="w-full bg-white text-cyan-700 border border-cyan-200 py-3 rounded-md text-sm font-bold hover:bg-green-50 transition-all flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5497,7 +5761,8 @@ function POSPage({
   menuData, isLoading, currentShift, employee, onEndShift, onStartShift, onRefreshShift, onRefreshProducts,
   showTableView, setShowTableView,
   categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode,
-  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders, forceOffline
+  isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders, forceOffline,
+  setCurrentPage, triggerPrint
 }) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -6514,6 +6779,28 @@ function POSPage({
         setShowSuccessOverlay(true);
         setIsProcessingPayment(false);
 
+        // Auto-print receipt if Bluetooth is connected or per system config
+        triggerPrint({
+          orderNumber: result.orderNumber,
+          items: cartItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            selectedSize: item.selectedSize,
+            notes: item.notes
+          })),
+          subtotal: getTotalPrice(),
+          tax_amount: tax,
+          discount_amount: discountAmount,
+          total_amount: total,
+          payment_method: paymentMethod,
+          amount_received: received,
+          change: change,
+          date: new Date(),
+          service_type: serviceType,
+          customerName: selectedCustomer?.name
+        });
+
         // Defer non-critical cleanup to next tick to keep UI snappy
         setTimeout(() => {
           clearCart();
@@ -6643,6 +6930,16 @@ function POSPage({
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
                 <span>{cartItems.length}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentPage('settings-printers');
+                }}
+                className="px-2 py-1.5 md:px-3 md:py-2 bg-white text-gray-400 hover:text-cyan-600 border border-gray-200 rounded-md transition-all hover:border-cyan-200"
+                title="Printer Settings"
+              >
+                <Settings className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </form>
 
@@ -14065,7 +14362,10 @@ function StaffPage({ currentView, setCurrentPage }) {
 }
 
 // Settings Page
-function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sysConfig, setSysConfig }) {
+function SettingsPage({ 
+  currentView, setCurrentPage, fetchProducts, employee, sysConfig, setSysConfig,
+  btStatus, btPrinter, btMessage, connectBluetoothPrinter, triggerPrint
+}) {
   const views = [
     { id: 'settings-general', name: 'System Config' },
     { id: 'settings-payment', name: 'Payment Setup' },
@@ -15008,8 +15308,16 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
                     onClick={() => setCurrentPage('print-test')}
                     className="w-full bg-cyan-600 text-white py-3 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
                   >
-                    Print Test Receipt
+                    Print Test (System)
                   </button>
+                  {btStatus === 'connected' && (
+                    <button
+                      onClick={() => triggerPrint()}
+                      className="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      Print Test (Bluetooth)
+                    </button>
+                  )}
                   <button
                     onClick={downloadKioskLauncher}
                     className="w-full bg-amber-500 text-white py-3 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
@@ -15017,6 +15325,65 @@ function SettingsPage({ currentView, setCurrentPage, fetchProducts, employee, sy
                     Download Kiosk Launcher
                   </button>
                 </div>
+              </div>
+
+              {/* Bluetooth Printer (Tablet Optimization) */}
+              <div className="bg-[#0A0F0D] text-white rounded-2xl shadow-xl p-6 border border-white/10 relative overflow-hidden group">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Wifi size={18} className="text-cyan-400" />
+                    <h4 className="font-bold uppercase text-xs tracking-widest">Bluetooth Terminal</h4>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Link Status</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${btStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : btStatus === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-red-400'}`} />
+                          <span className="text-sm font-black uppercase tracking-tight">
+                            {btStatus === 'connected' ? 'Ready to Print' : btStatus === 'connecting' ? 'Establishing...' : 'Disconnected'}
+                          </span>
+                        </div>
+                      </div>
+                      {btStatus === 'connected' && (
+                        <div className="text-right">
+                          <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Device</p>
+                          <p className="text-xs font-bold text-cyan-400">{btPrinter?.name || 'Generic POS'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-gray-400 leading-relaxed italic">
+                      Recommended for Tablet POS users. This bypasses the browser print dialog for a seamless checkout experience.
+                    </p>
+
+                    {btMessage && (
+                      <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
+                        <p className="text-[10px] text-cyan-400 font-bold uppercase animate-pulse">{btMessage}</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={connectBluetoothPrinter}
+                      disabled={btStatus === 'connecting'}
+                      className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${btStatus === 'connected' ? 'bg-white/10 text-white border border-white/20 hover:bg-white/20' : 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20 hover:bg-cyan-500'}`}
+                    >
+                      <Printer size={16} />
+                      {btStatus === 'connected' ? 'RE-PAIR PRINTER' : 'PAIR BT PRINTER'}
+                    </button>
+
+                    {btStatus === 'disconnected' && localStorage.getItem('last_bt_device_id') && (
+                      <button
+                        onClick={autoReconnectBluetooth}
+                        className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
+                      >
+                        RECONNECT LAST PRINTER
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-cyan-500/5 rounded-full blur-3xl group-hover:bg-cyan-500/10 transition-colors" />
               </div>
 
               {/* Troubleshooting Card */}
@@ -16302,3 +16669,4 @@ function SuppliersPage({ setCurrentPage }) {
     </div>
   );
 }
+
