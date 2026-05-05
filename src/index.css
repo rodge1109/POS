@@ -133,10 +133,31 @@ input.payment-amount-input {
   display: none;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+/* Custom Scrollbar for Reports and Grids */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* For Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 /* ===== Printing Styles ===== */
@@ -167,7 +188,7 @@ input.payment-amount-input {
   }
 
   /* Receipts still use the old id-based show-only logic if needed */
-  #printable-receipt {
+  #printable-receipt, #printable-shift-report {
     display: block !important;
     position: absolute;
     left: 0;
@@ -176,7 +197,7 @@ input.payment-amount-input {
     visibility: visible;
   }
 
-  #printable-receipt * {
+  #printable-receipt *, #printable-shift-report * {
     visibility: visible;
   }
 

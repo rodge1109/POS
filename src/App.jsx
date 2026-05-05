@@ -832,7 +832,10 @@ export default function App() {
         setShowShiftEndModal(false);
         
         // Auto-print shift summary "without preview" if printer is ready
-        triggerShiftReportPrint(result.data.report);
+        // Use a short delay to ensure the printable component is rendered in the DOM
+        setTimeout(() => {
+          triggerShiftReportPrint(result.data.report);
+        }, 800);
         
         return true;
       } else {
@@ -1853,7 +1856,11 @@ export default function App() {
         )}
       </div>
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
-        <PrintableReceipt order={lastOrderData} config={sysConfig} />
+        {shiftReport ? (
+          <PrintableShiftReport report={shiftReport} config={sysConfig} />
+        ) : (
+          <PrintableReceipt order={lastOrderData} config={sysConfig} />
+        )}
       </div>
 
       {/* ── Offline Status Banner ─────────────────────────────────────── */}
@@ -9385,7 +9392,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-2 border rounded-lg" />
           </div>
         )}
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">
           {reportTypes.map(r => (
             <button key={r.id} onClick={() => setCurrentPage(r.id)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${activeReport === r.id ? 'bg-cyan-600 text-white' : 'bg-white text-gray-600'}`}>
               {r.name}
@@ -9818,8 +9825,8 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <table className="w-full font-data-table">
+            <div className="bg-white rounded-lg shadow-sm overflow-x-auto custom-scrollbar">
+              <table className="w-full min-w-[1000px] font-data-table">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left px-4 py-3 text-sm">Time</th>
@@ -16209,6 +16216,112 @@ function CustomerDashboard({ customer, onLogout }) {
 }
 
 // --- PRINTING COMPONENTS ---
+
+// Printable Shift Report Component
+function PrintableShiftReport({ report, config }) {
+  if (!report) return null;
+
+  const money = (value) => formatCurrency(value, config.currency || 'PHP');
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  return (
+    <div id="printable-shift-report" className="thermal-58" style={{ width: config.printer_width || '58mm', padding: '10px', background: 'white', color: 'black' }}>
+      <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+        <h2 className="text-lg font-bold uppercase">{config.business_name || 'POS'}</h2>
+        <p className="text-sm font-bold">SHIFT SUMMARY</p>
+      </div>
+
+      <div className="text-[11px] space-y-1 mb-4">
+        <div className="flex justify-between">
+          <span>Staff:</span>
+          <span className="font-bold">{report.employee_name}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Date:</span>
+          <span>{formatDate(report.end_time)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Time:</span>
+          <span className="text-[10px]">{formatTime(report.start_time)} - {formatTime(report.end_time)}</span>
+        </div>
+      </div>
+
+      <div className="border-t border-dashed border-black pt-2 mb-4">
+        <h3 className="text-center text-xs font-bold mb-2">SALES PERFORMANCE</h3>
+        <div className="text-[12px] space-y-1">
+          <div className="flex justify-between font-bold">
+            <span>TOTAL SALES:</span>
+            <span>{money(report.total_sales || 0)}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span>Total Orders:</span>
+            <span>{report.order_count || 0}</span>
+          </div>
+        </div>
+      </div>
+
+      {report.sales_by_method && Object.keys(report.sales_by_method).length > 0 && (
+        <div className="border-t border-dashed border-black pt-2 mb-4">
+          <h3 className="text-center text-[10px] font-bold mb-1 uppercase">By Payment Method</h3>
+          <div className="text-[11px] space-y-1">
+            {Object.entries(report.sales_by_method).map(([method, data]) => (
+              <div key={method} className="flex justify-between">
+                <span className="capitalize">{method}:</span>
+                <span>{money(data.total)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="border-t border-dashed border-black pt-2 mb-6">
+        <h3 className="text-center text-xs font-bold mb-2">CASH RECONCILIATION</h3>
+        <div className="text-[11px] space-y-1">
+          <div className="flex justify-between">
+            <span>Opening Cash:</span>
+            <span>{money(report.opening_cash || 0)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Cash Sales:</span>
+            <span>{money((report.sales_by_method?.cash?.total) || 0)}</span>
+          </div>
+          <div className="flex justify-between font-bold border-t border-dotted border-gray-400 pt-1">
+            <span>Expected:</span>
+            <span>{money(report.expected_cash || 0)}</span>
+          </div>
+          <div className="flex justify-between font-bold">
+            <span>Actual Count:</span>
+            <span>{money(report.closing_cash || 0)}</span>
+          </div>
+          <div className={`flex justify-between font-bold text-sm pt-1 border-t border-black mt-1 ${report.cash_variance >= 0 ? '' : 'underline'}`}>
+            <span>VARIANCE:</span>
+            <span>
+              {report.cash_variance >= 0 ? '+' : ''}{money(report.cash_variance || 0)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center text-[10px] italic border-t border-dashed border-black pt-4">
+        <p>End of Shift Report</p>
+        <p className="mt-1">{new Date().toLocaleString()}</p>
+        <div className="mt-8 border-t border-black w-2/3 mx-auto pt-1">
+          <p className="font-bold">Staff Signature</p>
+        </div>
+      </div>
+
+      {/* Extra padding for manual tear */}
+      <div className="h-16"></div>
+    </div>
+  );
+}
 
 function PrintableReceipt({ order, config }) {
   if (!order) return null;
