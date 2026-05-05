@@ -195,7 +195,7 @@ export default function App() {
     const savedEmp = localStorage.getItem('employee');
     const savedPage = localStorage.getItem('current_page');
     if (!savedEmp) return 'home';
-    return savedPage || 'dashboard';
+    return savedPage || 'pos';
   });
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -419,17 +419,7 @@ export default function App() {
     }
   }, [currentShift]);
 
-  // Auto-kiosk mode on load if logged in
-  useEffect(() => {
-    if (employee && !document.fullscreenElement) {
-      // Small delay to allow the DOM to be ready
-      const timer = setTimeout(() => {
-        document.documentElement.requestFullscreen().catch(e => console.warn('Kiosk mode start failed:', e));
-        setIsFullscreen(true);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [employee]);
+
 
   const [publicCompanyId, setPublicCompanyId] = useState('00000000-0000-0000-0000-000000000000');
 
@@ -497,18 +487,14 @@ export default function App() {
   };
 
   // Centralized Employee Login Handler
-  const handleEmployeeLogin = (emp, targetPage = 'dashboard') => {
+  const handleEmployeeLogin = (emp, targetPage = 'pos') => {
     setEmployee(emp);
-    setCurrentPage(targetPage);
     
-    // Auto-enter Kiosk Mode (Fullscreen) after login
-    // This is often required for the silent-printing browser flags to work correctly
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.warn(`Fullscreen error: ${err.message}`);
-      });
-      setIsFullscreen(true);
-    }
+    // Safety: If the second argument is a token (long string or JWT), ignore it and default to 'pos'
+    const isToken = typeof targetPage === 'string' && (targetPage.includes('.') || targetPage.length > 30);
+    const finalPage = isToken ? 'pos' : targetPage;
+    
+    setCurrentPage(finalPage);
   };
 
   // --- Bluetooth Printing Logic ---
@@ -716,6 +702,88 @@ export default function App() {
     window.print();
   };
 
+  const printShiftReportViaBluetooth = async (report, config = sysConfig) => {
+    if (!btCharacteristic) return false;
+    try {
+      const encoder = new TextEncoder();
+      const esc = {
+        init: [0x1B, 0x40], center: [0x1B, 0x61, 0x01], left: [0x1B, 0x61, 0x00],
+        boldOn: [0x1B, 0x45, 0x01], boldOff: [0x1B, 0x45, 0x00],
+        doubleOn: [0x1B, 0x21, 0x30], doubleOff: [0x1B, 0x21, 0x00],
+        feed: [0x0A], cut: [0x1D, 0x56, 0x41, 0x03]
+      };
+
+      let buffer = [];
+      const add = (arr) => buffer.push(...arr);
+      const addText = (text) => buffer.push(...encoder.encode(text));
+
+      add(esc.init); add(esc.center); add(esc.doubleOn);
+      addText('SHIFT REPORT\n');
+      add(esc.doubleOff);
+      addText((config.business_name || 'POS') + '\n');
+      addText('--------------------------------\n');
+      add(esc.left);
+      addText(`STAFF: ${report.employee_name}\n`);
+      addText(`DATE : ${new Date(report.end_time).toLocaleDateString()}\n`);
+      addText(`TIME : ${new Date(report.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(report.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`);
+      addText('--------------------------------\n');
+      add(esc.boldOn);
+      addText(`TOTAL SALES`.padEnd(20) + (report.total_sales || 0).toFixed(2).padStart(12) + '\n');
+      add(esc.boldOff);
+      addText(`Order Count`.padEnd(20) + (report.order_count || 0).toString().padStart(12) + '\n');
+      addText('--------------------------------\n');
+
+      if (report.sales_by_method) {
+        addText('PAYMENT METHODS:\n');
+        Object.entries(report.sales_by_method).forEach(([method, data]) => {
+          addText(`  ${method.toUpperCase().padEnd(10)}: Php ${data.total.toFixed(2).padStart(10)}\n`);
+        });
+        addText('--------------------------------\n');
+      }
+
+      addText('CASH RECONCILIATION:\n');
+      addText(`  Opening Cash: Php ${report.opening_cash.toFixed(2).padStart(10)}\n`);
+      addText(`  Cash Sales  : Php ${((report.sales_by_method?.cash?.total) || 0).toFixed(2).padStart(10)}\n`);
+      addText(`  Expected    : Php ${report.expected_cash.toFixed(2).padStart(10)}\n`);
+      addText(`  Actual Count: Php ${report.closing_cash.toFixed(2).padStart(10)}\n`);
+      add(esc.boldOn);
+      addText(`  Variance    : Php ${report.cash_variance.toFixed(2).padStart(10)}\n`);
+      add(esc.boldOff);
+
+      addText('--------------------------------\n');
+      add(esc.center);
+      addText('End of Shift Summary\n\n');
+      add(esc.feed); add(esc.feed); add(esc.feed);
+      if (config.printer_manual_tear !== 'true') add(esc.cut);
+      else { add(esc.feed); add(esc.feed); }
+
+      const data = new Uint8Array(buffer);
+      const chunkSize = 20;
+      setBtMessage(`Printing ${data.length} bytes...`);
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        if (btCharacteristic.writeValueWithoutResponse) await btCharacteristic.writeValueWithoutResponse(chunk);
+        else await btCharacteristic.writeValue(chunk);
+        await new Promise(r => setTimeout(r, 20));
+      }
+      setBtMessage('Print complete!');
+      setTimeout(() => setBtMessage(''), 3000);
+      return true;
+    } catch (error) {
+      console.error('Shift report print failed:', error);
+      setBtMessage('Print failed: ' + error.message);
+      return false;
+    }
+  };
+
+  const triggerShiftReportPrint = async (report) => {
+    if (btStatus === 'connected') {
+      const success = await printShiftReportViaBluetooth(report);
+      if (success) return;
+    }
+    window.print();
+  };
+
   // Start a new shift
   const handleStartShift = async (openingCash, notes) => {
     try {
@@ -762,6 +830,10 @@ export default function App() {
         setShiftReport(result.data.report);
         setCurrentShift(null);
         setShowShiftEndModal(false);
+        
+        // Auto-print shift summary "without preview" if printer is ready
+        triggerShiftReportPrint(result.data.report);
+        
         return true;
       } else {
         alert(result.error || 'Failed to end shift');
@@ -1169,8 +1241,7 @@ export default function App() {
           opacity: 0.35;
         }
       `}</style>
-      {!isFullscreen && (
-        <Header
+      <Header
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           setShowCart={setShowCart}
@@ -1183,7 +1254,6 @@ export default function App() {
           currentShift={currentShift}
           onEndShift={() => setShowShiftEndModal(true)}
         />
-      )}
 
       {currentPage !== 'home' && (
         <Sidebar
@@ -1192,7 +1262,7 @@ export default function App() {
           employee={employee}
         />
       )}
-      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16')) + ' md:pl-[50px] pb-16 md:pb-0' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-0' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : (isFullscreen ? 'pt-0' : 'pt-14 md:pt-16')) + ' md:pl-[50px]'}`}>
+      <div className={`${currentPage === 'pos' ? 'bg-gray-200 h-screen overflow-hidden ' + (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : 'pt-14 md:pt-16') + ' md:pl-[50px] pb-16 md:pb-0' : currentPage === 'home' ? 'bg-[#0A0F0D] min-h-screen pt-14 md:pt-16' : 'bg-gray-100 min-h-screen pb-16 md:pb-0 ' + (forceOffline || !isOnline || pendingOrderCount > 0 ? 'pt-[92px] md:pt-[104px]' : 'pt-14 md:pt-16') + ' md:pl-[50px]'}`}>
         {currentPage === 'home' && (
           <HomePage
             setCurrentPage={setCurrentPage}
@@ -1317,6 +1387,7 @@ export default function App() {
                   <ShiftReportModal
                     report={shiftReport}
                     onClose={() => setShiftReport(null)}
+                    onPrint={() => triggerShiftReportPrint(shiftReport)}
                   />
                 )}
               </>
@@ -1461,7 +1532,7 @@ export default function App() {
         )}
         {currentPage.startsWith('settings-') && (
           employee ? (
-            hasPermission('settings-general') ? (
+            hasPermission('settings') ? (
               <SettingsPage
                 currentView={currentPage}
                 setCurrentPage={setCurrentPage}
@@ -1473,6 +1544,7 @@ export default function App() {
                 btPrinter={btPrinter}
                 btMessage={btMessage}
                 connectBluetoothPrinter={connectBluetoothPrinter}
+                autoReconnectBluetooth={autoReconnectBluetooth}
                 triggerPrint={triggerPrint}
               />
             ) : (
@@ -1488,13 +1560,13 @@ export default function App() {
         {/* Multi-Tenant Registration & Admin Login */}
         {currentPage === 'company-register' && (
           <CompanyRegistrationPage
-            onSuccess={(emp, token) => handleEmployeeLogin(emp, 'dashboard')}
+            onSuccess={(emp, token) => handleEmployeeLogin(emp, 'pos')}
             onBack={() => setCurrentPage('home')}
           />
         )}
         {currentPage === 'admin-login' && (
           <AdminLoginPage
-            onLogin={(emp, token) => handleEmployeeLogin(emp, 'dashboard')}
+            onLogin={(emp, token) => handleEmployeeLogin(emp, 'pos')}
             onBack={() => setCurrentPage('home')}
           />
         )}
@@ -5656,7 +5728,7 @@ function ShiftEndModal({ shift, onEnd, onCancel }) {
 }
 
 // Shift Report Modal
-function ShiftReportModal({ report, onClose }) {
+function ShiftReportModal({ report, onClose, onPrint }) {
   const formatTime = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -5744,12 +5816,21 @@ function ShiftReportModal({ report, onClose }) {
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full py-3 bg-cyan-600 text-white rounded-lg font-medium hover:bg-cyan-700 transition-colors"
-          >
-            Close Report
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={onPrint}
+              className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+            >
+              <Printer size={18} />
+              Print Summary
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-cyan-600 text-white rounded-lg font-bold hover:bg-cyan-700 transition-colors"
+            >
+              Done
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -6778,6 +6859,7 @@ function POSPage({
         setShowPaymentModal(false);
         setShowSuccessOverlay(true);
         setIsProcessingPayment(false);
+        if (onRefreshShift) onRefreshShift();
 
         // Auto-print receipt if Bluetooth is connected or per system config
         triggerPrint({
@@ -6931,17 +7013,20 @@ function POSPage({
                 <ShoppingCart className="w-3.5 h-3.5" />
                 <span>{cartItems.length}</span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentPage('settings-printers');
-                }}
-                className="px-2 py-1.5 md:px-3 md:py-2 bg-white text-gray-400 hover:text-cyan-600 border border-gray-200 rounded-md transition-all hover:border-cyan-200"
-                title="Printer Settings"
-              >
-                <Settings className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
             </form>
+            
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentPage('settings-printers');
+              }}
+              className="px-2 py-1.5 md:px-3 md:py-2 bg-white text-gray-400 hover:text-cyan-600 border border-gray-200 rounded-md transition-all hover:border-cyan-200 shadow-sm shrink-0"
+              title="Printer Settings"
+            >
+              <Settings className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
 
             {/* Category Tabs (mobile-friendly scrollable bar) */}
             <div className="flex bg-gray-100 p-2 md:p-2.5 lg:p-3 overflow-x-auto gap-2 scrollbar-hide border-b border-gray-200">
@@ -14364,7 +14449,7 @@ function StaffPage({ currentView, setCurrentPage }) {
 // Settings Page
 function SettingsPage({ 
   currentView, setCurrentPage, fetchProducts, employee, sysConfig, setSysConfig,
-  btStatus, btPrinter, btMessage, connectBluetoothPrinter, triggerPrint
+  btStatus, btPrinter, btMessage, connectBluetoothPrinter, triggerPrint, autoReconnectBluetooth
 }) {
   const views = [
     { id: 'settings-general', name: 'System Config' },
