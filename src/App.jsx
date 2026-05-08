@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
@@ -5868,6 +5868,7 @@ function POSPage({
   const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const [scannerErrorDetail, setScannerErrorDetail] = useState('');
@@ -6580,6 +6581,55 @@ function POSPage({
     }
   };
 
+  const toggleVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice search is not supported in this browser. Please use Chrome or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const speechToText = event.results[0][0].transcript;
+        // Clean the speech input (remove period if any)
+        const cleanText = speechToText.replace(/\.$/, '');
+        setBarcodeInput(cleanText);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          alert("Microphone access was denied. Please enable it in your browser settings.");
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
+  };
+
   const stopScanner = () => {
     setIsScanning(false);
     setIsCameraReady(false);
@@ -7019,10 +7069,18 @@ function POSPage({
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
                   placeholder="Search name or scan barcode..."
-                  className="w-full pl-7 md:pl-10 pr-2 md:pr-4 py-1.5 md:py-2 bg-gray-100 focus:outline-none focus:bg-gray-50 text-xs md:text-base"
+                  className="w-full pl-7 md:pl-10 pr-8 md:pr-12 py-1.5 md:py-2 bg-gray-100 focus:outline-none focus:bg-gray-50 text-xs md:text-base"
                   autoComplete="off"
                 />
                 <Search className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400" />
+                <button
+                  type="button"
+                  onClick={toggleVoiceSearch}
+                  className={`absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full transition-all ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'text-gray-400 hover:text-cyan-600'}`}
+                  title="Voice Search"
+                >
+                  <Mic className={`w-3.5 h-3.5 md:w-5 md:h-5 ${isListening ? 'fill-current' : ''}`} />
+                </button>
               </div>
               <button
                 type="submit"
