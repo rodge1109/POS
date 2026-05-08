@@ -314,6 +314,9 @@ export default function App() {
   });
   const [showShiftStartModal, setShowShiftStartModal] = useState(false);
   const [showShiftEndModal, setShowShiftEndModal] = useState(false);
+
+  const openShiftEndModal = useCallback(() => setShowShiftEndModal(true), []);
+  const openShiftStartModal = useCallback(() => setShowShiftStartModal(true), []);
   const [shiftReport, setShiftReport] = useState(null);
 
   // System settings state
@@ -1255,7 +1258,7 @@ export default function App() {
           employee={employee}
           onEmployeeLogout={handleEmployeeLogout}
           currentShift={currentShift}
-          onEndShift={() => setShowShiftEndModal(true)}
+          onEndShift={openShiftEndModal}
         />
 
       {currentPage !== 'home' && (
@@ -1350,8 +1353,8 @@ export default function App() {
                   forceOffline={forceOffline}
                   setCurrentPage={setCurrentPage}
                   triggerPrint={triggerPrint}
-                  onEndShift={() => setShowShiftEndModal(true)}
-                  onStartShift={() => setShowShiftStartModal(true)}
+                  onEndShift={openShiftEndModal}
+                  onStartShift={openShiftStartModal}
                   onRefreshShift={async () => {
                     try {
                       const token = localStorage.getItem('auth_token');
@@ -5929,7 +5932,7 @@ function POSPage({
 
   // Ready order alerts
   const [readyOrders, setReadyOrders] = useState([]);
-  const [knownReadyIds, setKnownReadyIds] = useState(new Set());
+  const knownReadyIdsRef = useRef(new Set());
   const [showReadyAlert, setShowReadyAlert] = useState(false);
   const [latestReadyOrder, setLatestReadyOrder] = useState(null);
   const money = formatMoney;
@@ -5959,7 +5962,7 @@ function POSPage({
           const currentIds = new Set(data.orders.map(o => o.id));
           // Find newly completed orders
           for (const order of data.orders) {
-            if (!knownReadyIds.has(order.id)) {
+            if (!knownReadyIdsRef.current.has(order.id)) {
               // New ready order detected
               setLatestReadyOrder(order);
               setShowReadyAlert(true);
@@ -5987,14 +5990,14 @@ function POSPage({
               break;
             }
           }
-          setKnownReadyIds(currentIds);
+          knownReadyIdsRef.current = currentIds;
         }
       } catch (err) { /* silent fail */ }
     };
     checkReadyOrders();
     const interval = setInterval(checkReadyOrders, 10000);
     return () => clearInterval(interval);
-  }, [knownReadyIds]);
+  }, []); // Empty dependency array to prevent interval thrashing
 
   // Fetch tables
   const fetchTables = async () => {
@@ -10019,27 +10022,6 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
             setEndDate={setEndDate}
             loading={loading}
           />
-        )}
-
-        {!loading && activeReport === 'reports-employees' && (
-          <div className="space-y-3">
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
-              <p className="text-sm text-gray-500">Staff Contribution</p>
-              <p className="text-2xl font-bold text-blue-600">{employeeData.length} Employees Active</p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <table className="w-full font-data-table">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr><th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">Employee</th><th className="text-right px-4 py-3 text-sm font-semibold text-gray-600">Orders</th><th className="text-right px-4 py-3 text-sm font-semibold text-gray-600">Total Net Sales</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {employeeData.map(emp => (
-                    <tr key={emp.name}><td className="px-4 py-3 text-sm text-gray-800 font-medium">{emp.name}</td><td className="px-4 py-3 text-sm text-right text-gray-600">{emp.orders}</td><td className="px-4 py-3 text-sm text-right text-cyan-600">Php {emp.revenue.toFixed(2)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         )}
 
       </div>
