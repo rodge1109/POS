@@ -5934,6 +5934,15 @@ function POSPage({
   const [latestReadyOrder, setLatestReadyOrder] = useState(null);
   const money = formatMoney;
 
+  // Quantity editing state
+  const [showQtyModal, setShowQtyModal] = useState(false);
+  const [qtyModalItem, setQtyModalItem] = useState(null);
+  const [qtyModalValue, setQtyModalValue] = useState('');
+
+  // Mobile Keypad Sheet state
+  const [showKeypadSheet, setShowKeypadSheet] = useState(false);
+  const [activeKeypadField, setActiveKeypadField] = useState(null); // 'amountReceived', 'customDiscountPercent', 'customDiscountAmount'
+
   // Void/Comp state
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
@@ -6015,6 +6024,16 @@ function POSPage({
     };
     loadModifiers();
   }, []);
+
+  // Handle quantity update from modal
+  const handleQtyModalConfirm = () => {
+    const newQty = parseInt(qtyModalValue);
+    if (!isNaN(newQty) && newQty >= 0 && qtyModalItem) {
+      updateQuantity(qtyModalItem.id, newQty, qtyModalItem.selectedSize);
+    }
+    setShowQtyModal(false);
+    setQtyModalItem(null);
+  };
 
   // Open the unified item picker
   const openItemPicker = (item) => {
@@ -6699,9 +6718,16 @@ function POSPage({
     } catch (e) { }
   };
 
-  const handleAmountKeypadInput = (key) => {
+  const handleAmountKeypadInput = (key, customSetter = null) => {
     playTypewriterClick();
-    setAmountReceived((prev) => {
+    const setter = customSetter || (
+      activeKeypadField === 'customDiscountPercent' ? setCustomDiscountPercent :
+      activeKeypadField === 'customDiscountAmount' ? setCustomDiscountAmount : 
+      activeKeypadField === 'qtyModalValue' ? setQtyModalValue :
+      setAmountReceived
+    );
+
+    setter((prev) => {
       const current = String(prev || '');
       if (key === 'clear') return '';
       if (key === 'backspace') return current.slice(0, -1);
@@ -7458,7 +7484,17 @@ function POSPage({
                               >
                                 <Minus className="w-2.5 h-2.5 md:w-3 md:h-3" />
                               </button>
-                              <span className="text-gray-800 font-semibold w-4 md:w-6 text-center text-xs md:text-sm">{item.quantity}</span>
+                              <button
+                                onClick={() => {
+                                  setQtyModalItem(item);
+                                  setQtyModalValue(item.quantity.toString());
+                                  setShowQtyModal(true);
+                                }}
+                                className="text-gray-800 font-semibold w-4 md:w-6 text-center text-xs md:text-sm hover:bg-gray-100 rounded transition-colors"
+                                title="Edit Quantity"
+                              >
+                                {item.quantity}
+                              </button>
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1, item.selectedSize)}
                                 className="bg-cyan-600 hover:bg-cyan-700 text-white p-0.5 md:p-1 transition-colors"
@@ -7721,12 +7757,30 @@ function POSPage({
                     {discountType === 'custom' && (
                       <div className="flex gap-3 animate-fadeIn">
                         <div className="flex-1 relative">
-                          <input type="number" inputMode="none" placeholder="Percent" value={customDiscountPercent} onChange={(e) => { setCustomDiscountPercent(e.target.value); setCustomDiscountAmount(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pr-10 bg-gray-50" />
+                          <input
+                            type="text"
+                            inputMode="none"
+                            placeholder="Percent"
+                            value={customDiscountPercent}
+                            onChange={(e) => { setCustomDiscountPercent(e.target.value.replace(/[^0-9.]/g, '')); setCustomDiscountAmount(''); }}
+                            onClick={() => { if (window.innerWidth < 768) { setActiveKeypadField('customDiscountPercent'); setShowKeypadSheet(true); } }}
+                            readOnly={window.innerWidth < 768}
+                            className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pr-10 bg-gray-50 cursor-pointer md:cursor-text"
+                          />
                           <span className="absolute right-4 top-3 font-black text-gray-400">%</span>
                         </div>
                         <div className="flex-1 relative">
                           <span className="absolute left-4 top-3 font-black text-gray-400">₱</span>
-                          <input type="number" inputMode="none" placeholder="Amount" value={customDiscountAmount} onChange={(e) => { setCustomDiscountAmount(e.target.value); setCustomDiscountPercent(''); }} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pl-10 bg-gray-50" />
+                          <input
+                            type="text"
+                            inputMode="none"
+                            placeholder="Amount"
+                            value={customDiscountAmount}
+                            onChange={(e) => { setCustomDiscountAmount(e.target.value.replace(/[^0-9.]/g, '')); setCustomDiscountPercent(''); }}
+                            onClick={() => { if (window.innerWidth < 768) { setActiveKeypadField('customDiscountAmount'); setShowKeypadSheet(true); } }}
+                            readOnly={window.innerWidth < 768}
+                            className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-black focus:border-cyan-500 focus:outline-none pl-10 bg-gray-50 cursor-pointer md:cursor-text"
+                          />
                         </div>
                       </div>
                     )}
@@ -7753,7 +7807,9 @@ function POSPage({
                               inputMode="none"
                               value={amountReceived}
                               onChange={(e) => setAmountReceived(e.target.value.replace(/[^0-9.]/g, ''))}
-                              className="w-full h-full bg-transparent border-none outline-none text-transparent caret-cyan-600 text-[52px] text-center"
+                              onClick={() => { if (window.innerWidth < 768) { setActiveKeypadField('amountReceived'); setShowKeypadSheet(true); } }}
+                              readOnly={window.innerWidth < 768}
+                              className="w-full h-full bg-transparent border-none outline-none text-transparent caret-cyan-600 text-[52px] text-center cursor-pointer md:cursor-text"
                             />
                           </div>
                         </div>
@@ -8405,9 +8461,7 @@ function POSPage({
             </div>
           </div>
         )}
-      </div>
 
-      {/* Scanner Overlay */}
       {showScanner && (
         <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center sm:p-4 animate-fadeIn">
           <div className="bg-black sm:bg-white sm:rounded-[2.5rem] shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl overflow-hidden flex flex-col relative">
@@ -8436,27 +8490,20 @@ function POSPage({
                 <div id="html5-scanner-container" className="absolute inset-0 w-full h-full"></div>
               )}
 
-              {/* Visual Scanning Indicators */}
               {!scannerError && isScanning && isCameraReady ? (
                 <>
-                  {/* Scanning Laser Line */}
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.8)] z-50 animate-scan-line pointer-events-none"></div>
-
-                  {/* Targeting Frame - Rectangular for 1D Barcodes */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
                     <div className="w-[85%] h-40 md:h-56 border-2 border-white/20 rounded-[2rem] relative shadow-[0_0_100px_rgba(0,0,0,0.5)]">
-                      {/* Corner Brackets - Large and Bold */}
                       <div className="absolute -top-1 -left-1 w-12 h-12 border-t-[6px] border-l-[6px] border-cyan-500 rounded-tl-[1.5rem]"></div>
                       <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[6px] border-r-[6px] border-cyan-500 rounded-tr-[1.5rem]"></div>
                       <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[6px] border-l-[6px] border-cyan-500 rounded-bl-[1.5rem]"></div>
                       <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[6px] border-r-[6px] border-cyan-500 rounded-br-[1.5rem]"></div>
-
                       <div className="absolute inset-0 flex items-center justify-center">
                         <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] mt-24">Center Barcode Here</p>
                       </div>
                     </div>
                   </div>
-
                 </>
               ) : isScanning && !scannerError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm z-[105]">
@@ -8486,8 +8533,109 @@ function POSPage({
           </div>
         </div>
       )}
-    </>
-  );
+
+      {showQtyModal && qtyModalItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fadeIn" onClick={() => setShowQtyModal(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
+            <div className="bg-cyan-600 p-6 text-white text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Set Quantity</p>
+              <h3 className="text-xl font-bold truncate">{qtyModalItem.name}</h3>
+            </div>
+            <div className="p-8">
+              <div className="relative mb-6">
+                <input
+                  type="text"
+                  inputMode={window.innerWidth < 768 ? "none" : "numeric"}
+                  value={qtyModalValue}
+                  onChange={(e) => setQtyModalValue(e.target.value.replace(/[^0-9]/g, ''))}
+                  onClick={() => { if (window.innerWidth < 768) { setActiveKeypadField('qtyModalValue'); setShowKeypadSheet(true); } }}
+                  readOnly={window.innerWidth < 768}
+                  className="w-full text-center text-5xl font-black py-4 border-b-4 border-cyan-100 focus:border-cyan-500 outline-none transition-all tabular-nums cursor-pointer md:cursor-text"
+                  autoFocus={window.innerWidth >= 768}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleQtyModalConfirm();
+                    if (e.key === 'Escape') setShowQtyModal(false);
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowQtyModal(false)}
+                  className="py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleQtyModalConfirm}
+                  className="py-4 bg-cyan-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all"
+                >
+                  Apply Quantity
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showKeypadSheet && (
+        <div className="fixed inset-0 z-[120] md:hidden flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" onClick={() => setShowKeypadSheet(false)}></div>
+          <div className="relative bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-10 flex flex-col gap-6 animate-slideUp">
+            <div className="flex justify-between items-center">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  {activeKeypadField === 'amountReceived' ? 'Enter Cash Amount' : 
+                   activeKeypadField === 'customDiscountPercent' ? 'Enter Discount %' : 
+                   activeKeypadField === 'qtyModalValue' ? 'Set Quantity' :
+                   'Enter Discount Amount'}
+                </span>
+                <p className="text-3xl font-black text-cyan-600 tabular-nums">
+                  {activeKeypadField === 'amountReceived' ? (amountReceived || '0.00') : 
+                   activeKeypadField === 'customDiscountPercent' ? (customDiscountPercent || '0') + '%' : 
+                   activeKeypadField === 'qtyModalValue' ? (qtyModalValue || '0') :
+                   '₱' + (customDiscountAmount || '0.00')}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowKeypadSheet(false)}
+                className="bg-cyan-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-cyan-200"
+              >
+                Done
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
+                <button
+                  key={key}
+                  onClick={() => handleAmountKeypadInput(key)}
+                  className="flex items-center justify-center bg-gray-50 rounded-2xl h-16 text-2xl font-black text-gray-800 active:bg-cyan-100 active:text-cyan-600 transition-all"
+                >
+                  {key === 'backspace' ? '⌫' : key}
+                </button>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleAmountKeypadInput('clear')}
+                className="h-14 bg-red-50 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => handleAmountKeypadInput('00')}
+                className="h-14 bg-gray-50 text-gray-800 rounded-2xl font-black text-xl"
+              >
+                00
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </>
+);
 }
 
 
