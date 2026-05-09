@@ -238,6 +238,77 @@ export default function App() {
     setDeferredPrompt(null);
   };
 
+  const toggleVoiceSearch = (setter) => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice search is not supported in this browser. Please use Chrome or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      // Optimize for local accent (Philippines) with fallback
+      recognition.lang = 'en-PH';
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 3;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setter(''); // Clear existing text when starting a new voice search
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        const resultText = (finalTranscript || interimTranscript).trim();
+        if (resultText) {
+          // Clean up and set state immediately for "sensitive" feel
+          setter(resultText.replace(/\.$/g, ''));
+        }
+
+        if (finalTranscript) {
+          setIsListening(false);
+          recognition.stop();
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') {
+          setIsListening(false);
+        }
+        if (event.error === 'not-allowed') {
+          alert("Microphone access was denied. Please enable it in your browser settings.");
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
+  };
+
   // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -313,6 +384,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [showShiftStartModal, setShowShiftStartModal] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [showShiftEndModal, setShowShiftEndModal] = useState(false);
 
   const openShiftEndModal = useCallback(() => setShowShiftEndModal(true), []);
@@ -1259,6 +1331,8 @@ export default function App() {
           onEmployeeLogout={handleEmployeeLogout}
           currentShift={currentShift}
           onEndShift={openShiftEndModal}
+          isListening={isListening}
+          toggleVoiceSearch={() => toggleVoiceSearch(setSearchQuery)}
         />
 
       {currentPage !== 'home' && (
@@ -1355,6 +1429,8 @@ export default function App() {
                   triggerPrint={triggerPrint}
                   onEndShift={openShiftEndModal}
                   onStartShift={openShiftStartModal}
+                  isListening={isListening}
+                  toggleVoiceSearch={toggleVoiceSearch}
                   onRefreshShift={async () => {
                     try {
                       const token = localStorage.getItem('auth_token');
@@ -1978,7 +2054,7 @@ function SizeModal({ product, onClose, onSelectSize }) {
 }
 
 // Header Component
-function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, employee, onEmployeeLogout, currentShift, onEndShift }) {
+function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, employee, onEmployeeLogout, currentShift, onEndShift, isListening, toggleVoiceSearch }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const activeCompanyId = localStorage.getItem('active_company_id') || '';
 
@@ -2022,17 +2098,25 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
               <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isGlass ? 'text-white/70' : 'text-cyan-700'}`} />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={isListening ? "Listening..." : "Search..."}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   if (e.target.value && currentPage !== 'menu') setCurrentPage('menu');
                 }}
-                className={`w-full pl-9 pr-3 py-1.5 rounded-full focus:outline-none font-medium text-sm transition-all ${isGlass
+                className={`w-full pl-9 pr-9 py-1.5 rounded-full focus:outline-none font-medium text-sm transition-all ${isGlass
                   ? 'bg-white/20 text-white placeholder-white/60'
                   : 'bg-cyan-100 text-cyan-800 placeholder-cyan-700/50'
                   }`}
               />
+              <button
+                type="button"
+                onClick={toggleVoiceSearch}
+                className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full transition-all z-20 ${isListening ? 'bg-red-500 text-white animate-pulse shadow-lg' : 'bg-white/40 text-cyan-600 hover:bg-cyan-100'}`}
+                title="Voice Search"
+              >
+                <Mic className={`w-3.5 h-3.5 ${isListening ? 'fill-current' : ''}`} />
+              </button>
             </div>
 
             {/* Desktop search bar */}
@@ -2046,11 +2130,19 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
                   setSearchQuery(e.target.value);
                   if (e.target.value && currentPage !== 'menu') setCurrentPage('menu');
                 }}
-                className={`w-full pl-10 pr-4 py-2 rounded-full focus:outline-none font-medium transition-all ${isGlass
+                className={`w-full pl-10 pr-10 py-2 rounded-full focus:outline-none font-medium transition-all ${isGlass
                   ? 'bg-white/20 text-white placeholder-white/60'
                   : 'bg-cyan-100 text-cyan-800 placeholder-cyan-700/50'
                   }`}
               />
+              <button
+                type="button"
+                onClick={toggleVoiceSearch}
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full transition-all z-20 ${isListening ? 'bg-red-500 text-white animate-pulse shadow-lg' : 'bg-white/40 text-cyan-600 hover:bg-cyan-100'}`}
+                title="Voice Search"
+              >
+                <Mic className={`w-4 h-4 ${isListening ? 'fill-current' : ''}`} />
+              </button>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -2476,6 +2568,7 @@ function SubMenu({ currentPage, setCurrentPage, employee }) {
                   {dropItem('reports-sales', 'Sales Summary')}
                   {dropItem('reports-items', 'Sales by Item')}
                   {dropItem('reports-category', 'Sales by Category')}
+                  {dropItem('reports-staff-items', 'Itemized Sales by Staff')}
                   {dropItem('reports-employees', 'Sales by Employee')}
                   {dropItem('reports-payments', 'Sales by Payment Type')}
                   {dropItem('reports-inventory', 'Inventory Reports')}
@@ -5853,7 +5946,7 @@ function POSPage({
   showTableView, setShowTableView,
   categories, taxRate, currencySymbol, formatMoney, lastOrderData, setLastOrderData, sysConfig, setPrintMode,
   isOnline, setIsOnline, pendingOrderCount, setPendingOrderCount, isSyncing, syncOfflineOrders, forceOffline,
-  setCurrentPage, triggerPrint
+  setCurrentPage, triggerPrint, isListening, toggleVoiceSearch
 }) {
   const { cartItems, addToCart, removeFromCart, updateQuantity, setItemNotes, getTotalPrice, clearCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -5868,7 +5961,6 @@ function POSPage({
   const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const [scannerErrorDetail, setScannerErrorDetail] = useState('');
@@ -6581,55 +6673,6 @@ function POSPage({
     }
   };
 
-  const toggleVoiceSearch = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Voice search is not supported in this browser. Please use Chrome or Safari.");
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event) => {
-        const speechToText = event.results[0][0].transcript;
-        // Clean the speech input (remove period if any)
-        const cleanText = speechToText.replace(/\.$/, '');
-        setBarcodeInput(cleanText);
-        setIsListening(false);
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        if (event.error === 'not-allowed') {
-          alert("Microphone access was denied. Please enable it in your browser settings.");
-        }
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (err) {
-      console.error('Failed to start speech recognition:', err);
-      setIsListening(false);
-    }
-  };
-
   const stopScanner = () => {
     setIsScanning(false);
     setIsCameraReady(false);
@@ -7068,15 +7111,15 @@ function POSPage({
                   type="text"
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
-                  placeholder="Search name or scan barcode..."
+                  placeholder={isListening ? "Listening for products..." : "Search name or scan barcode..."}
                   className="w-full pl-7 md:pl-10 pr-8 md:pr-12 py-1.5 md:py-2 bg-gray-100 focus:outline-none focus:bg-gray-50 text-xs md:text-base"
                   autoComplete="off"
                 />
                 <Search className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400" />
                 <button
                   type="button"
-                  onClick={toggleVoiceSearch}
-                  className={`absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full transition-all ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'text-gray-400 hover:text-cyan-600'}`}
+                  onClick={() => toggleVoiceSearch(setBarcodeInput)}
+                  className={`absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 p-1.5 md:p-2 rounded-full transition-all z-20 ${isListening ? 'bg-red-500 text-white animate-pulse shadow-lg' : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100'}`}
                   title="Voice Search"
                 >
                   <Mic className={`w-3.5 h-3.5 md:w-5 md:h-5 ${isListening ? 'fill-current' : ''}`} />
@@ -9072,6 +9115,168 @@ function CustomersPage({ setCurrentPage }) {
 }
 
 
+
+  const extractOrderItems = (orderLike) => {
+    if (!orderLike || typeof orderLike !== 'object') return [];
+    const candidates = [
+      orderLike.items,
+      orderLike.order_items,
+      orderLike.orderItems,
+      orderLike.line_items,
+      orderLike.lineItems,
+      orderLike.OrderItems,
+      orderLike.LineItems,
+      orderLike.details,
+      orderLike.order_details
+    ];
+    for (const c of candidates) {
+      if (Array.isArray(c) && c.length > 0) return c;
+    }
+    // Fallback to whatever array we found if all were empty
+    for (const c of candidates) {
+      if (Array.isArray(c)) return c;
+    }
+    return [];
+  };
+
+// Itemized Sales by Staff - sub-component
+function StaffItemizedReport({ salesData, getOrderRevenue }) {
+  const [selectedStaff, setSelectedStaff] = useState('__all__');
+  const [expandedStaff, setExpandedStaff] = useState({});
+  const toggleStaff = (name) => setExpandedStaff(prev => ({ ...prev, [name]: !prev[name] }));
+
+  const staffMap = {};
+  salesData.forEach((o) => {
+    const status = (o.order_status || o.status || '').toLowerCase();
+    if (['voided', 'refunded', 'cancelled'].includes(status)) return;
+    const staff = o.employee_name || 'System/Online';
+    if (!staffMap[staff]) staffMap[staff] = { name: staff, orders: 0, revenue: 0, lines: [] };
+    staffMap[staff].orders += 1;
+    staffMap[staff].revenue += getOrderRevenue(o);
+    const items = extractOrderItems(o);
+    items.forEach((it) => {
+      staffMap[staff].lines.push({
+        orderNo: o.order_number || o.id,
+        date: o.created_at,
+        product: it.product_name || it.name || 'Unknown',
+        qty: Number(it.quantity || 0),
+        unitPrice: Number(it.unit_price != null ? it.unit_price : (it.price || 0)),
+        subtotal: Number(it.subtotal || (Number(it.quantity || 0) * Number(it.unit_price != null ? it.unit_price : (it.price || 0)))),
+        payment: o.payment_method || 'N/A',
+      });
+    });
+  });
+
+  const allStaff = Object.values(staffMap).sort((a, b) => b.revenue - a.revenue);
+  const staffNames = allStaff.map(s => s.name);
+  const filtered = selectedStaff === '__all__' ? allStaff : allStaff.filter(s => s.name === selectedStaff);
+  const grandTotal = filtered.reduce((s, e) => s + e.revenue, 0);
+  const grandOrders = filtered.reduce((s, e) => s + e.orders, 0);
+  const grandItems = filtered.reduce((s, e) => s + e.lines.length, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-cyan-500">
+          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Staff Members</p>
+          <p className="text-2xl font-bold text-cyan-700">{allStaff.length}</p>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Orders</p>
+          <p className="text-2xl font-bold text-blue-700">{grandOrders}</p>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500">
+          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Line Items Sold</p>
+          <p className="text-2xl font-bold text-purple-700">{grandItems}</p>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-emerald-500">
+          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Revenue</p>
+          <p className="text-2xl font-bold text-emerald-700">Php {grandTotal.toFixed(2)}</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 flex flex-wrap items-center gap-3">
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Filter by Staff:</label>
+        <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+          <option value="__all__">All Staff</option>
+          {staffNames.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <span className="text-xs text-gray-400 italic">Click a staff row to expand line items.</span>
+      </div>
+      {filtered.length === 0 && (
+        <div className="bg-white rounded-lg p-10 text-center text-gray-400 shadow-sm border border-dashed border-gray-300">
+          <p className="font-bold text-gray-600">No itemized sales found for this period.</p>
+          <p className="text-sm mt-1">Orders may not have line-item detail. Try a wider date range.</p>
+        </div>
+      )}
+      {filtered.map((staff) => (
+        <div key={staff.name} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <button onClick={() => toggleStaff(staff.name)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-cyan-100 text-cyan-700 font-black flex items-center justify-center text-sm flex-shrink-0">
+                {staff.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 leading-tight">{staff.name}</p>
+                <p className="text-xs text-gray-400">{staff.orders} order{staff.orders !== 1 ? 's' : ''} | {staff.lines.length} line item{staff.lines.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Revenue</p>
+                <p className="text-lg font-bold text-cyan-700">Php {staff.revenue.toFixed(2)}</p>
+              </div>
+              <span className={`text-gray-400 text-xl font-bold ${expandedStaff[staff.name] ? 'rotate-90 inline-block' : ''}`}>{expandedStaff[staff.name] ? 'v' : '>'}</span>
+            </div>
+          </button>
+          {expandedStaff[staff.name] && (
+            staff.lines.length === 0 ? (
+              <div className="px-5 py-6 text-center text-gray-400 text-sm italic border-t border-gray-100 bg-gray-50">
+                No line-item detail available for this staff in this period.
+              </div>
+            ) : (
+              <div className="overflow-x-auto border-t border-gray-100">
+                <table className="w-full min-w-[700px] font-data-table">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Order #</th>
+                      <th className="text-left px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Date &amp; Time</th>
+                      <th className="text-left px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Product</th>
+                      <th className="text-right px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Qty</th>
+                      <th className="text-right px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Unit Price</th>
+                      <th className="text-right px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Subtotal</th>
+                      <th className="text-left px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {staff.lines.map((line, idx) => (
+                      <tr key={`${line.orderNo}-${idx}`} className="hover:bg-cyan-50/30 transition-colors">
+                        <td className="px-4 py-2 text-sm font-semibold text-gray-700 whitespace-nowrap">{line.orderNo}</td>
+                        <td className="px-4 py-2 text-sm text-gray-500 whitespace-nowrap">{line.date ? new Date(line.date).toLocaleString() : 'N/A'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-800 font-medium">{line.product}</td>
+                        <td className="px-4 py-2 text-sm text-right text-gray-600">{line.qty}</td>
+                        <td className="px-4 py-2 text-sm text-right text-gray-600">Php {line.unitPrice.toFixed(2)}</td>
+                        <td className="px-4 py-2 text-sm text-right font-bold text-cyan-700">Php {line.subtotal.toFixed(2)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-500 whitespace-nowrap">{line.payment}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                    <tr>
+                      <td colSpan={5} className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide text-right">Staff Total</td>
+                      <td className="px-4 py-2 text-sm font-black text-cyan-800 text-right">Php {staff.revenue.toFixed(2)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Inventory Reports Section Component
 function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
   const [dateRange, setDateRange] = useState('week');
@@ -9103,20 +9308,6 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     if (primary > 0) return primary;
     const fallback = toNum(order?.subtotal) - toNum(order?.discount_amount) + toNum(order?.tax_amount) + toNum(order?.delivery_fee);
     return fallback > 0 ? fallback : 0;
-  };
-  const extractOrderItems = (orderLike) => {
-    if (!orderLike || typeof orderLike !== 'object') return [];
-    const candidates = [
-      orderLike.items,
-      orderLike.order_items,
-      orderLike.orderItems,
-      orderLike.line_items,
-      orderLike.lineItems
-    ];
-    for (const c of candidates) {
-      if (Array.isArray(c)) return c;
-    }
-    return [];
   };
 
   const handleEmailReport = async () => {
@@ -9168,6 +9359,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
     { id: 'reports-sales', name: '1. Daily Sales Snapshot', icon: '📅' },
     { id: 'reports-items', name: '2. Product Performance', icon: '🏷️' },
     { id: 'reports-category', name: '3. Category Analysis', icon: '📁' },
+    { id: 'reports-staff-items', name: '4. Itemized Sales by Staff', icon: '\uD83D\uDCCB' },
     { id: 'reports-trends', name: '5. Time Period Trends', icon: '📈' },
     { id: 'reports-profit', name: '6. Gross Profit & Margin', icon: '💰' },
     { id: 'reports-inventory', name: '7. Inventory & Sell-Through', icon: '📦' },
@@ -9233,7 +9425,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
         }
 
         const useDirectItemSource = activeReport === 'reports-items' || activeReport === 'reports-category';
-        const needsOrderItems = !useDirectItemSource && (activeReport === 'reports-profit' || activeReport === 'reports-inventory');
+        const needsOrderItems = !useDirectItemSource && (activeReport === 'reports-profit' || activeReport === 'reports-inventory' || activeReport === 'reports-staff-items');
         const ordersUrl = `${API_URL}/orders?limit=1000${needsOrderItems ? '&include_items=true' : ''}`;
         const res = await fetchWithAuth(ordersUrl);
         let data = await res.json();
@@ -9792,6 +9984,10 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
               </table>
             </div>
           </div>
+        )}
+
+        {!loading && activeReport === 'reports-staff-items' && (
+          <StaffItemizedReport salesData={salesData} getOrderRevenue={getOrderRevenue} />
         )}
 
         {!loading && activeReport === 'reports-payments' && (
