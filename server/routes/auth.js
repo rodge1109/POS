@@ -404,9 +404,9 @@ router.post('/employees', verifyToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO employees (username, pin, name, role, company_id, password_hash)
-       VALUES ($1, $2, $3, $4, $5, $2)
-       RETURNING id, username, name, role, active, created_at`,
+      `INSERT INTO employees (username, pin, name, role, company_id, password_hash, permissions)
+       VALUES ($1, $2, $3, $4, $5, $2, '{}')
+       RETURNING id, username, name, role, active, created_at, permissions`,
       [username.toLowerCase().trim(), pin, name, role, req.company_id]
     );
 
@@ -482,19 +482,25 @@ router.put('/employees/:id/permissions', verifyToken, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Permissions must be an array' });
     }
 
-    const result = await pool.query(
-      'UPDATE employees SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND company_id = $3 RETURNING id, permissions',
-      [JSON.stringify(permissions), id, req.company_id]
-    );
+    try {
+      const result = await pool.query(
+        'UPDATE employees SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2::integer AND company_id = $3::uuid RETURNING id, permissions',
+        [permissions, id, req.company_id]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Employee not found' });
+      if (result.rows.length === 0) {
+        console.log(`Employee update failed: No match for ID ${id} in company ${req.company_id}`);
+        return res.status(404).json({ success: false, error: 'Employee not found' });
+      }
+
+      res.json({ success: true, permissions: result.rows[0].permissions });
+    } catch (dbError) {
+      console.error('Database error updating permissions:', dbError);
+      throw dbError; // Caught by the outer catch block
     }
-
-    res.json({ success: true, permissions: result.rows[0].permissions });
   } catch (error) {
     console.error('Error updating employee permissions:', error);
-    res.status(500).json({ success: false, error: 'Failed to update permissions' });
+    res.status(500).json({ success: false, error: 'Failed to update permissions: ' + error.message });
   }
 });
 

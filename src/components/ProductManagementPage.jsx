@@ -1933,7 +1933,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                       type="number"
                       min="0"
                       value={formData.stock_quantity}
-                      disabled={editingProduct && editingProduct.ingredient_count > 0}
+                      disabled={!!editingProduct}
                       onChange={(e) => setFormData(prev => ({ ...prev, stock_quantity: e.target.value }))}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 disabled:bg-gray-100 disabled:text-gray-400"
                     />
@@ -1947,7 +1947,7 @@ function ProductManagementPage({ menuData, refreshProducts, currentView, categor
                       type="number"
                       min="0"
                       value={formData.low_stock_threshold}
-                      disabled={editingProduct && editingProduct.ingredient_count > 0}
+                      disabled={!!editingProduct}
                       onChange={(e) => setFormData(prev => ({ ...prev, low_stock_threshold: e.target.value }))}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 disabled:bg-gray-100 disabled:text-gray-400"
                     />

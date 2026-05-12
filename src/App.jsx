@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic, Lock } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
@@ -416,6 +416,8 @@ export default function App() {
     if (!employee) return false;
     // 1. Check for specific permissions (overrides roles)
     if (employee.permissions && Array.isArray(employee.permissions) && employee.permissions.length > 0) {
+      // Compatibility bridge for legacy settings ID
+      if (id === 'settings' && employee.permissions.includes('settings-general')) return true;
       return employee.permissions.includes(id);
     }
     // 2. Fallback to role-based access from navItems definition
@@ -1592,7 +1594,12 @@ export default function App() {
         {(currentPage === 'staff' || currentPage.startsWith('staff-')) && (
           employee ? (
             hasPermission('staff-employees') ? (
-              <StaffPage currentView={currentPage} setCurrentPage={setCurrentPage} />
+              <StaffPage 
+                currentView={currentPage} 
+                setCurrentPage={setCurrentPage} 
+                setShiftReport={setShiftReport}
+                triggerShiftReportPrint={triggerShiftReportPrint}
+              />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Staff Management." onBack={() => setCurrentPage('dashboard')} />
             )
@@ -1603,10 +1610,10 @@ export default function App() {
         {/* Settings Pages */}
         {currentPage === 'suppliers' && (
           employee ? (
-            ['admin', 'manager'].includes(employee.role) ? (
+            hasPermission('suppliers') ? (
               <SuppliersPage setCurrentPage={setCurrentPage} />
             ) : (
-              <AccessDeniedPage message="Access Denied" onBack={() => setCurrentPage('pos')} />
+              <AccessDeniedPage message="Access Denied. You do not have permission to access Supplier Logistics." onBack={() => setCurrentPage('pos')} />
             )
           ) : (
             <EmployeeLoginPage onLogin={handleEmployeeLogin} onAction={(page) => setCurrentPage(page)} onBack={() => setCurrentPage('home')} isOnline={isOnline} />
@@ -1777,13 +1784,23 @@ export default function App() {
                       <ShoppingCart className="w-5 h-5 mb-1" />
                       <span className="text-[10px] font-bold uppercase">POS</span>
                     </button>
-                    <button onClick={() => { setCurrentPage('pos'); setShowTableView(true); }} className={`flex flex-col items-center min-w-[64px] transition-colors ${showTableView && currentPage === 'pos' ? 'text-cyan-600' : 'text-gray-400'}`}>
+                    <button 
+                      disabled={!hasPermission('pos')}
+                      onClick={() => { setCurrentPage('pos'); setShowTableView(true); }} 
+                      className={`flex flex-col items-center min-w-[64px] transition-colors relative ${!hasPermission('pos') ? 'opacity-30 grayscale cursor-not-allowed' : showTableView && currentPage === 'pos' ? 'text-cyan-600' : 'text-gray-400'}`}
+                    >
                       <LayoutGrid className="w-5 h-5 mb-1" />
                       <span className="text-[10px] font-bold uppercase">Tables</span>
+                      {!hasPermission('pos') && <Lock className="w-2 h-2 absolute top-0 right-2" />}
                     </button>
-                    <button onClick={() => setCurrentPage('orders-active')} className={`flex flex-col items-center min-w-[64px] transition-colors ${currentPage.startsWith('orders') ? 'text-cyan-600' : 'text-gray-400'}`}>
+                    <button 
+                      disabled={!hasPermission('orders')}
+                      onClick={() => setCurrentPage('orders-active')} 
+                      className={`flex flex-col items-center min-w-[64px] transition-colors relative ${!hasPermission('orders') ? 'opacity-30 grayscale cursor-not-allowed' : currentPage.startsWith('orders') ? 'text-cyan-600' : 'text-gray-400'}`}
+                    >
                       <Receipt className="w-5 h-5 mb-1" />
                       <span className="text-[10px] font-bold uppercase">Orders</span>
+                      {!hasPermission('orders') && <Lock className="w-2 h-2 absolute top-0 right-2" />}
                     </button>
                     <button
                       onClick={() => setIsNavDrawerOpen(true)}
@@ -1817,49 +1834,84 @@ export default function App() {
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
-                  <button onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                  <button 
+                    disabled={!hasPermission('kitchen')}
+                    onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('kitchen') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
                     <ClipboardList className="w-7 h-7 mb-2" />
                     <span className="text-[11px] font-bold">Kitchen</span>
+                    {!hasPermission('kitchen') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  {['admin', 'manager'].includes(employee.role) && (
-                    <button onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                      <UtensilsCrossed className="w-7 h-7 mb-2" />
-                      <span className="text-[11px] font-bold">Menu</span>
-                    </button>
-                  )}
+                  <button 
+                    disabled={!hasPermission('products')}
+                    onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('products') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
+                    <UtensilsCrossed className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Menu</span>
+                    {!hasPermission('products') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
+                  </button>
 
-                  {['admin', 'manager'].includes(employee.role) && (
-                    <button onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                      <Package className="w-7 h-7 mb-2" />
-                      <span className="text-[11px] font-bold">Inventory</span>
-                    </button>
-                  )}
+                  <button 
+                    disabled={!hasPermission('inventory')}
+                    onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('inventory') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
+                    <Package className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Inventory</span>
+                    {!hasPermission('inventory') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
+                  </button>
 
-                  {['admin', 'manager'].includes(employee.role) && (
-                    <button onClick={() => { setCurrentPage('reports'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'reports' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                      <FileText className="w-7 h-7 mb-2" />
-                      <span className="text-[11px] font-bold">Reports</span>
-                    </button>
-                  )}
+                  <button 
+                    disabled={!hasPermission('reports')}
+                    onClick={() => { setCurrentPage('reports'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('reports') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'reports' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
+                    <FileText className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Reports</span>
+                    {!hasPermission('reports') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
+                  </button>
 
-                  {['admin', 'manager'].includes(employee.role) && (
-                    <button onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                      <Truck className="w-7 h-7 mb-2" />
-                      <span className="text-[11px] font-bold">Suppliers</span>
-                    </button>
-                  )}
+                  <button 
+                    disabled={!hasPermission('suppliers')}
+                    onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('suppliers') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
+                    <Truck className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Suppliers</span>
+                    {!hasPermission('suppliers') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
+                  </button>
 
-                  {employee.role === 'admin' && (
-                    <button onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
-                      <User className="w-7 h-7 mb-2 opacity-70" />
-                      <span className="text-[11px] font-bold">Staff</span>
-                    </button>
-                  )}
+                  <button 
+                    disabled={!hasPermission('accounting')}
+                    onClick={() => { setCurrentPage('accounting'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('accounting') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'accounting' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
+                    <Calculator className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Accounting</span>
+                    {!hasPermission('accounting') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
+                  </button>
 
-                  <button onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all ${currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}>
+                  <button 
+                    disabled={!hasPermission('staff-employees')}
+                    onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('staff-employees') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
+                    <User className="w-7 h-7 mb-2" />
+                    <span className="text-[11px] font-bold">Staff</span>
+                    {!hasPermission('staff-employees') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
+                  </button>
+
+                  <button 
+                    disabled={!hasPermission('settings')}
+                    onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} 
+                    className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('settings') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
+                  >
                     <Settings className="w-7 h-7 mb-2" />
                     <span className="text-[11px] font-bold">System</span>
+                    {!hasPermission('settings') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
                   {/* Network Mode Toggle / Sync Status */}
@@ -13818,7 +13870,7 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
 }
 
 // Staff Page
-function StaffPage({ currentView, setCurrentPage }) {
+function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftReportPrint }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -13894,15 +13946,20 @@ function StaffPage({ currentView, setCurrentPage }) {
 
   const allPossiblePermissions = [
     { id: 'pos', label: 'Terminal / Checkout', group: 'Operations' },
-    { id: 'dashboard', label: 'Sales Analytics', group: 'Management' },
     { id: 'kitchen', label: 'Kitchen Display (KDS)', group: 'Operations' },
     { id: 'orders', label: 'Order Management', group: 'Operations' },
+    
+    { id: 'dashboard', label: 'Sales Analytics', group: 'Management' },
     { id: 'products', label: 'Product Matrix', group: 'Management' },
     { id: 'inventory', label: 'Inventory Control', group: 'Management' },
     { id: 'reports', label: 'Detailed Reports', group: 'Management' },
+    { id: 'accounting', label: 'Back Office Accounting', group: 'Management' },
+    
     { id: 'customers', label: 'Customer Directory', group: 'CRM' },
+    { id: 'suppliers', label: 'Supplier Logistics', group: 'CRM' },
+    
     { id: 'staff-employees', label: 'Staff Management', group: 'Admin' },
-    { id: 'settings-general', label: 'System Configuration', group: 'Admin' },
+    { id: 'settings', label: 'System Configuration', group: 'Admin' },
   ];
 
   useEffect(() => {
@@ -14195,6 +14252,43 @@ function StaffPage({ currentView, setCurrentPage }) {
     } finally {
       setPermSaving(false);
       setTimeout(() => setPermMsg({ type: '', text: '' }), 5000);
+    }
+  };
+
+  const [reprintLoading, setReprintLoading] = useState(null);
+  const handleReprintShift = async (shiftId) => {
+    setReprintLoading(shiftId);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/shifts/${shiftId}/report`);
+      const data = await res.json();
+      if (data.success && data.data?.report) {
+        const r = data.data.report;
+        // Normalize for PrintableShiftReport
+        const normalized = {
+          employee_name: r.shift.employee_name,
+          start_time: r.shift.start_time,
+          end_time: r.shift.end_time,
+          opening_cash: r.cash_drawer.opening_cash,
+          closing_cash: r.cash_drawer.closing_cash,
+          expected_cash: r.cash_drawer.expected_cash,
+          cash_variance: r.cash_drawer.variance,
+          total_sales: r.sales.total,
+          order_count: r.sales.order_count,
+          sales_by_method: r.sales.by_payment_method
+        };
+        
+        setShiftReport(normalized);
+        // Delay slightly for DOM update then print
+        setTimeout(() => {
+          triggerShiftReportPrint(normalized);
+          setShiftReport(null);
+        }, 800);
+      }
+    } catch (e) {
+      console.error('Reprint failed:', e);
+      alert('Failed to load shift data for printing.');
+    } finally {
+      setReprintLoading(null);
     }
   };
 
@@ -14717,13 +14811,14 @@ function StaffPage({ currentView, setCurrentPage }) {
                     <th className="text-right px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Orders</th>
                     <th className="text-right px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Sales</th>
                     <th className="text-center px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Status</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-bold text-gray-400 uppercase">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {timesheetLoading ? (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">Loading time tracking...</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">Loading time tracking...</td></tr>
                   ) : timesheetRows.length === 0 ? (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">No shift records in selected range.</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">No shift records in selected range.</td></tr>
                   ) : timesheetRows.map(row => (
                     <tr key={row.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-800">{row.employee_name}</td>
@@ -14735,6 +14830,22 @@ function StaffPage({ currentView, setCurrentPage }) {
                         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${row.status === 'active' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
                           {row.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {row.status === 'closed' && (
+                          <button
+                            onClick={() => handleReprintShift(row.id)}
+                            disabled={reprintLoading === row.id}
+                            className="inline-flex items-center gap-1.5 text-cyan-600 hover:text-cyan-700 text-[10px] font-black uppercase tracking-wider hover:underline disabled:opacity-50"
+                          >
+                            {reprintLoading === row.id ? (
+                              <div className="w-3 h-3 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Printer className="w-3.5 h-3.5" />
+                            )}
+                            Print Summary
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
