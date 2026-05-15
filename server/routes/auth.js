@@ -80,6 +80,7 @@ router.post('/login', async (req, res) => {
       { 
         id: employee.id, 
         username: employee.username, 
+        name: employee.name,
         role: employee.role,
         company_id: employee.company_id, // CRITICAL for multi-tenancy
         permissions: employee.permissions
@@ -170,7 +171,7 @@ router.post('/register-company', async (req, res) => {
     };
 
     const token = jwt.sign(
-      { id: employee.id, username: employee.username, role: employee.role, company_id: employee.company_id },
+      { id: employee.id, username: employee.username, name: employee.name, role: employee.role, company_id: employee.company_id },
       process.env.JWT_SECRET || 'your-secret-key-change-in-production',
       { expiresIn: '8h' }
     );
@@ -227,6 +228,7 @@ router.post('/admin-login', async (req, res) => {
       { 
         id: employee.id, 
         username: employee.username, 
+        name: employee.name,
         role: employee.role,
         company_id: employee.company_id,
         permissions: employee.permissions

@@ -800,7 +800,7 @@ export default function App() {
       addText((config.business_name || 'POS') + '\n');
       addText('--------------------------------\n');
       add(esc.left);
-      addText(`STAFF: ${report.employee_name}\n`);
+      addText(`STAFF: ${report.employee_name || 'System'}\n`);
       addText(`DATE : ${new Date(report.end_time).toLocaleDateString()}\n`);
       addText(`TIME : ${new Date(report.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(report.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`);
       addText('--------------------------------\n');
@@ -5897,15 +5897,25 @@ function ShiftReportModal({ report, onClose, onPrint }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="bg-cyan-600 text-white p-4 rounded-t-xl sticky top-0">
-          <h2 className="text-xl font-bold">Shift Report</h2>
-          <p className="text-cyan-100 text-sm">{report.employee_name}</p>
+        <div className="bg-cyan-600 text-white p-6 rounded-t-xl sticky top-0">
+          <h2 className="text-2xl font-black uppercase tracking-tight">Shift Report</h2>
+          <div className="flex items-center gap-2 mt-1 opacity-90">
+            <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded">Cashier</span>
+            <p className="text-sm font-bold uppercase">{report.employee_name || 'System / Unknown'}</p>
+          </div>
         </div>
         <div className="p-6 space-y-6">
+          {/* Staff Info */}
+          <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Cashier</span>
+            <span className="font-black text-gray-900 uppercase">{report.employee_name || 'System'}</span>
+          </div>
+
           {/* Time Info */}
           <div className="text-center border-b pb-4">
-            <p className="text-gray-600 text-sm">{formatDate(report.start_time)}</p>
-            <p className="text-lg font-medium">{formatTime(report.start_time)} - {formatTime(report.end_time)}</p>
+            <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Shift Duration</p>
+            <p className="text-gray-600 text-xs font-bold">{formatDate(report.start_time)}</p>
+            <p className="text-lg font-black text-gray-900 tracking-tighter">{formatTime(report.start_time)} - {formatTime(report.end_time)}</p>
           </div>
 
           {/* Sales Summary */}
@@ -16736,7 +16746,7 @@ function PrintableShiftReport({ report, config }) {
       <div className="text-[11px] space-y-1 mb-4">
         <div className="flex justify-between">
           <span>Staff:</span>
-          <span className="font-bold">{report.employee_name}</span>
+          <span className="font-bold">{report.employee_name || 'System'}</span>
         </div>
         <div className="flex justify-between">
           <span>Date:</span>

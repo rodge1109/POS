@@ -169,7 +169,7 @@ router.post('/end', async (req, res) => {
       data: {
         shift: updateResult.rows[0],
         report: {
-          employee_name: emp.name,
+          employee_name: emp.name || emp.username || 'System',
           start_time: shift.start_time,
           end_time: updateResult.rows[0].end_time,
           opening_cash: parseFloat(shift.opening_cash),
