@@ -119,6 +119,7 @@ const server = app.listen(PORT, () => {
   console.log(`\n🚀 SERVER STARTUP SUCCESS`);
   console.log(`📡 Listening on Port: ${PORT}`);
   console.log(`🌍 Mode: ${isRender ? 'Render' : 'Local'}`);
+  console.log(`✅ ITEM-REPORT-FIX-V3: ACTIVE`);
   
   try { startScheduler(); } catch (err) { console.error('[Scheduler] Error:', err.message); }
 });

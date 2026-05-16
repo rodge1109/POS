@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic, Lock } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, ClipboardCheck, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic, Lock } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
@@ -805,10 +805,19 @@ export default function App() {
       addText(`TIME : ${new Date(report.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(report.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`);
       addText('--------------------------------\n');
       add(esc.boldOn);
-      addText(`TOTAL SALES`.padEnd(20) + (report.total_sales || 0).toFixed(2).padStart(12) + '\n');
+      addText(`GROSS SALES`.padEnd(20) + (report.total_gross || report.total_sales || 0).toFixed(2).padStart(12) + '\n');
+      if (report.total_discounts > 0) {
+        addText(`DISCOUNTS`.padEnd(20) + `-${(report.total_discounts || 0).toFixed(2)}`.padStart(12) + '\n');
+      }
+      if (report.total_tax > 0) {
+        addText(`TAXES`.padEnd(20) + `+${(report.total_tax || 0).toFixed(2)}`.padStart(12) + '\n');
+      }
+      addText(`TOTAL NET SALES`.padEnd(20) + (report.total_sales || 0).toFixed(2).padStart(12) + '\n');
       add(esc.boldOff);
       addText(`Order Count`.padEnd(20) + (report.order_count || 0).toString().padStart(12) + '\n');
       addText('--------------------------------\n');
+
+
 
       if (report.sales_by_method) {
         addText('PAYMENT METHODS:\n');
@@ -828,6 +837,22 @@ export default function App() {
       add(esc.boldOff);
 
       addText('--------------------------------\n');
+
+      if (report.itemized_sales && report.itemized_sales.length > 0) {
+        setBtMessage(`Printing ${report.itemized_sales.length} items...`);
+        add(esc.boldOn);
+        addText('ITEMIZED SALES REPORT\n');
+        add(esc.boldOff);
+        addText('ITEM'.padEnd(17) + 'QTY'.padStart(3) + 'AMOUNT'.padStart(12) + '\n');
+        report.itemized_sales.forEach(item => {
+          const name = (item.name || 'Unknown').toUpperCase();
+          const itemName = name.substring(0, 16).padEnd(17);
+          const itemQty = (item.quantity || 0).toString().padStart(3);
+          const itemAmt = (item.amount || 0).toFixed(2).padStart(12);
+          addText(`${itemName}${itemQty}${itemAmt}\n`);
+        });
+        addText('--------------------------------\n');
+      }
       add(esc.center);
       addText('End of Shift Summary\n\n');
       add(esc.feed); add(esc.feed); add(esc.feed);
@@ -5895,55 +5920,57 @@ function ShiftReportModal({ report, onClose, onPrint }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="bg-cyan-600 text-white p-6 rounded-t-xl sticky top-0">
-          <h2 className="text-2xl font-black uppercase tracking-tight">Shift Report</h2>
-          <div className="flex items-center gap-2 mt-1 opacity-90">
-            <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded">Cashier</span>
-            <p className="text-sm font-bold uppercase">{report.employee_name || 'System / Unknown'}</p>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-cyan-600 to-cyan-700 p-6 text-center shrink-0">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30">
+            <ClipboardCheck className="text-white" size={32} />
+          </div>
+          <h2 className="text-xl font-black text-white uppercase tracking-tighter">Shift Summary</h2>
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20">
+            <User size={14} className="text-cyan-100" />
+            <span className="font-black text-white uppercase text-xs">{report.employee_name || 'System'}</span>
           </div>
         </div>
-        <div className="p-6 space-y-6">
-          {/* Staff Info */}
-          <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Cashier</span>
-            <span className="font-black text-gray-900 uppercase">{report.employee_name || 'System'}</span>
-          </div>
 
-          {/* Time Info */}
-          <div className="text-center border-b pb-4">
-            <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Shift Duration</p>
-            <p className="text-gray-600 text-xs font-bold">{formatDate(report.start_time)}</p>
-            <p className="text-lg font-black text-gray-900 tracking-tighter">{formatTime(report.start_time)} - {formatTime(report.end_time)}</p>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Shift Duration */}
+          <div className="text-center pb-6 border-b border-gray-100">
+            <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-1">Shift Duration</p>
+            <p className="text-sm font-bold text-gray-800">{formatDate(report.end_time)}</p>
+            <p className="text-lg font-black text-cyan-600 tracking-tighter">
+              {formatTime(report.start_time)} - {formatTime(report.end_time)}
+            </p>
           </div>
 
           {/* Sales Summary */}
           <div>
-            <h3 className="font-bold text-gray-800 mb-3">SALES SUMMARY</h3>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total Sales:</span>
-                <span className="text-cyan-600">Php {(report.total_sales || 0).toFixed(2)}</span>
+            <h3 className="font-bold text-gray-800 mb-3 uppercase text-[10px] tracking-widest">Sales Summary</h3>
+            <div className="bg-cyan-50 p-4 rounded-2xl border border-cyan-100">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-gray-600 font-medium text-sm">Total Sales:</span>
+                <span className="text-xl font-black text-cyan-700">{formatCurrency(report.total_sales || 0)}</span>
               </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Total Orders:</span>
-                <span>{report.order_count || 0}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-[10px] uppercase tracking-widest font-black">Total Orders:</span>
+                <span className="text-sm font-bold text-gray-700">{report.order_count || 0}</span>
               </div>
             </div>
           </div>
 
-          {/* By Payment Method */}
+          {/* By Method */}
           {report.sales_by_method && Object.keys(report.sales_by_method).length > 0 && (
             <div>
-              <h3 className="font-bold text-gray-800 mb-3">BY PAYMENT METHOD</h3>
+              <h3 className="font-bold text-gray-800 mb-3 uppercase text-[10px] tracking-widest">By Payment Method</h3>
               <div className="space-y-2">
                 {Object.entries(report.sales_by_method).map(([method, data]) => (
-                  <div key={method} className="flex justify-between items-center bg-gray-50 px-4 py-2 rounded">
-                    <span className="capitalize">{method}</span>
+                  <div key={method} className="bg-gray-50 p-3 rounded-xl flex justify-between items-center border border-gray-100">
+                    <span className="font-bold text-gray-700 capitalize text-sm">{method}</span>
                     <div className="text-right">
-                      <span className="font-medium">Php {data.total.toFixed(2)}</span>
-                      <span className="text-gray-500 text-sm ml-2">({data.count} orders)</span>
+                      <p className="font-black text-gray-900 text-sm">{formatCurrency(data.total)}</p>
+                      <p className="text-[9px] text-gray-400 uppercase font-black">({data.count} orders)</p>
                     </div>
                   </div>
                 ))}
@@ -5951,51 +5978,79 @@ function ShiftReportModal({ report, onClose, onPrint }) {
             </div>
           )}
 
+          {/* Itemized Sales */}
+          {report.itemized_sales && report.itemized_sales.length > 0 && (
+            <div>
+              <h3 className="font-bold text-gray-800 mb-3 uppercase text-[10px] tracking-widest">Itemized Sales</h3>
+              <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+                <table className="w-full text-[10px] text-left">
+                  <thead className="bg-gray-100 text-gray-500 font-black uppercase tracking-widest">
+                    <tr>
+                      <th className="px-3 py-2">Item</th>
+                      <th className="px-3 py-2 text-center">Qty</th>
+                      <th className="px-3 py-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {report.itemized_sales.map((item, idx) => (
+                      <tr key={idx} className="bg-white">
+                        <td className="px-3 py-2 font-bold text-gray-700">{item.name}</td>
+                        <td className="px-3 py-2 text-center text-gray-600">{item.quantity}</td>
+                        <td className="px-3 py-2 text-right font-black text-gray-900">{formatCurrency(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Cash Drawer */}
           <div>
-            <h3 className="font-bold text-gray-800 mb-3">CASH DRAWER</h3>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+            <h3 className="font-bold text-gray-800 mb-3 uppercase text-[10px] tracking-widest">Cash Drawer</h3>
+            <div className="bg-gray-50 p-4 rounded-xl space-y-3 text-xs border border-gray-100">
               <div className="flex justify-between">
-                <span>Opening Cash:</span>
-                <span>Php {(report.opening_cash || 0).toFixed(2)}</span>
+                <span className="text-gray-500 uppercase tracking-widest font-black text-[9px]">Opening Cash:</span>
+                <span className="font-bold">{formatCurrency(report.opening_cash || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span>+ Cash Sales:</span>
-                <span>Php {((report.sales_by_method?.cash?.total) || 0).toFixed(2)}</span>
+                <span className="text-gray-500 uppercase tracking-widest font-black text-[9px]">+ Cash Sales:</span>
+                <span className="font-bold">{formatCurrency((report.sales_by_method?.cash?.total) || 0)}</span>
               </div>
-              <div className="flex justify-between border-t pt-2 font-medium">
-                <span>Expected Cash:</span>
-                <span>Php {(report.expected_cash || 0).toFixed(2)}</span>
+              <div className="flex justify-between border-t border-gray-200 pt-3">
+                <span className="font-black text-gray-500 uppercase text-[9px] tracking-widest">Expected Cash:</span>
+                <span className="font-black text-gray-900">{formatCurrency(report.expected_cash || 0)}</span>
               </div>
-              <div className="flex justify-between font-medium">
-                <span>Actual Count:</span>
-                <span>Php {(report.closing_cash || 0).toFixed(2)}</span>
+              <div className="flex justify-between">
+                <span className="font-black text-gray-500 uppercase text-[9px] tracking-widest">Actual Count:</span>
+                <span className="font-black text-gray-900">{formatCurrency(report.closing_cash || 0)}</span>
               </div>
-              <div className={`flex justify-between font-bold pt-2 border-t ${report.cash_variance >= 0 ? 'text-cyan-600' : 'text-red-600'}`}>
-                <span>Variance:</span>
+              <div className={`flex justify-between font-black pt-3 border-t-2 ${report.cash_variance >= 0 ? 'text-emerald-600 border-emerald-100' : 'text-rose-600 border-rose-100'}`}>
+                <span className="uppercase text-[9px] tracking-widest">Variance:</span>
                 <span>
-                  {report.cash_variance >= 0 ? '+' : ''}Php {(report.cash_variance || 0).toFixed(2)}
+                  {report.cash_variance >= 0 ? '+' : ''}{formatCurrency(report.cash_variance || 0)}
                   {report.cash_variance > 0 ? ' (OVER)' : report.cash_variance < 0 ? ' (SHORT)' : ''}
                 </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={onPrint}
-              className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
-            >
-              <Printer size={18} />
-              Print Summary
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 bg-cyan-600 text-white rounded-lg font-bold hover:bg-cyan-700 transition-colors"
-            >
-              Done
-            </button>
-          </div>
+        {/* Action Buttons - Fixed at bottom */}
+        <div className="p-6 bg-white border-t border-gray-100 flex gap-3 shrink-0">
+          <button
+            onClick={onPrint}
+            className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-black text-[10px] tracking-widest uppercase flex items-center justify-center gap-2 hover:bg-gray-200 transition-all active:scale-95"
+          >
+            <Printer size={18} />
+            Print
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-4 bg-cyan-600 text-white rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-cyan-700 transition-all active:scale-95 shadow-lg shadow-cyan-200"
+          >
+            Done / Exit
+          </button>
         </div>
       </div>
     </div>
@@ -14284,7 +14339,8 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
           cash_variance: r.cash_drawer.variance,
           total_sales: r.sales.total,
           order_count: r.sales.order_count,
-          sales_by_method: r.sales.by_payment_method
+          sales_by_method: r.sales.by_payment_method,
+          itemized_sales: r.itemized_sales
         };
         
         setShiftReport(normalized);
@@ -16761,8 +16817,24 @@ function PrintableShiftReport({ report, config }) {
       <div className="border-t border-dashed border-black pt-2 mb-4">
         <h3 className="text-center text-xs font-bold mb-2">SALES PERFORMANCE</h3>
         <div className="text-[12px] space-y-1">
-          <div className="flex justify-between font-bold">
-            <span>TOTAL SALES:</span>
+          <div className="flex justify-between text-[11px]">
+            <span>Gross Sales:</span>
+            <span>{money(report.total_gross || report.total_sales || 0)}</span>
+          </div>
+          {report.total_discounts > 0 && (
+            <div className="flex justify-between text-[11px] text-red-600">
+              <span>Discounts:</span>
+              <span>-{money(report.total_discounts)}</span>
+            </div>
+          )}
+          {report.total_tax > 0 && (
+            <div className="flex justify-between text-[11px]">
+              <span>Taxes:</span>
+              <span>+{money(report.total_tax)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold border-t border-black pt-1">
+            <span>TOTAL SALES (NET):</span>
             <span>{money(report.total_sales || 0)}</span>
           </div>
           <div className="flex justify-between text-[11px]">
@@ -16813,6 +16885,26 @@ function PrintableShiftReport({ report, config }) {
           </div>
         </div>
       </div>
+
+      {report.itemized_sales && report.itemized_sales.length > 0 && (
+        <div className="border-t border-dashed border-black pt-2 mb-4">
+          <h3 className="text-center text-[10px] font-bold mb-1 uppercase">Itemized Sales Report</h3>
+          <div className="text-[10px]">
+            <div className="flex justify-between font-bold border-b border-dotted pb-1 mb-1 uppercase">
+              <span className="w-1/2">Item Description</span>
+              <span className="w-1/6 text-center">Qty</span>
+              <span className="w-1/3 text-right">Amount</span>
+            </div>
+            {report.itemized_sales.map((item, idx) => (
+              <div key={idx} className="flex justify-between py-1 border-b border-dotted border-gray-200 last:border-0">
+                <span className="w-1/2 leading-tight">{(item.name || 'Unknown').toUpperCase()}</span>
+                <span className="w-1/6 text-center font-bold">{item.quantity || 0}</span>
+                <span className="w-1/3 text-right">{money(item.amount || 0)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="text-center text-[10px] italic border-t border-dashed border-black pt-4">
         <p>End of Shift Report</p>

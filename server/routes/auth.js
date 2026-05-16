@@ -407,9 +407,9 @@ router.post('/employees', verifyToken, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO employees (username, pin, name, role, company_id, password_hash, permissions)
-       VALUES ($1, $2, $3, $4, $5, $2, '{}')
+       VALUES ($1, $2, $3, $4, $5, $6, '{}')
        RETURNING id, username, name, role, active, created_at, permissions`,
-      [username.toLowerCase().trim(), pin, name, role, req.company_id]
+      [username.toLowerCase().trim(), pin, name, role, req.company_id, pin]
     );
 
     res.status(201).json({ success: true, employee: result.rows[0] });

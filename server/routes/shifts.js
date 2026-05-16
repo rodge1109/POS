@@ -1,6 +1,7 @@
  import express from 'express';
 import pool from '../config/database.js';
 import jwt from 'jsonwebtoken';
+import { verifyToken } from './auth.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -10,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 
 // POST /api/shifts/start
-router.post('/start', async (req, res) => {
+router.post('/start', verifyToken, async (req, res) => {
   try {
     const emp = req.user;
     if (!emp) return res.status(401).json({ success: false, error: 'Not logged in' });
@@ -62,7 +63,7 @@ router.post('/start', async (req, res) => {
 });
 
 // POST /api/shifts/end
-router.post('/end', async (req, res) => {
+router.post('/end', verifyToken, async (req, res) => {
   try {
     const emp = req.user;
     if (!emp) return res.status(401).json({ success: false, error: 'Not logged in' });
@@ -110,12 +111,17 @@ router.post('/end', async (req, res) => {
       `SELECT
         COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END), 0) as cash_sales,
         COALESCE(SUM(total_amount), 0) as total_sales,
+        COALESCE(SUM(discount_amount), 0) as total_discounts,
+        COALESCE(SUM(tax_amount), 0) as total_tax,
+        COALESCE(SUM(subtotal), 0) as total_gross,
         COUNT(*) as order_count
-       FROM orders WHERE shift_id = $1 AND company_id = $2`,
+       FROM orders 
+       WHERE shift_id = $1 AND company_id = $2
+       AND LOWER(COALESCE(order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')`,
       [shift.id, req.company_id]
     );
 
-    const { cash_sales, total_sales, order_count } = salesResult.rows[0];
+    const { cash_sales, total_sales, order_count, total_discounts, total_tax, total_gross } = salesResult.rows[0];
     const expectedCash = parseFloat(shift.opening_cash) + parseFloat(cash_sales);
     const cashVariance = parseFloat(closing_cash || 0) - expectedCash;
 
@@ -151,7 +157,9 @@ router.post('/end', async (req, res) => {
     const breakdownResult = await pool.query(
       `SELECT payment_method, COUNT(*) as order_count,
         COALESCE(SUM(total_amount), 0) as total
-       FROM orders WHERE shift_id = $1 AND company_id = $2
+       FROM orders 
+       WHERE shift_id = $1 AND company_id = $2
+       AND LOWER(COALESCE(order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')
        GROUP BY payment_method`,
       [shift.id, req.company_id]
     );
@@ -164,22 +172,58 @@ router.post('/end', async (req, res) => {
       };
     });
 
+    const staffResult = await pool.query('SELECT name, username FROM employees WHERE id = $1', [shift.employee_id]);
+    const staff = staffResult.rows[0] || {};
+
+    const itemizedSalesResult = await pool.query(
+      `SELECT oi.product_name, oi.size_name, oi.unit_price,
+        SUM(oi.quantity) as total_quantity,
+        SUM(oi.subtotal) as total_revenue
+       FROM order_items oi
+       JOIN orders o ON oi.order_id = o.id AND oi.company_id = o.company_id
+       WHERE o.shift_id = $1 AND o.company_id = $2
+       AND LOWER(COALESCE(o.order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')
+       GROUP BY oi.product_name, oi.size_name, oi.unit_price
+       ORDER BY oi.product_name ASC`,
+      [shift.id, req.company_id]
+    );
+
+    const itemized_sales = itemizedSalesResult.rows.map(item => ({
+      name: item.product_name + (item.size_name ? ` (${item.size_name})` : ''),
+      quantity: parseInt(item.total_quantity),
+      price: parseFloat(item.unit_price),
+      amount: parseFloat(item.total_revenue)
+    }));
+
+    const report = {
+      employee_name: staff.name || staff.username || emp.name || emp.username || 'System',
+      start_time: shift.start_time,
+      end_time: updateResult.rows[0].end_time,
+      opening_cash: parseFloat(shift.opening_cash),
+      closing_cash: parseFloat(closing_cash || 0),
+      expected_cash: expectedCash,
+      cash_variance: cashVariance,
+      total_sales: parseFloat(total_sales),
+      total_discounts: parseFloat(total_discounts),
+      total_tax: parseFloat(total_tax),
+      total_gross: parseFloat(total_gross),
+      order_count: parseInt(order_count),
+      sales_by_method: salesBreakdown,
+      itemized_sales
+    };
+
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const logPath = path.join(process.cwd(), 'import_log.txt');
+      fs.appendFileSync(logPath, `${new Date().toISOString()} - [Shift End] Shift ${shift.id} has ${itemized_sales.length} itemized lines\n`);
+    } catch (e) {}
+
     res.json({
       success: true,
       data: {
         shift: updateResult.rows[0],
-        report: {
-          employee_name: emp.name || emp.username || 'System',
-          start_time: shift.start_time,
-          end_time: updateResult.rows[0].end_time,
-          opening_cash: parseFloat(shift.opening_cash),
-          closing_cash: parseFloat(closing_cash || 0),
-          expected_cash: expectedCash,
-          cash_variance: cashVariance,
-          total_sales: parseFloat(total_sales),
-          order_count: parseInt(order_count),
-          sales_by_method: salesBreakdown
-        }
+        report
       }
     });
   } catch (error) {
@@ -189,7 +233,7 @@ router.post('/end', async (req, res) => {
 });
 
 // GET /api/shifts/current
-router.get('/current', async (req, res) => {
+router.get('/current', verifyToken, async (req, res) => {
   try {
     const emp = req.user;
     if (!emp) return res.status(401).json({ success: false, error: 'Not logged in' });
@@ -235,7 +279,7 @@ router.get('/current', async (req, res) => {
 });
 
 // GET /api/shifts/:id/report
-router.get('/:id/report', async (req, res) => {
+router.get('/:id/report', verifyToken, async (req, res) => {
   try {
     const emp = req.user;
     if (!emp) return res.status(401).json({ success: false, error: 'Not logged in' });
@@ -264,7 +308,9 @@ router.get('/:id/report', async (req, res) => {
     const methodResult = await pool.query(
       `SELECT payment_method, COUNT(*) as order_count,
         COALESCE(SUM(total_amount), 0) as total
-       FROM orders WHERE shift_id = $1 AND company_id = $2
+       FROM orders 
+       WHERE shift_id = $1 AND company_id = $2
+       AND LOWER(COALESCE(order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')
        GROUP BY payment_method`,
       [id, req.company_id]
     );
@@ -272,26 +318,31 @@ router.get('/:id/report', async (req, res) => {
     const serviceResult = await pool.query(
       `SELECT service_type, COUNT(*) as order_count,
         COALESCE(SUM(total_amount), 0) as total
-       FROM orders WHERE shift_id = $1 AND company_id = $2
+       FROM orders 
+       WHERE shift_id = $1 AND company_id = $2
+       AND LOWER(COALESCE(order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')
        GROUP BY service_type`,
       [id, req.company_id]
     );
 
     const itemsResult = await pool.query(
-      `SELECT oi.product_name,
+      `SELECT oi.product_name, oi.size_name, oi.unit_price,
         SUM(oi.quantity) as total_quantity,
         SUM(oi.subtotal) as total_revenue
        FROM order_items oi
        JOIN orders o ON oi.order_id = o.id AND oi.company_id = o.company_id
        WHERE o.shift_id = $1 AND o.company_id = $2
-       GROUP BY oi.product_name
-       ORDER BY total_quantity DESC LIMIT 10`,
+       AND LOWER(COALESCE(o.order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')
+       GROUP BY oi.product_name, oi.size_name, oi.unit_price
+       ORDER BY oi.product_name ASC`,
       [id, req.company_id]
     );
 
     const ordersResult = await pool.query(
       `SELECT id, order_number, total_amount, payment_method, service_type, created_at
-       FROM orders WHERE shift_id = $1 AND company_id = $2
+       FROM orders 
+       WHERE shift_id = $1 AND company_id = $2
+       AND LOWER(COALESCE(order_status, '')) NOT IN ('voided', 'refunded', 'cancelled')
        ORDER BY created_at DESC`,
       [id, req.company_id]
     );
@@ -339,10 +390,11 @@ router.get('/:id/report', async (req, res) => {
             by_payment_method: salesByMethod,
             by_service_type: salesByService
           },
-          top_items: itemsResult.rows.map(item => ({
-            name: item.product_name,
+          itemized_sales: itemsResult.rows.map(item => ({
+            name: item.product_name + (item.size_name ? ` (${item.size_name})` : ''),
             quantity: parseInt(item.total_quantity),
-            revenue: parseFloat(item.total_revenue)
+            price: parseFloat(item.unit_price),
+            amount: parseFloat(item.total_revenue)
           })),
           orders: ordersResult.rows
         }
@@ -355,7 +407,7 @@ router.get('/:id/report', async (req, res) => {
 });
 
 // GET /api/shifts
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const emp = req.user;
     if (!emp) return res.status(401).json({ success: false, error: 'Not logged in' });
