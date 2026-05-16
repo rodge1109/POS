@@ -776,6 +776,13 @@ export default function App() {
       const success = await printViaBluetooth(printOrder);
       if (success) return; 
     }
+    
+    // Check if fallback is disabled in system settings
+    if (sysConfig.printer_disable_fallback === 'true') {
+      console.log('Bluetooth offline. Browser print preview suppressed by user settings.');
+      return;
+    }
+    
     window.print();
   };
 
@@ -883,6 +890,13 @@ export default function App() {
       const success = await printShiftReportViaBluetooth(report);
       if (success) return;
     }
+    
+    // Check if fallback is disabled
+    if (sysConfig.printer_disable_fallback === 'true') {
+      console.log('Bluetooth offline. Shift report browser print suppressed.');
+      return;
+    }
+    
     window.print();
   };
 
@@ -15877,6 +15891,7 @@ function SettingsPage({
                     { key: 'printer_auto_receipt', label: 'Auto-print Receipt', sub: 'Prints immediately after payment' },
                     { key: 'printer_auto_kitchen', label: 'Auto-print Kitchen Slip', sub: 'Prints kitchen copy for chefs' },
                     { key: 'printer_manual_tear', label: 'Manual Paper Tear', sub: 'Adds extra padding at the bottom' },
+                    { key: 'printer_disable_fallback', label: 'Disable Preview Fallback', sub: 'Hide browser print dialog if BT is offline' },
                   ].map(({ key, label, sub }) => (
                     <div key={key} className="flex items-center justify-between group">
                       <div>
