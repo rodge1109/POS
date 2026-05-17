@@ -205,6 +205,7 @@ export default function App() {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [pendingOrderNumber, setPendingOrderNumber] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const syncLockRef = useRef(false);
   const [syncProgress, setSyncProgress] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTableView, setShowTableView] = useState(false);
@@ -928,6 +929,25 @@ export default function App() {
   // End current shift
   const handleEndShift = async (closingCash, notes) => {
     try {
+      // 1. Enforce syncing of pending offline orders before ending shift
+      let pendingOrders = await getPendingOrders();
+      if (pendingOrders.length > 0) {
+        if (!isOnline) {
+          alert(`Cannot end shift while offline.\nYou have ${pendingOrders.length} pending transaction(s) that must be synced to the server first so they are accounted for in the shift summary.`);
+          return false;
+        }
+        
+        // Attempt to sync
+        await syncOfflineOrders();
+        
+        // Check again after sync attempt
+        pendingOrders = await getPendingOrders();
+        if (pendingOrders.length > 0) {
+          alert('Failed to sync all pending offline transactions. Please check your connection or wait a moment for the background sync to finish before ending the shift.');
+          return false;
+        }
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -1054,49 +1074,55 @@ export default function App() {
 
   // ─── Sync queued offline orders ────────────────────────────────────────────
   const syncOfflineOrders = useCallback(async () => {
-    const pending = await getPendingOrders();
-    if (pending.length === 0) return;
-    const reachable = await checkServerReachable();
-    if (!reachable) return;
-    setIsSyncing(true);
-    let synced = 0;
-    const totalCount = pending.length;
+    if (syncLockRef.current) return;
+    syncLockRef.current = true;
+    try {
+      const pending = await getPendingOrders();
+      if (pending.length === 0) return;
+      const reachable = await checkServerReachable();
+      if (!reachable) return;
+      setIsSyncing(true);
+      let synced = 0;
+      const totalCount = pending.length;
 
-    for (const [index, order] of pending.entries()) {
-      setSyncProgress(`${index + 1}/${totalCount}`);
-      try {
-        const { localId, queuedAt, status, ...payload } = order;
-        const response = await fetchWithAuth(`${API_URL}/orders`, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        if (result.success) {
-          await deleteQueuedOrder(localId);
-          synced++;
-        } else {
-          // 🚩 ERROR: Save why it failed to the local database so we can show it to the user
-          await updateQueuedOrder(localId, {
+      for (const [index, order] of pending.entries()) {
+        setSyncProgress(`${index + 1}/${totalCount}`);
+        try {
+          const { localId, queuedAt, status, ...payload } = order;
+          const response = await fetchWithAuth(`${API_URL}/orders`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+          if (result.success) {
+            await deleteQueuedOrder(localId);
+            synced++;
+          } else {
+            // 🚩 ERROR: Save why it failed to the local database so we can show it to the user
+            await updateQueuedOrder(localId, {
+              status: 'failed',
+              lastError: result.error || 'Server rejected the order'
+            });
+          }
+        } catch (e) {
+          console.warn('Sync failed for order', order.localId, e);
+          await updateQueuedOrder(order.localId, {
             status: 'failed',
-            lastError: result.error || 'Server rejected the order'
+            lastError: e.message || 'Network Timeout'
           });
         }
-      } catch (e) {
-        console.warn('Sync failed for order', order.localId, e);
-        await updateQueuedOrder(order.localId, {
-          status: 'failed',
-          lastError: e.message || 'Network Timeout'
-        });
       }
-    }
-    const remaining = await getPendingOrders();
-    setPendingOrderCount(remaining.length);
-    setIsSyncing(false);
-    setSyncProgress(null);
-    setLastSyncTime(Date.now());
-    if (synced > 0) {
-      // Refresh local products to update stock if needed - SILENTLY to avoid UI jumps
-      fetchProducts(true);
+      const remaining = await getPendingOrders();
+      setPendingOrderCount(remaining.length);
+      setIsSyncing(false);
+      setSyncProgress(null);
+      setLastSyncTime(Date.now());
+      if (synced > 0) {
+        // Refresh local products to update stock if needed - SILENTLY to avoid UI jumps
+        fetchProducts(true);
+      }
+    } finally {
+      syncLockRef.current = false;
     }
   }, [API_URL, checkServerReachable]);
 
