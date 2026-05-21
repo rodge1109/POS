@@ -1556,6 +1556,8 @@ export default function App() {
                 setCurrentPage={setCurrentPage}
                 formatMoney={formatMoney}
                 currencySymbol={currencySymbol}
+                setShiftReport={setShiftReport}
+                triggerShiftReportPrint={triggerShiftReportPrint}
               />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Reports." onBack={() => setCurrentPage('dashboard')} />
@@ -9435,7 +9437,43 @@ function StaffItemizedReport({ salesData, getOrderRevenue }) {
 }
 
 // Inventory Reports Section Component
-function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
+function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbol, setShiftReport, triggerShiftReportPrint }) {
+  const [reprintLoading, setReprintLoading] = useState(null);
+
+  const handleReprintShift = async (shiftId) => {
+    setReprintLoading(shiftId);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/shifts/${shiftId}/report`);
+      const data = await res.json();
+      if (data.success && data.data?.report) {
+        const r = data.data.report;
+        const normalized = {
+          employee_name: r.shift.employee_name,
+          start_time: r.shift.start_time,
+          end_time: r.shift.end_time,
+          opening_cash: r.cash_drawer.opening_cash,
+          closing_cash: r.cash_drawer.closing_cash,
+          expected_cash: r.cash_drawer.expected_cash,
+          cash_variance: r.cash_drawer.variance,
+          total_sales: r.sales.total,
+          order_count: r.sales.order_count,
+          sales_by_method: r.sales.by_payment_method,
+          itemized_sales: r.itemized_sales
+        };
+        
+        setShiftReport(normalized);
+        setTimeout(() => {
+          triggerShiftReportPrint(normalized);
+          setShiftReport(null);
+        }, 800);
+      }
+    } catch (e) {
+      console.error('Reprint failed:', e);
+      alert('Failed to load shift data for printing.');
+    } finally {
+      setReprintLoading(null);
+    }
+  };
   const [dateRange, setDateRange] = useState('week');
   const [startDate, setStartDate] = useState(toLocalDateInputValue(new Date()));
   const [endDate, setEndDate] = useState(toLocalDateInputValue(new Date()));
@@ -10398,6 +10436,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
                     <th className="text-left px-4 py-3 text-sm">Actor</th>
                     <th className="text-left px-4 py-3 text-sm">Details</th>
                     <th className="text-right px-4 py-3 text-sm">Amount</th>
+                    <th className="text-right px-4 py-3 text-sm">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -10410,11 +10449,27 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney }) {
                       <td className="px-4 py-3 text-sm text-gray-700">{row.actor || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{row.details || '-'}</td>
                       <td className="px-4 py-3 text-sm text-right text-cyan-700">{row.amount != null ? `Php ${Number(row.amount).toFixed(2)}` : '-'}</td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {row.module === 'shifts' && row.action === 'Shift Closed' && row.reference?.startsWith('Shift #') && (
+                          <button
+                            onClick={() => handleReprintShift(row.reference.replace('Shift #', ''))}
+                            disabled={reprintLoading === row.reference.replace('Shift #', '')}
+                            className="inline-flex items-center gap-1.5 text-cyan-600 hover:text-cyan-700 text-[10px] font-black uppercase tracking-wider hover:underline disabled:opacity-50"
+                          >
+                            {reprintLoading === row.reference.replace('Shift #', '') ? (
+                              <div className="w-3 h-3 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Printer className="w-3.5 h-3.5" />
+                            )}
+                            Print
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {activityLogs.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400 italic">No activity found for this range and module.</td>
+                      <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400 italic">No activity found for this range and module.</td>
                     </tr>
                   )}
                 </tbody>
