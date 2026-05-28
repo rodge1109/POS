@@ -567,11 +567,11 @@ export default function App() {
   // Centralized Employee Login Handler
   const handleEmployeeLogin = (emp, targetPage = 'pos') => {
     setEmployee(emp);
-    
+
     // Safety: If the second argument is a token (long string or JWT), ignore it and default to 'pos'
     const isToken = typeof targetPage === 'string' && (targetPage.includes('.') || targetPage.length > 30);
     const finalPage = isToken ? 'pos' : targetPage;
-    
+
     setCurrentPage(finalPage);
   };
 
@@ -587,8 +587,8 @@ export default function App() {
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: [
-          '000018f0-0000-1000-8000-00805f9b34fb', 
-          '49535343-fe7d-4ae5-8fa9-9fafd205e455', 
+          '000018f0-0000-1000-8000-00805f9b34fb',
+          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
           'e7e11000-49f1-4d50-9465-052410530247',
           '0000ff00-0000-1000-8000-00805f9b34fb'
         ]
@@ -603,7 +603,7 @@ export default function App() {
       const server = await device.gatt.connect();
       const services = await server.getPrimaryServices();
       let charFound = null;
-      
+
       for (const service of services) {
         try {
           const characteristics = await service.getCharacteristics();
@@ -636,20 +636,20 @@ export default function App() {
 
   const autoReconnectBluetooth = async () => {
     if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return;
-    
+
     try {
       const devices = await navigator.bluetooth.getDevices();
       const lastId = localStorage.getItem('last_bt_device_id');
       const device = devices.find(d => d.id === lastId);
-      
+
       if (device) {
         setBtStatus('connecting');
         setBtMessage('Auto-reconnecting...');
-        
+
         const server = await device.gatt.connect();
         const services = await server.getPrimaryServices();
         let charFound = null;
-        
+
         for (const service of services) {
           try {
             const characteristics = await service.getCharacteristics();
@@ -738,11 +738,11 @@ export default function App() {
       const data = new Uint8Array(buffer);
       const chunkSize = 20;
       setBtMessage(`Printing ${data.length} bytes...`);
-      
+
       for (let i = 0; i < data.length; i += chunkSize) {
         const chunk = data.slice(i, i + chunkSize);
         setBtMessage(`Sending chunk ${i / chunkSize + 1}/${Math.ceil(data.length / chunkSize)}...`);
-        
+
         // Timeout protection for each write
         await Promise.race([
           (async () => {
@@ -754,7 +754,7 @@ export default function App() {
           })(),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Write timeout')), 5000))
         ]);
-        
+
         await new Promise(r => setTimeout(r, 20));
       }
       setBtMessage('Print complete!');
@@ -775,15 +775,15 @@ export default function App() {
         items: [{ quantity: 1, name: 'TEST CONNECTION', price: 0 }]
       };
       const success = await printViaBluetooth(printOrder);
-      if (success) return; 
+      if (success) return;
     }
-    
+
     // Check if fallback is disabled in system settings
     if (sysConfig.printer_disable_fallback === 'true') {
       console.log('Bluetooth offline. Browser print preview suppressed by user settings.');
       return;
     }
-    
+
     window.print();
   };
 
@@ -891,14 +891,101 @@ export default function App() {
       const success = await printShiftReportViaBluetooth(report);
       if (success) return;
     }
-    
+
     // Check if fallback is disabled
     if (sysConfig.printer_disable_fallback === 'true') {
       console.log('Bluetooth offline. Shift report browser print suppressed.');
       return;
     }
-    
+
     window.print();
+  };
+
+  const printStaffItemizedViaBluetooth = async (staffName, staffData, dateRangeDesc, config = sysConfig) => {
+    if (!btCharacteristic) {
+      alert("Bluetooth printer not connected!");
+      return false;
+    }
+    try {
+      const encoder = new TextEncoder();
+      const esc = {
+        init: [0x1B, 0x40], center: [0x1B, 0x61, 0x01], left: [0x1B, 0x61, 0x00],
+        boldOn: [0x1B, 0x45, 0x01], boldOff: [0x1B, 0x45, 0x00],
+        doubleOn: [0x1B, 0x21, 0x30], doubleOff: [0x1B, 0x21, 0x00],
+        feed: [0x0A], cut: [0x1D, 0x56, 0x41, 0x03]
+      };
+
+      let buffer = [];
+      const add = (arr) => buffer.push(...arr);
+      const addText = (text) => buffer.push(...encoder.encode(text));
+
+      add(esc.init); add(esc.center); add(esc.doubleOn);
+      addText('STAFF SALES REPORT\n');
+      add(esc.doubleOff);
+      addText((config.business_name || 'POS') + '\n');
+      addText('--------------------------------\n');
+      add(esc.left);
+      addText(`STAFF: ${staffName}\n`);
+      addText(`PERIOD: ${dateRangeDesc}\n`);
+      addText(`PRINTED: ${new Date().toLocaleString()}\n`);
+      addText('--------------------------------\n');
+      add(esc.boldOn);
+      addText(`TOTAL REVENUE`.padEnd(20) + (staffData.revenue || 0).toFixed(2).padStart(12) + '\n');
+      add(esc.boldOff);
+      addText(`Orders`.padEnd(20) + (staffData.orders || 0).toString().padStart(12) + '\n');
+      addText(`Line Items`.padEnd(20) + (staffData.lines?.length || 0).toString().padStart(12) + '\n');
+      addText('--------------------------------\n');
+
+      if (staffData.lines && staffData.lines.length > 0) {
+        setBtMessage(`Printing ${staffData.lines.length} items...`);
+        add(esc.boldOn);
+        addText('ITEMIZED BREAKDOWN\n');
+        add(esc.boldOff);
+        addText('ITEM'.padEnd(17) + 'QTY'.padStart(3) + 'AMOUNT'.padStart(12) + '\n');
+        
+        const productTotals = {};
+        staffData.lines.forEach(it => {
+            if (!productTotals[it.product]) productTotals[it.product] = { qty: 0, amount: 0 };
+            productTotals[it.product].qty += it.qty;
+            productTotals[it.product].amount += it.subtotal;
+        });
+
+        Object.entries(productTotals).forEach(([name, data]) => {
+          const itemName = name.substring(0, 16).padEnd(17);
+          const itemQty = data.qty.toString().padStart(3);
+          const itemAmt = data.amount.toFixed(2).padStart(12);
+          addText(`${itemName}${itemQty}${itemAmt}\n`);
+        });
+        addText('--------------------------------\n');
+      }
+
+      add(esc.center);
+      addText('End of Report\n\n');
+      add(esc.feed); add(esc.feed); add(esc.feed);
+      if (config.printer_manual_tear !== 'true') add(esc.cut);
+      else { add(esc.feed); add(esc.feed); }
+
+      const data = new Uint8Array(buffer);
+      const chunkSize = 20;
+      setBtMessage(`Printing ${data.length} bytes...`);
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        if (btCharacteristic.writeValueWithoutResponse) {
+          await btCharacteristic.writeValueWithoutResponse(chunk);
+        } else {
+          await btCharacteristic.writeValue(chunk);
+        }
+        await new Promise(r => setTimeout(r, 20));
+      }
+      setBtMessage('Print complete!');
+      setTimeout(() => setBtMessage(''), 3000);
+      return true;
+    } catch (error) {
+      console.error('Staff report print failed:', error);
+      setBtMessage('Print failed: ' + error.message);
+      alert('Print failed: ' + error.message);
+      return false;
+    }
   };
 
   // Start a new shift
@@ -936,10 +1023,10 @@ export default function App() {
           alert(`Cannot end shift while offline.\nYou have ${pendingOrders.length} pending transaction(s) that must be synced to the server first so they are accounted for in the shift summary.`);
           return false;
         }
-        
+
         // Attempt to sync
         await syncOfflineOrders();
-        
+
         // Check again after sync attempt
         pendingOrders = await getPendingOrders();
         if (pendingOrders.length > 0) {
@@ -966,13 +1053,13 @@ export default function App() {
         setShiftReport(result.data.report);
         setCurrentShift(null);
         setShowShiftEndModal(false);
-        
+
         // Auto-print shift summary "without preview" if printer is ready
         // Use a short delay to ensure the printable component is rendered in the DOM
         setTimeout(() => {
           triggerShiftReportPrint(result.data.report);
         }, 800);
-        
+
         return true;
       } else {
         alert(result.error || 'Failed to end shift');
@@ -1387,20 +1474,20 @@ export default function App() {
         }
       `}</style>
       <Header
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
-          setShowCart={setShowCart}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          customer={customer}
-          onLogout={handleLogout}
-          employee={employee}
-          onEmployeeLogout={handleEmployeeLogout}
-          currentShift={currentShift}
-          onEndShift={openShiftEndModal}
-          isListening={isListening}
-          toggleVoiceSearch={() => toggleVoiceSearch(setSearchQuery)}
-        />
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        setShowCart={setShowCart}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        customer={customer}
+        onLogout={handleLogout}
+        employee={employee}
+        onEmployeeLogout={handleEmployeeLogout}
+        currentShift={currentShift}
+        onEndShift={openShiftEndModal}
+        isListening={isListening}
+        toggleVoiceSearch={() => toggleVoiceSearch(setSearchQuery)}
+      />
 
       {currentPage !== 'home' && (
         <Sidebar
@@ -1457,10 +1544,10 @@ export default function App() {
         {currentPage === 'cart' && <CartPage setCurrentPage={setCurrentPage} taxRate={sysConfig.tax_rate} />}
         {currentPage === 'checkout' && <CheckoutPage setCurrentPage={setCurrentPage} clearCart={clearCart} setPendingOrderNumber={setPendingOrderNumber} taxRate={sysConfig.tax_rate} />}
         {currentPage === 'confirmation' && (
-          <ConfirmationPage 
-            setCurrentPage={setCurrentPage} 
-            orderNumber={pendingOrderNumber} 
-            paymentStatus={paymentStatus} 
+          <ConfirmationPage
+            setCurrentPage={setCurrentPage}
+            orderNumber={pendingOrderNumber}
+            paymentStatus={paymentStatus}
             triggerPrint={triggerPrint}
             lastOrderData={lastOrderData}
           />
@@ -1558,6 +1645,7 @@ export default function App() {
                 currencySymbol={currencySymbol}
                 setShiftReport={setShiftReport}
                 triggerShiftReportPrint={triggerShiftReportPrint}
+                printStaffItemizedViaBluetooth={printStaffItemizedViaBluetooth}
               />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Reports." onBack={() => setCurrentPage('dashboard')} />
@@ -1661,9 +1749,9 @@ export default function App() {
         {(currentPage === 'staff' || currentPage.startsWith('staff-')) && (
           employee ? (
             hasPermission('staff-employees') ? (
-              <StaffPage 
-                currentView={currentPage} 
-                setCurrentPage={setCurrentPage} 
+              <StaffPage
+                currentView={currentPage}
+                setCurrentPage={setCurrentPage}
                 setShiftReport={setShiftReport}
                 triggerShiftReportPrint={triggerShiftReportPrint}
               />
@@ -1851,18 +1939,18 @@ export default function App() {
                       <ShoppingCart className="w-5 h-5 mb-1" />
                       <span className="text-[10px] font-bold uppercase">POS</span>
                     </button>
-                    <button 
+                    <button
                       disabled={!hasPermission('pos')}
-                      onClick={() => { setCurrentPage('pos'); setShowTableView(true); }} 
+                      onClick={() => { setCurrentPage('pos'); setShowTableView(true); }}
                       className={`flex flex-col items-center min-w-[64px] transition-colors relative ${!hasPermission('pos') ? 'opacity-30 grayscale cursor-not-allowed' : showTableView && currentPage === 'pos' ? 'text-cyan-600' : 'text-gray-400'}`}
                     >
                       <LayoutGrid className="w-5 h-5 mb-1" />
                       <span className="text-[10px] font-bold uppercase">Tables</span>
                       {!hasPermission('pos') && <Lock className="w-2 h-2 absolute top-0 right-2" />}
                     </button>
-                    <button 
+                    <button
                       disabled={!hasPermission('orders')}
-                      onClick={() => setCurrentPage('orders-active')} 
+                      onClick={() => setCurrentPage('orders-active')}
                       className={`flex flex-col items-center min-w-[64px] transition-colors relative ${!hasPermission('orders') ? 'opacity-30 grayscale cursor-not-allowed' : currentPage.startsWith('orders') ? 'text-cyan-600' : 'text-gray-400'}`}
                     >
                       <Receipt className="w-5 h-5 mb-1" />
@@ -1901,9 +1989,9 @@ export default function App() {
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-y-6 gap-x-2 pb-8">
-                  <button 
+                  <button
                     disabled={!hasPermission('kitchen')}
-                    onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('kitchen'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('kitchen') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'kitchen' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <ClipboardList className="w-7 h-7 mb-2" />
@@ -1911,9 +1999,9 @@ export default function App() {
                     {!hasPermission('kitchen') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('products')}
-                    onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('products'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('products') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'products' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <UtensilsCrossed className="w-7 h-7 mb-2" />
@@ -1921,9 +2009,9 @@ export default function App() {
                     {!hasPermission('products') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('inventory')}
-                    onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('inventory-stock'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('inventory') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'inventory-stock' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <Package className="w-7 h-7 mb-2" />
@@ -1931,9 +2019,9 @@ export default function App() {
                     {!hasPermission('inventory') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('reports')}
-                    onClick={() => { setCurrentPage('reports'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('reports'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('reports') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'reports' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <FileText className="w-7 h-7 mb-2" />
@@ -1941,9 +2029,9 @@ export default function App() {
                     {!hasPermission('reports') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('suppliers')}
-                    onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('suppliers'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('suppliers') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'suppliers' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <Truck className="w-7 h-7 mb-2" />
@@ -1951,9 +2039,9 @@ export default function App() {
                     {!hasPermission('suppliers') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('accounting')}
-                    onClick={() => { setCurrentPage('accounting'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('accounting'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('accounting') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'accounting' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <Calculator className="w-7 h-7 mb-2" />
@@ -1961,9 +2049,9 @@ export default function App() {
                     {!hasPermission('accounting') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('staff-employees')}
-                    onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('staff-employees'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('staff-employees') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'staff-employees' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <User className="w-7 h-7 mb-2" />
@@ -1971,9 +2059,9 @@ export default function App() {
                     {!hasPermission('staff-employees') && <Lock className="w-3 h-3 absolute top-2 right-2 text-gray-400" />}
                   </button>
 
-                  <button 
+                  <button
                     disabled={!hasPermission('settings')}
-                    onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }} 
+                    onClick={() => { setCurrentPage('settings-general'); setIsNavDrawerOpen(false); }}
                     className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all relative ${!hasPermission('settings') ? 'opacity-40 grayscale cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400' : currentPage === 'settings-general' ? 'bg-cyan-100 text-cyan-700 shadow-md scale-105' : 'text-cyan-600 bg-white shadow-sm hover:shadow-md hover:scale-105 border border-gray-100'}`}
                   >
                     <Settings className="w-7 h-7 mb-2" />
@@ -4237,8 +4325,8 @@ function MenuItem({ item }) {
             onClick={() => !isOutOfStock && addToCart(item)}
             disabled={isOutOfStock}
             className={`w-full py-3 rounded-lg transition-all flex items-center justify-center space-x-1 text-sm font-bold shadow-sm active:scale-95 ${isOutOfStock
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-md'
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-md'
               }`}
           >
             {isOutOfStock ? (
@@ -6362,6 +6450,10 @@ function POSPage({
 
   // Open check on table
   const openCheckOnTable = async (tableId) => {
+    if (employee && !currentShift) {
+      alert('You must start a shift before opening a check.');
+      return;
+    }
     if (cartItems.length === 0) {
       alert('Cart is empty! Add items before opening a check.');
       return;
@@ -6410,6 +6502,10 @@ function POSPage({
 
   // Add items to existing table check
   const addItemsToTable = async (tableId) => {
+    if (employee && !currentShift) {
+      alert('You must start a shift before adding items to a table.');
+      return;
+    }
     if (cartItems.length === 0) {
       alert('Cart is empty!');
       return;
@@ -6977,9 +7073,9 @@ function POSPage({
     playTypewriterClick();
     const setter = customSetter || (
       activeKeypadField === 'customDiscountPercent' ? setCustomDiscountPercent :
-      activeKeypadField === 'customDiscountAmount' ? setCustomDiscountAmount : 
-      activeKeypadField === 'qtyModalValue' ? setQtyModalValue :
-      setAmountReceived
+        activeKeypadField === 'customDiscountAmount' ? setCustomDiscountAmount :
+          activeKeypadField === 'qtyModalValue' ? setQtyModalValue :
+            setAmountReceived
     );
 
     setter((prev) => {
@@ -7030,6 +7126,10 @@ function POSPage({
   };
 
   const handlePayment = () => {
+    if (employee && !currentShift) {
+      alert('You must start a shift before checking out an order.');
+      return;
+    }
     if (cartItems.length === 0) {
       alert('Cart is empty!');
       return;
@@ -7310,7 +7410,7 @@ function POSPage({
                 <span>{cartItems.length}</span>
               </button>
             </form>
-            
+
             <button
               type="button"
               onClick={(e) => {
@@ -7439,8 +7539,8 @@ function POSPage({
                                 key={size.name}
                                 onClick={() => setItemPickerSize(size)}
                                 className={`py-3 px-2 rounded-xl font-bold text-xs transition-all border-2 ${itemPickerSize?.name === size.name
-                                    ? 'bg-cyan-600 border-cyan-600 text-white shadow-sm'
-                                    : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
+                                  ? 'bg-cyan-600 border-cyan-600 text-white shadow-sm'
+                                  : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
                                   }`}
                               >
                                 {size.name.toUpperCase()}
@@ -7469,8 +7569,8 @@ function POSPage({
                                   key={mod.id}
                                   onClick={() => setItemPickerMods(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
                                   className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${checked
-                                      ? 'bg-cyan-600 border-cyan-600 text-white'
-                                      : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
+                                    ? 'bg-cyan-600 border-cyan-600 text-white'
+                                    : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
                                     }`}
                                 >
                                   <div className="font-bold text-[11px] uppercase">{mod.name}</div>
@@ -7508,8 +7608,8 @@ function POSPage({
                                     });
                                   }}
                                   className={`py-3 px-3 rounded-xl text-left transition-all border-2 ${checked
-                                      ? 'bg-cyan-600 border-cyan-600 text-white'
-                                      : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
+                                    ? 'bg-cyan-600 border-cyan-600 text-white'
+                                    : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-400 hover:text-cyan-700'
                                     }`}
                                 >
                                   <div className="font-bold text-[11px] uppercase">{mod.name}</div>
@@ -7531,8 +7631,8 @@ function POSPage({
                       <button
                         onClick={() => { if (canAdd) { playRegisterBeep(); confirmItemPicker(); } }}
                         className={`w-full py-3.5 rounded-xl font-black text-sm transition-all ${canAdd
-                            ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           }`}
                       >
                         {!canAdd
@@ -8725,180 +8825,180 @@ function POSPage({
           </div>
         )}
 
-      {showScanner && (
-        <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center sm:p-4 animate-fadeIn">
-          <div className="bg-black sm:bg-white sm:rounded-[2.5rem] shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl overflow-hidden flex flex-col relative">
-            <div className="absolute top-6 left-6 z-[110] pointer-events-none">
-              <p className="text-xl font-black text-white sm:text-gray-900 uppercase tracking-tight mb-1">
-                Scan Barcode
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(6,182,212,1)]"></div>
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{activeCameraLabel || 'Initializing System...'}</p>
+        {showScanner && (
+          <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center sm:p-4 animate-fadeIn">
+            <div className="bg-black sm:bg-white sm:rounded-[2.5rem] shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl overflow-hidden flex flex-col relative">
+              <div className="absolute top-6 left-6 z-[110] pointer-events-none">
+                <p className="text-xl font-black text-white sm:text-gray-900 uppercase tracking-tight mb-1">
+                  Scan Barcode
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(6,182,212,1)]"></div>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{activeCameraLabel || 'Initializing System...'}</p>
+                </div>
               </div>
-            </div>
 
-            <button
-              onClick={stopScanner}
-              className="absolute top-6 right-6 z-[110] w-12 h-12 bg-white/10 hover:bg-white/20 sm:bg-gray-100 sm:hover:bg-gray-200 backdrop-blur-md rounded-2xl flex items-center justify-center transition-all group active:scale-95"
-            >
-              <X className="w-6 h-6 text-white sm:text-gray-600 group-hover:rotate-90 transition-transform" />
-            </button>
+              <button
+                onClick={stopScanner}
+                className="absolute top-6 right-6 z-[110] w-12 h-12 bg-white/10 hover:bg-white/20 sm:bg-gray-100 sm:hover:bg-gray-200 backdrop-blur-md rounded-2xl flex items-center justify-center transition-all group active:scale-95"
+              >
+                <X className="w-6 h-6 text-white sm:text-gray-600 group-hover:rotate-90 transition-transform" />
+              </button>
 
-            <div className="flex-1 bg-black flex items-center justify-center relative group min-h-[70vh]">
-              {scannerMode === 'native' && (
-                <video ref={videoRef} className="w-full h-full object-contain" muted playsInline />
-              )}
-              {scannerMode === 'html5' && (
-                <div id="html5-scanner-container" className="absolute inset-0 w-full h-full"></div>
-              )}
+              <div className="flex-1 bg-black flex items-center justify-center relative group min-h-[70vh]">
+                {scannerMode === 'native' && (
+                  <video ref={videoRef} className="w-full h-full object-contain" muted playsInline />
+                )}
+                {scannerMode === 'html5' && (
+                  <div id="html5-scanner-container" className="absolute inset-0 w-full h-full"></div>
+                )}
 
-              {!scannerError && isScanning && isCameraReady ? (
-                <>
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.8)] z-50 animate-scan-line pointer-events-none"></div>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
-                    <div className="w-[85%] h-40 md:h-56 border-2 border-white/20 rounded-[2rem] relative shadow-[0_0_100px_rgba(0,0,0,0.5)]">
-                      <div className="absolute -top-1 -left-1 w-12 h-12 border-t-[6px] border-l-[6px] border-cyan-500 rounded-tl-[1.5rem]"></div>
-                      <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[6px] border-r-[6px] border-cyan-500 rounded-tr-[1.5rem]"></div>
-                      <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[6px] border-l-[6px] border-cyan-500 rounded-bl-[1.5rem]"></div>
-                      <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[6px] border-r-[6px] border-cyan-500 rounded-br-[1.5rem]"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] mt-24">Center Barcode Here</p>
+                {!scannerError && isScanning && isCameraReady ? (
+                  <>
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.8)] z-50 animate-scan-line pointer-events-none"></div>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+                      <div className="w-[85%] h-40 md:h-56 border-2 border-white/20 rounded-[2rem] relative shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+                        <div className="absolute -top-1 -left-1 w-12 h-12 border-t-[6px] border-l-[6px] border-cyan-500 rounded-tl-[1.5rem]"></div>
+                        <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[6px] border-r-[6px] border-cyan-500 rounded-tr-[1.5rem]"></div>
+                        <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[6px] border-l-[6px] border-cyan-500 rounded-bl-[1.5rem]"></div>
+                        <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[6px] border-r-[6px] border-cyan-500 rounded-br-[1.5rem]"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] mt-24">Center Barcode Here</p>
+                        </div>
                       </div>
                     </div>
+                  </>
+                ) : isScanning && !scannerError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm z-[105]">
+                    <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+                    <p className="text-white text-[10px] font-black uppercase tracking-widest animate-pulse">Activating Hardware...</p>
                   </div>
-                </>
-              ) : isScanning && !scannerError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm z-[105]">
-                  <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
-                  <p className="text-white text-[10px] font-black uppercase tracking-widest animate-pulse">Activating Hardware...</p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="absolute bottom-10 left-0 right-0 z-[110] px-6 text-center pointer-events-none">
-              {scannerError ? (
-                <div className="bg-red-600 text-white p-4 rounded-3xl shadow-xl animate-scaleIn inline-block max-w-sm pointer-events-auto">
-                  <div className="flex items-center gap-3 mb-1">
-                    <AlertTriangle className="w-5 h-5" />
-                    <span className="font-black text-sm uppercase tracking-tight">System Error</span>
+              <div className="absolute bottom-10 left-0 right-0 z-[110] px-6 text-center pointer-events-none">
+                {scannerError ? (
+                  <div className="bg-red-600 text-white p-4 rounded-3xl shadow-xl animate-scaleIn inline-block max-w-sm pointer-events-auto">
+                    <div className="flex items-center gap-3 mb-1">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="font-black text-sm uppercase tracking-tight">System Error</span>
+                    </div>
+                    <p className="text-xs font-bold opacity-90">{scannerError}</p>
                   </div>
-                  <p className="text-xs font-bold opacity-90">{scannerError}</p>
+                ) : (
+                  <div className="bg-black/40 backdrop-blur-md py-3 px-6 rounded-full border border-white/10 inline-block">
+                    <p className="text-white text-xs font-bold tracking-widest uppercase">
+                      {isCameraReady ? 'Scan in Progress...' : 'Activating Hardware...'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showQtyModal && qtyModalItem && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fadeIn" onClick={() => setShowQtyModal(false)}>
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
+              <div className="bg-cyan-600 p-6 text-white text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Set Quantity</p>
+                <h3 className="text-xl font-bold truncate">{qtyModalItem.name}</h3>
+              </div>
+              <div className="p-8">
+                <div className="relative mb-6">
+                  <input
+                    type="text"
+                    inputMode={window.innerWidth < 768 ? "none" : "numeric"}
+                    value={qtyModalValue}
+                    onChange={(e) => setQtyModalValue(e.target.value.replace(/[^0-9]/g, ''))}
+                    onClick={() => { if (window.innerWidth < 768) { setActiveKeypadField('qtyModalValue'); setShowKeypadSheet(true); } }}
+                    readOnly={window.innerWidth < 768}
+                    className="w-full text-center text-5xl font-black py-4 border-b-4 border-cyan-100 focus:border-cyan-500 outline-none transition-all tabular-nums cursor-pointer md:cursor-text"
+                    autoFocus={window.innerWidth >= 768}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleQtyModalConfirm();
+                      if (e.key === 'Escape') setShowQtyModal(false);
+                    }}
+                  />
                 </div>
-              ) : (
-                <div className="bg-black/40 backdrop-blur-md py-3 px-6 rounded-full border border-white/10 inline-block">
-                  <p className="text-white text-xs font-bold tracking-widest uppercase">
-                    {isCameraReady ? 'Scan in Progress...' : 'Activating Hardware...'}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setShowQtyModal(false)}
+                    className="py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleQtyModalConfirm}
+                    className="py-4 bg-cyan-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all"
+                  >
+                    Apply Quantity
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showKeypadSheet && (
+          <div className="fixed inset-0 z-[120] md:hidden flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" onClick={() => setShowKeypadSheet(false)}></div>
+            <div className="relative bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-10 flex flex-col gap-6 animate-slideUp">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    {activeKeypadField === 'amountReceived' ? 'Enter Cash Amount' :
+                      activeKeypadField === 'customDiscountPercent' ? 'Enter Discount %' :
+                        activeKeypadField === 'qtyModalValue' ? 'Set Quantity' :
+                          'Enter Discount Amount'}
+                  </span>
+                  <p className="text-3xl font-black text-cyan-600 tabular-nums">
+                    {activeKeypadField === 'amountReceived' ? (amountReceived || '0.00') :
+                      activeKeypadField === 'customDiscountPercent' ? (customDiscountPercent || '0') + '%' :
+                        activeKeypadField === 'qtyModalValue' ? (qtyModalValue || '0') :
+                          '₱' + (customDiscountAmount || '0.00')}
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showQtyModal && qtyModalItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fadeIn" onClick={() => setShowQtyModal(false)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
-            <div className="bg-cyan-600 p-6 text-white text-center">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Set Quantity</p>
-              <h3 className="text-xl font-bold truncate">{qtyModalItem.name}</h3>
-            </div>
-            <div className="p-8">
-              <div className="relative mb-6">
-                <input
-                  type="text"
-                  inputMode={window.innerWidth < 768 ? "none" : "numeric"}
-                  value={qtyModalValue}
-                  onChange={(e) => setQtyModalValue(e.target.value.replace(/[^0-9]/g, ''))}
-                  onClick={() => { if (window.innerWidth < 768) { setActiveKeypadField('qtyModalValue'); setShowKeypadSheet(true); } }}
-                  readOnly={window.innerWidth < 768}
-                  className="w-full text-center text-5xl font-black py-4 border-b-4 border-cyan-100 focus:border-cyan-500 outline-none transition-all tabular-nums cursor-pointer md:cursor-text"
-                  autoFocus={window.innerWidth >= 768}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleQtyModalConfirm();
-                    if (e.key === 'Escape') setShowQtyModal(false);
-                  }}
-                />
+                <button
+                  onClick={() => setShowKeypadSheet(false)}
+                  className="bg-cyan-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-cyan-200"
+                >
+                  Done
+                </button>
               </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => handleAmountKeypadInput(key)}
+                    className="flex items-center justify-center bg-gray-50 rounded-2xl h-16 text-2xl font-black text-gray-800 active:bg-cyan-100 active:text-cyan-600 transition-all"
+                  >
+                    {key === 'backspace' ? '⌫' : key}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setShowQtyModal(false)}
-                  className="py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+                  onClick={() => handleAmountKeypadInput('clear')}
+                  className="h-14 bg-red-50 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest"
                 >
-                  Cancel
+                  Clear
                 </button>
                 <button
-                  onClick={handleQtyModalConfirm}
-                  className="py-4 bg-cyan-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all"
+                  onClick={() => handleAmountKeypadInput('00')}
+                  className="h-14 bg-gray-50 text-gray-800 rounded-2xl font-black text-xl"
                 >
-                  Apply Quantity
+                  00
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {showKeypadSheet && (
-        <div className="fixed inset-0 z-[120] md:hidden flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" onClick={() => setShowKeypadSheet(false)}></div>
-          <div className="relative bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-10 flex flex-col gap-6 animate-slideUp">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  {activeKeypadField === 'amountReceived' ? 'Enter Cash Amount' : 
-                   activeKeypadField === 'customDiscountPercent' ? 'Enter Discount %' : 
-                   activeKeypadField === 'qtyModalValue' ? 'Set Quantity' :
-                   'Enter Discount Amount'}
-                </span>
-                <p className="text-3xl font-black text-cyan-600 tabular-nums">
-                  {activeKeypadField === 'amountReceived' ? (amountReceived || '0.00') : 
-                   activeKeypadField === 'customDiscountPercent' ? (customDiscountPercent || '0') + '%' : 
-                   activeKeypadField === 'qtyModalValue' ? (qtyModalValue || '0') :
-                   '₱' + (customDiscountAmount || '0.00')}
-                </p>
-              </div>
-              <button 
-                onClick={() => setShowKeypadSheet(false)}
-                className="bg-cyan-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-cyan-200"
-              >
-                Done
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
-                <button
-                  key={key}
-                  onClick={() => handleAmountKeypadInput(key)}
-                  className="flex items-center justify-center bg-gray-50 rounded-2xl h-16 text-2xl font-black text-gray-800 active:bg-cyan-100 active:text-cyan-600 transition-all"
-                >
-                  {key === 'backspace' ? '⌫' : key}
-                </button>
-              ))}
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleAmountKeypadInput('clear')}
-                className="h-14 bg-red-50 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => handleAmountKeypadInput('00')}
-                className="h-14 bg-gray-50 text-gray-800 rounded-2xl font-black text-xl"
-              >
-                00
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  </>
-);
+        )}
+      </div>
+    </>
+  );
 }
 
 
@@ -9275,31 +9375,31 @@ function CustomersPage({ setCurrentPage }) {
 
 
 
-  const extractOrderItems = (orderLike) => {
-    if (!orderLike || typeof orderLike !== 'object') return [];
-    const candidates = [
-      orderLike.items,
-      orderLike.order_items,
-      orderLike.orderItems,
-      orderLike.line_items,
-      orderLike.lineItems,
-      orderLike.OrderItems,
-      orderLike.LineItems,
-      orderLike.details,
-      orderLike.order_details
-    ];
-    for (const c of candidates) {
-      if (Array.isArray(c) && c.length > 0) return c;
-    }
-    // Fallback to whatever array we found if all were empty
-    for (const c of candidates) {
-      if (Array.isArray(c)) return c;
-    }
-    return [];
-  };
+const extractOrderItems = (orderLike) => {
+  if (!orderLike || typeof orderLike !== 'object') return [];
+  const candidates = [
+    orderLike.items,
+    orderLike.order_items,
+    orderLike.orderItems,
+    orderLike.line_items,
+    orderLike.lineItems,
+    orderLike.OrderItems,
+    orderLike.LineItems,
+    orderLike.details,
+    orderLike.order_details
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length > 0) return c;
+  }
+  // Fallback to whatever array we found if all were empty
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+  return [];
+};
 
 // Itemized Sales by Staff - sub-component
-function StaffItemizedReport({ salesData, getOrderRevenue }) {
+function StaffItemizedReport({ salesData, getOrderRevenue, printStaffItemizedViaBluetooth, dateRangeDesc }) {
   const [selectedStaff, setSelectedStaff] = useState('__all__');
   const [expandedStaff, setExpandedStaff] = useState({});
   const toggleStaff = (name) => setExpandedStaff(prev => ({ ...prev, [name]: !prev[name] }));
@@ -9384,6 +9484,21 @@ function StaffItemizedReport({ salesData, getOrderRevenue }) {
                 <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Revenue</p>
                 <p className="text-lg font-bold text-cyan-700">Php {staff.revenue.toFixed(2)}</p>
               </div>
+              
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if(printStaffItemizedViaBluetooth) {
+                    printStaffItemizedViaBluetooth(staff.name, staff, dateRangeDesc);
+                  }
+                }}
+                className="px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 rounded-md text-xs font-bold uppercase flex items-center gap-1.5 transition-colors shadow-sm"
+                title="Print Thermal Report"
+              >
+                <Printer size={14} />
+                Print
+              </button>
+
               <span className={`text-gray-400 text-xl font-bold ${expandedStaff[staff.name] ? 'rotate-90 inline-block' : ''}`}>{expandedStaff[staff.name] ? 'v' : '>'}</span>
             </div>
           </button>
@@ -9437,7 +9552,7 @@ function StaffItemizedReport({ salesData, getOrderRevenue }) {
 }
 
 // Inventory Reports Section Component
-function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbol, setShiftReport, triggerShiftReportPrint }) {
+function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbol, setShiftReport, triggerShiftReportPrint, printStaffItemizedViaBluetooth }) {
   const [reprintLoading, setReprintLoading] = useState(null);
 
   const handleReprintShift = async (shiftId) => {
@@ -9460,7 +9575,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbo
           sales_by_method: r.sales.by_payment_method,
           itemized_sales: r.itemized_sales
         };
-        
+
         setShiftReport(normalized);
         setTimeout(() => {
           triggerShiftReportPrint(normalized);
@@ -10182,7 +10297,12 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbo
         )}
 
         {!loading && activeReport === 'reports-staff-items' && (
-          <StaffItemizedReport salesData={salesData} getOrderRevenue={getOrderRevenue} />
+          <StaffItemizedReport 
+            salesData={salesData} 
+            getOrderRevenue={getOrderRevenue} 
+            printStaffItemizedViaBluetooth={printStaffItemizedViaBluetooth} 
+            dateRangeDesc={dateRange}
+          />
         )}
 
         {!loading && activeReport === 'reports-payments' && (
@@ -14108,16 +14228,16 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
     { id: 'pos', label: 'Terminal / Checkout', group: 'Operations' },
     { id: 'kitchen', label: 'Kitchen Display (KDS)', group: 'Operations' },
     { id: 'orders', label: 'Order Management', group: 'Operations' },
-    
+
     { id: 'dashboard', label: 'Sales Analytics', group: 'Management' },
     { id: 'products', label: 'Product Matrix', group: 'Management' },
     { id: 'inventory', label: 'Inventory Control', group: 'Management' },
     { id: 'reports', label: 'Detailed Reports', group: 'Management' },
     { id: 'accounting', label: 'Back Office Accounting', group: 'Management' },
-    
+
     { id: 'customers', label: 'Customer Directory', group: 'CRM' },
     { id: 'suppliers', label: 'Supplier Logistics', group: 'CRM' },
-    
+
     { id: 'staff-employees', label: 'Staff Management', group: 'Admin' },
     { id: 'settings', label: 'System Configuration', group: 'Admin' },
   ];
@@ -14437,7 +14557,7 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
           sales_by_method: r.sales.by_payment_method,
           itemized_sales: r.itemized_sales
         };
-        
+
         setShiftReport(normalized);
         // Delay slightly for DOM update then print
         setTimeout(() => {
@@ -15110,7 +15230,7 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
 }
 
 // Settings Page
-function SettingsPage({ 
+function SettingsPage({
   currentView, setCurrentPage, fetchProducts, employee, sysConfig, setSysConfig,
   btStatus, btPrinter, btMessage, connectBluetoothPrinter, triggerPrint, autoReconnectBluetooth
 }) {
@@ -16083,7 +16203,7 @@ function SettingsPage({
                     <Wifi size={18} className="text-cyan-400" />
                     <h4 className="font-bold uppercase text-xs tracking-widest">Bluetooth Terminal</h4>
                   </div>
-                  
+
                   <div className="space-y-6">
                     <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5">
                       <div>
@@ -17560,4 +17680,3 @@ function SuppliersPage({ setCurrentPage }) {
     </div>
   );
 }
-

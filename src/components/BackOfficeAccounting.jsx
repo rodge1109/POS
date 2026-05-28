@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatISO } from 'date-fns';
 import {
     Calculator, Receipt, TrendingUp, TrendingDown,
     ArrowUpCircle, ArrowDownCircle, Plus, Search,
@@ -14,6 +15,7 @@ export default function BackOfficeAccounting() {
     const [vendors, setVendors] = useState([]);
     const [payables, setPayables] = useState([]);
     const [journal, setJournal] = useState([]);
+    const [zReportDate, setZReportDate] = useState('');
     const [reports, setReports] = useState({
         pl: [],
         balanceSheet: [],
@@ -138,6 +140,16 @@ export default function BackOfficeAccounting() {
         }
     };
 
+    const fetchZReport = async (dateISO) => {
+        try {
+            const res = await fetchWithAuth(`${API_URL}/accounting/reports/z?date=${dateISO}`);
+            const data = await res.json();
+            setReports(data);
+        } catch (error) {
+            console.error('Z‑Report fetch error:', error);
+        }
+    };
+
     const postDailySummary = async () => {
         if (!dailySummary || (parseFloat(dailySummary.total_sales) === 0 && parseFloat(dailySummary.total_cogs) === 0)) {
             alert('No unposted entries for this date.');
@@ -209,7 +221,6 @@ export default function BackOfficeAccounting() {
                 .filter(a => a.parent_id === parentId)
                 .map(a => {
                     const children = buildTree(a.id);
-                    // If it's a header, sum up the children's balances, debits, and credits
                     let total_debit = parseFloat(a.total_debit || 0);
                     let total_credit = parseFloat(a.total_credit || 0);
                     let balance = parseFloat(a.balance || 0);
@@ -217,8 +228,6 @@ export default function BackOfficeAccounting() {
                     if (a.is_header && children.length > 0) {
                         total_debit = children.reduce((sum, child) => sum + parseFloat(child.total_debit || 0), 0);
                         total_credit = children.reduce((sum, child) => sum + parseFloat(child.total_credit || 0), 0);
-                        // For balance, it's more complex because of normal balance types, 
-                        // but summing the individual balances is usually sufficient if they are pre-calculated correctly
                         balance = children.reduce((sum, child) => sum + parseFloat(child.balance || 0), 0);
                     }
 
@@ -533,6 +542,7 @@ export default function BackOfficeAccounting() {
                     {[
                         { id: 'overview', label: 'Intelligence', icon: <TrendingUp size={18} /> },
                         { id: 'financials', label: 'Financials', icon: <Calculator size={18} /> },
+                        { id: 'zreport', label: 'Z‑Report', icon: <FileText size={18} /> },
                         { id: 'journal', label: 'Master Journal', icon: <FileText size={18} /> },
                         { id: 'payables', label: 'Liability Log', icon: <Clock size={18} /> },
                         { id: 'coa', label: 'COA Hierarchy', icon: <Landmark size={18} /> },
@@ -556,6 +566,25 @@ export default function BackOfficeAccounting() {
                 <div className="grid grid-cols-1 gap-10">
                     {activeTab === 'overview' && (
                         <div className="space-y-10">
+                            <div className="report-controls flex items-center gap-4 mb-4">
+                                <input
+                                    type="date"
+                                    className="p-2 border rounded"
+                                    value={zReportDate}
+                                    onChange={(e) => setZReportDate(e.target.value)}
+                                />
+                                <button
+                                    className="px-4 py-2 bg-[#0A0F0D] text-white rounded"
+                                    onClick={() => {
+                                        if (zReportDate) {
+                                            const iso = formatISO(new Date(zReportDate), { representation: 'date' });
+                                            fetchZReport(iso);
+                                        }
+                                    }}
+                                >
+                                    Load Z‑Report
+                                </button>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 <div className="bg-white p-10 rounded-[3rem] shadow-xl shadow-gray-200/20 border border-gray-50 relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-40 h-40 bg-green-500/5 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-1000"></div>
