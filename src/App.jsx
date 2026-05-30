@@ -406,7 +406,8 @@ export default function App() {
     loyalty_silver_threshold: '100', loyalty_silver_discount: '5',
     loyalty_gold_threshold: '500', loyalty_gold_discount: '10',
     loyalty_diamond_threshold: '1000', loyalty_diamond_discount: '15',
-    inventory_allow_negative: 'true'
+    inventory_allow_negative: 'true',
+    enable_discounts: 'true'
   });
 
   const currencySymbol = getCurrencySymbol(sysConfig.currency || 'PHP');
@@ -8104,6 +8105,7 @@ function POSPage({
                   </div>
 
                   {/* Discounts Section */}
+                  {sysConfig.enable_discounts !== 'false' && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Discounts & Offers</label>
@@ -8148,6 +8150,7 @@ function POSPage({
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Cash Tendered & Change Section */}
                   {paymentMethod === 'cash' && (
@@ -15676,6 +15679,23 @@ function SettingsPage({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Checkout Settings */}
+            <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+              <h3 className="font-semibold text-gray-800 text-base">Checkout Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Enable Discounts</p>
+                    <p className="text-xs text-gray-400">Allow cashiers to apply discounts during checkout.</p>
+                  </div>
+                  <button onClick={() => toggle('enable_discounts')}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${sysConfig['enable_discounts'] !== 'false' ? 'bg-cyan-600' : 'bg-gray-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${sysConfig['enable_discounts'] !== 'false' ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Inventory Settings */}
