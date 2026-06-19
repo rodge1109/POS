@@ -852,13 +852,7 @@ router.get('/reports/stock-status', async (req, res) => {
           created_at, updated_at
         FROM products
         WHERE company_id = $1
-        ORDER BY 
-          CASE 
-            WHEN stock_quantity <= low_stock_threshold THEN 1
-            WHEN stock_quantity <= (low_stock_threshold * 1.5) THEN 2
-            ELSE 3
-          END,
-          stock_value DESC`;
+        ORDER BY category ASC, name ASC`;
     } else {
       query = `
         SELECT 
@@ -878,13 +872,7 @@ router.get('/reports/stock-status', async (req, res) => {
           created_at, updated_at
         FROM ingredients
         WHERE company_id = $1
-        ORDER BY 
-          CASE 
-            WHEN current_stock <= reorder_level THEN 1
-            WHEN current_stock <= (reorder_level * 1.5) THEN 2
-            ELSE 3
-          END,
-          stock_value DESC`;
+        ORDER BY name ASC`;
     }
 
     const result = await pool.query(query, params);
