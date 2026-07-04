@@ -888,14 +888,14 @@ export default function App() {
     }
   };
 
-  const triggerShiftReportPrint = async (report) => {
+  const triggerShiftReportPrint = async (report, forceBrowser = false) => {
     if (btStatus === 'connected') {
       const success = await printShiftReportViaBluetooth(report);
       if (success) return;
     }
 
     // Check if fallback is disabled
-    if (sysConfig.printer_disable_fallback === 'true') {
+    if (sysConfig.printer_disable_fallback === 'true' && !forceBrowser) {
       console.log('Bluetooth offline. Shift report browser print suppressed.');
       return;
     }
@@ -9583,7 +9583,7 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbo
 
         setShiftReport(normalized);
         setTimeout(() => {
-          triggerShiftReportPrint(normalized);
+          triggerShiftReportPrint(normalized, true);
         }, 800);
       } else {
         alert(data.error || 'Failed to fetch shift report');
@@ -14595,7 +14595,7 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
         setShiftReport(normalized);
         // Delay slightly for DOM update then print
         setTimeout(() => {
-          triggerShiftReportPrint(normalized);
+          triggerShiftReportPrint(normalized, true);
         }, 800);
       } else {
         alert(data.error || 'Failed to fetch shift report');
