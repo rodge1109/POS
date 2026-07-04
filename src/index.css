@@ -189,10 +189,7 @@ input.payment-amount-input {
 
   /* Receipts still use the old id-based show-only logic if needed */
   /* When printing a receipt/shift report, hide the main UI layout completely */
-  body.printing-receipt main,
-  body.printing-receipt aside,
-  body.printing-receipt header,
-  body.printing-receipt nav {
+  body.printing-receipt #root > *:not(#print-container) {
     display: none !important;
   }
   

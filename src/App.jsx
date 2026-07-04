@@ -787,8 +787,10 @@ export default function App() {
     }
 
     document.body.classList.add('printing-receipt');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
+    }, 100);
   };
 
   const printShiftReportViaBluetooth = async (report, config = sysConfig) => {
@@ -903,8 +905,10 @@ export default function App() {
     }
 
     document.body.classList.add('printing-receipt');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
+    }, 100);
   };
 
   const printStaffItemizedViaBluetooth = async (staffName, staffData, dateRangeDesc, config = sysConfig) => {
@@ -2147,7 +2151,7 @@ export default function App() {
           </nav>
         )}
       </div>
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
+      <div id="print-container" style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
         {shiftReport ? (
           <PrintableShiftReport report={shiftReport} config={sysConfig} />
         ) : (
