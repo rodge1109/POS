@@ -137,7 +137,7 @@ router.delete('/ingredients/:id', async (req, res) => {
 
     res.json({ success: true, message: 'Ingredient deleted successfully' });
   } catch (error) {
-    if (error.code === '23503') { 
+    if (error.code === '23503') {
       return res.status(400).json({ success: false, error: 'Cannot delete: this ingredient is used in recipes or transactions.' });
     }
     console.error('Error deleting ingredient:', error);
@@ -264,7 +264,7 @@ router.post('/ingredients/bulk', async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, name, current_stock
       `;
-      
+
       const result = await client.query(query, [names, units, stocks, reorders, costs, suppliers, companies]);
       const insertedIngredients = result.rows;
 
@@ -293,8 +293,8 @@ router.post('/ingredients/bulk', async (req, res) => {
     }
   } catch (error) {
     console.error('Error bulk uploading ingredients:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to import ingredients',
       detail: error.detail || null,
       code: error.code || null
@@ -343,7 +343,7 @@ export async function updateProductCosts(company_id) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // 1. Update Costs for Products without sizes (Base Items)
     await client.query(`
       UPDATE products p
@@ -452,7 +452,7 @@ router.post('/adjust', async (req, res) => {
     const updateQuery = ingredient_id
       ? `UPDATE ingredients SET current_stock = $1, cost_per_unit = $2, last_expiry_date = COALESCE($3, last_expiry_date), updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND company_id = $5`
       : `UPDATE products SET stock_quantity = $1, cost = $2, last_expiry_date = COALESCE($3, last_expiry_date), updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND company_id = $5`;
-    
+
     await client.query(updateQuery, [newStock, newCostPerUnit, expiry_date || null, ingredient_id || product_id, req.company_id]);
 
     // Record transaction with expiry date
@@ -486,7 +486,7 @@ router.get('/transactions/:id', async (req, res) => {
     const { id } = req.params;
     const { type = 'ingredient', limit = 100, offset = 0 } = req.query;
     const column = type === 'product' ? 'product_id' : 'ingredient_id';
-    
+
     const result = await pool.query(
       `SELECT 
         it.*, 
@@ -507,7 +507,7 @@ router.get('/transactions/:id', async (req, res) => {
     );
 
 
-    
+
     res.json({
       success: true,
       transactions: result.rows,
@@ -546,7 +546,7 @@ router.post('/recipes/auto-link', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Find products and ingredients with identical names that aren't already linked
     const matches = await client.query(`
       SELECT p.id as product_id, i.id as ingredient_id, p.name
@@ -643,7 +643,7 @@ router.post('/recipes/:productId/ingredients', async (req, res) => {
     if (productResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
-    
+
     // Check if link already exists for this size
     const existing = await pool.query(
       'SELECT id FROM product_composition WHERE product_id = $1 AND ingredient_id = $2 AND (size_id = $3 OR (size_id IS NULL AND $3 IS NULL)) AND company_id = $4',
@@ -675,7 +675,7 @@ router.put('/recipes/:productId/ingredients/:ingredientId', async (req, res) => 
   try {
     const { productId, ingredientId } = req.params;
     const { quantity_required, size_id } = req.body;
-    
+
     const result = await pool.query(
       `UPDATE product_composition 
        SET quantity_required = $1, updated_at = CURRENT_TIMESTAMP
@@ -683,7 +683,7 @@ router.put('/recipes/:productId/ingredients/:ingredientId', async (req, res) => 
        RETURNING *`,
       [quantity_required, productId, ingredientId, size_id || null, req.company_id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Recipe item not found' });
     }
@@ -748,7 +748,7 @@ router.get('/expiring-batches', async (req, res) => {
       AND it.quantity_change > 0
       ORDER BY it.expiry_date ASC
     `, [req.company_id]);
-    
+
     res.json({ success: true, batches: result.rows });
   } catch (error) {
     console.error('Error fetching expiring batches:', error);
@@ -943,7 +943,7 @@ router.get('/reports/movement', async (req, res) => {
     }
 
     const result = await pool.query(query, params);
-    
+
     const totalInward = result.rows.reduce((sum, item) => sum + toNum(item.inward), 0);
     const totalOutward = result.rows.reduce((sum, item) => sum + toNum(item.outward), 0);
 
@@ -1031,15 +1031,15 @@ router.get('/reports/abc-analysis', async (req, res) => {
 
     const totalValue = result.rows.reduce((sum, item) => sum + toNum(item.stock_value), 0);
     let cumulativeValue = 0;
-    
+
     const classified = result.rows.map((item) => {
       cumulativeValue += toNum(item.stock_value);
       const percentage = totalValue > 0 ? (cumulativeValue / totalValue) * 100 : 0;
-      
+
       let classification = 'C';
       if (percentage <= 80 && item.usage_frequency > 0) classification = 'A';
       else if (percentage <= 95 && item.usage_frequency > 0) classification = 'B';
-      
+
       return {
         ...item,
         cumulative_percentage: parseFloat(percentage.toFixed(2)),

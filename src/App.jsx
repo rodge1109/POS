@@ -41,6 +41,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 // 🚀 Lazy load large management components to keep the main POS bundle small
 const ProductManagementPage = lazy(() => import('./components/ProductManagementPage'));
 const BackOfficeAccounting = lazy(() => import('./components/BackOfficeAccounting'));
+import AgentSettings from './components/agent/AgentSettings.jsx';
 import { parseCsvLine } from './utils/csvParser';
 
 const currencySymbols = {
@@ -2519,7 +2520,8 @@ const navItems = [
       { id: 'settings-general', label: 'System Config' },
       { id: 'settings-printers', label: 'Thermal Printers' },
       { id: 'settings-integrations', label: 'Integrations' },
-      { id: 'settings-migration', label: 'Migration Tools' }
+      { id: 'settings-migration', label: 'Migration Tools' },
+      { id: 'settings-agent', label: 'AI Agent' }
     ]
   },
 ];
@@ -9584,6 +9586,8 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbo
           triggerShiftReportPrint(normalized);
           setShiftReport(null);
         }, 800);
+      } else {
+        alert(data.error || 'Failed to fetch shift report');
       }
     } catch (e) {
       console.error('Reprint failed:', e);
@@ -11351,6 +11355,7 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
   const [loading, setLoading] = useState(true);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [ordersReconciliation, setOrdersReconciliation] = useState(null);
   const [ordersReconciliationError, setOrdersReconciliationError] = useState('');
 
@@ -11414,6 +11419,18 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
     : ordersReconciliation?.mismatched_orders > 0
       ? 'alert'
       : 'ok';
+
+  const displayOrders = orders.filter(order => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (order.order_number && order.order_number.toString().toLowerCase().includes(q)) ||
+      (order.order_status && order.order_status.toLowerCase().includes(q)) ||
+      (order.order_type && order.order_type.toLowerCase().includes(q)) ||
+      (order.customerName && order.customerName.toLowerCase().includes(q)) ||
+      (order.total_amount && order.total_amount.toString().includes(q))
+    );
+  });
 
   return (
     <div className="orders-lineitems min-h-screen bg-gray-100 pt-0">
@@ -11490,18 +11507,33 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
           <ReconciliationAssistant message={ordersAssistantMessage} mood={ordersAssistantMood} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {views.map(view => (
-            <button
-              key={view.id}
-              onClick={() => setCurrentPage(view.id)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${currentView === view.id ? 'bg-cyan-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'
-                }`}
-            >
-              {view.name}
-            </button>
-          ))}
+        {/* Tabs and Search */}
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-6">
+          <div className="flex gap-2">
+            {views.map(view => (
+              <button
+                key={view.id}
+                onClick={() => setCurrentPage(view.id)}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${currentView === view.id ? 'bg-cyan-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'
+                  }`}
+              >
+                {view.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full md:w-64">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search orders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all shadow-sm bg-white"
+            />
+          </div>
         </div>
 
         {loading ? (
@@ -11522,7 +11554,7 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {orders.map(order => (
+                {displayOrders.map(order => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">#{order.order_number}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</td>
@@ -11549,7 +11581,7 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
                     </td>
                   </tr>
                 ))}
-                {orders.length === 0 && (
+                {displayOrders.length === 0 && (
                   <tr><td colSpan="6" className="px-6 py-8 text-center text-gray-500">No orders found</td></tr>
                 )}
               </tbody>
@@ -14567,6 +14599,8 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
           triggerShiftReportPrint(normalized);
           setShiftReport(null);
         }, 800);
+      } else {
+        alert(data.error || 'Failed to fetch shift report');
       }
     } catch (e) {
       console.error('Reprint failed:', e);
@@ -15246,6 +15280,7 @@ function SettingsPage({
     { id: 'settings-loyalty', name: 'Loyalty Program' },
     { id: 'settings-integrations', name: 'Integrations' },
     { id: 'settings-migration', name: 'Migration Tools' },
+    { id: 'settings-agent', name: 'AI Agent' },
   ];
 
   const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : '/api');
@@ -16433,6 +16468,15 @@ function SettingsPage({
               )}
             </div>
           </div>
+        )}
+        {currentView === 'settings-agent' && (
+          <AgentSettings 
+            authHeaders={{
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }} 
+            apiUrl={API_URL} 
+          />
         )}
       </div>
     </div>
