@@ -188,15 +188,19 @@ input.payment-amount-input {
   }
 
   /* Receipts still use the old id-based show-only logic if needed */
-  body.printing-receipt * {
-    visibility: hidden;
+  /* When printing a receipt/shift report, hide the main UI layout completely */
+  body.printing-receipt main,
+  body.printing-receipt aside,
+  body.printing-receipt header,
+  body.printing-receipt nav {
+    display: none !important;
   }
   
-  body.printing-receipt #printable-receipt, 
-  body.printing-receipt #printable-receipt *,
-  body.printing-receipt #printable-shift-report, 
-  body.printing-receipt #printable-shift-report * {
-    visibility: visible;
+  body.printing-receipt #print-container {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   body.printing-receipt #printable-receipt,
@@ -210,7 +214,8 @@ input.payment-amount-input {
 
   /* When NOT printing a receipt (e.g. printing a full A4 report) */
   body:not(.printing-receipt) #printable-receipt, 
-  body:not(.printing-receipt) #printable-shift-report {
+  body:not(.printing-receipt) #printable-shift-report,
+  body:not(.printing-receipt) #print-container {
     display: none !important;
   }
 
