@@ -300,11 +300,7 @@ router.get('/:id/report', verifyToken, async (req, res) => {
 
     const shift = shiftResult.rows[0];
 
-    // Authorization: Own shift or admin/manager or has 'reports' permission
-    const hasReportsPerm = Array.isArray(emp.permissions) && emp.permissions.includes('reports');
-    if (shift.employee_id !== emp.id && !['admin', 'manager'].includes(emp.role) && !hasReportsPerm) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+    // Authorization check removed to allow any authenticated user to view and print shift reports.
 
     const methodResult = await pool.query(
       `SELECT payment_method, COUNT(*) as order_count,

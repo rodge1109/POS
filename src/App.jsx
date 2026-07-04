@@ -9584,7 +9584,6 @@ function ReportsPage({ currentReport, setCurrentPage, formatMoney, currencySymbo
         setShiftReport(normalized);
         setTimeout(() => {
           triggerShiftReportPrint(normalized);
-          setShiftReport(null);
         }, 800);
       } else {
         alert(data.error || 'Failed to fetch shift report');
@@ -14597,7 +14596,6 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
         // Delay slightly for DOM update then print
         setTimeout(() => {
           triggerShiftReportPrint(normalized);
-          setShiftReport(null);
         }, 800);
       } else {
         alert(data.error || 'Failed to fetch shift report');
