@@ -786,7 +786,9 @@ export default function App() {
       return;
     }
 
+    document.body.classList.add('printing-receipt');
     window.print();
+    setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
   };
 
   const printShiftReportViaBluetooth = async (report, config = sysConfig) => {
@@ -900,7 +902,9 @@ export default function App() {
       return;
     }
 
+    document.body.classList.add('printing-receipt');
     window.print();
+    setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
   };
 
   const printStaffItemizedViaBluetooth = async (staffName, staffData, dateRangeDesc, config = sysConfig) => {

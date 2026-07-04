@@ -188,17 +188,30 @@ input.payment-amount-input {
   }
 
   /* Receipts still use the old id-based show-only logic if needed */
-  #printable-receipt, #printable-shift-report {
+  body.printing-receipt * {
+    visibility: hidden;
+  }
+  
+  body.printing-receipt #printable-receipt, 
+  body.printing-receipt #printable-receipt *,
+  body.printing-receipt #printable-shift-report, 
+  body.printing-receipt #printable-shift-report * {
+    visibility: visible;
+  }
+
+  body.printing-receipt #printable-receipt,
+  body.printing-receipt #printable-shift-report {
     display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 58mm !important;
-    visibility: visible;
   }
 
-  #printable-receipt *, #printable-shift-report * {
-    visibility: visible;
+  /* When NOT printing a receipt (e.g. printing a full A4 report) */
+  body:not(.printing-receipt) #printable-receipt, 
+  body:not(.printing-receipt) #printable-shift-report {
+    display: none !important;
   }
 
   @page {
