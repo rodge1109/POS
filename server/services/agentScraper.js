@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import axios from 'axios';
 import nodemailer from 'nodemailer';
 import pool from '../config/database.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -24,9 +24,35 @@ async function createTransporter(s) {
   });
 }
 
+/**
+ * Strips HTML tags and collapses whitespace to extract plain readable text.
+ * Works without any external parser — pure regex.
+ */
+function htmlToText(html) {
+  return html
+    // Remove <script> and <style> blocks entirely
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    // Replace block-level tags with newlines for readability
+    .replace(/<\/(p|div|section|article|header|footer|li|tr|td|th|h[1-6]|br)>/gi, '\n')
+    // Strip all remaining HTML tags
+    .replace(/<[^>]+>/g, ' ')
+    // Decode common HTML entities
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    // Collapse multiple spaces/blank lines
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export async function runAgent(company_id) {
   const s = await getSettings(company_id);
-  
+
   const targetUrl = s.agent_target_url;
   const aiPrompt = s.agent_ai_prompt;
   const targetEmail = s.agent_target_email;
@@ -40,41 +66,38 @@ export async function runAgent(company_id) {
     throw new Error('Gemini API Key is missing. Please add it to the AI Agent settings.');
   }
 
-  let browser = null;
   let rawPageText = '';
   let finalAiResponse = '';
 
+  // 1. Fetch the page with axios (no browser needed)
   try {
-    // 1. Launch Playwright and scrape the raw page text
-    browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-    
-    // Navigate to the target URL
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    
-    // Wait a brief moment for dynamic content
-    await page.waitForTimeout(3000); 
-    
-    // Extract the visible text of the entire body
-    rawPageText = await page.evaluate(() => document.body.innerText);
+    const response = await axios.get(targetUrl, {
+      timeout: 30000,
+      headers: {
+        // Mimic a real browser to avoid bot-blocking
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+      // Return raw HTML string
+      responseType: 'text',
+    });
 
-    if (!rawPageText || rawPageText.trim().length === 0) {
-      throw new Error('No visible text found on the page to analyze.');
+    rawPageText = htmlToText(response.data);
+
+    if (!rawPageText || rawPageText.trim().length < 10) {
+      throw new Error('No readable text could be extracted from the page.');
     }
 
   } catch (error) {
-    console.error('Playwright scraping error:', error);
+    console.error('HTTP scraping error:', error.message);
     throw new Error(`Error during web scraping: ${error.message}`);
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
 
+  // 2. Use Gemini AI to process the raw text based on the user's prompt
   try {
-    // 2. Use Gemini AI to process the raw text based on the user's prompt
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const systemInstruction = `
 You are an intelligent web scraping assistant.
@@ -87,9 +110,9 @@ User Instruction: ${aiPrompt}
 
     const result = await model.generateContent([
       systemInstruction,
-      "\n\n--- RAW WEBPAGE TEXT START ---\n",
-      rawPageText.substring(0, 40000), // Limit to avoid exceeding context window if massive
-      "\n--- RAW WEBPAGE TEXT END ---\n"
+      '\n\n--- RAW WEBPAGE TEXT START ---\n',
+      rawPageText.substring(0, 40000), // Limit to avoid exceeding context window
+      '\n--- RAW WEBPAGE TEXT END ---\n',
     ]);
 
     finalAiResponse = result.response.text();
@@ -102,9 +125,7 @@ User Instruction: ${aiPrompt}
   // 3. Send the email with the AI-processed data
   try {
     const transporter = await createTransporter(s);
-    
-    // We convert markdown-like AI output to simple HTML by wrapping in <pre> or simple replacements
-    // (For this version, a <pre> block works perfectly for preserving list spacing)
+
     const htmlContent = `
       <h2>AI Agent Scraping Result</h2>
       <p><strong>Target URL:</strong> <a href="${targetUrl}">${targetUrl}</a></p>
@@ -122,7 +143,7 @@ User Instruction: ${aiPrompt}
       subject: `AI Agent Extracted Data: ${targetUrl}`,
       html: htmlContent,
     });
-    
+
     return { success: true, message: 'Agent executed successfully and email sent.', scrapedData: finalAiResponse };
   } catch (error) {
     console.error('Email sending error:', error);
