@@ -6212,6 +6212,7 @@ function POSPage({
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [serviceType, setServiceType] = useState('dine-in');
   const [amountReceived, setAmountReceived] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scannerBuffer, setScannerBuffer] = useState('');
@@ -6260,9 +6261,88 @@ function POSPage({
   const [billOutOrder, setBillOutOrder] = useState(null);
   const [billPaymentMethod, setBillPaymentMethod] = useState('cash');
   const [billAmountReceived, setBillAmountReceived] = useState('');
+  const [billPaymentReference, setBillPaymentReference] = useState('');
   const [billCustomer, setBillCustomer] = useState(null);
   const [billCustomerSearch, setBillCustomerSearch] = useState('');
-  const [billCustomerResults, setBillCustomerResults] = useState([]);
+  const [showBillCustomerDropdown, setShowBillCustomerDropdown] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customersList, setCustomersList] = useState([]);
+  const [isFetchingCustomers, setIsFetchingCustomers] = useState(false);
+  const [showQuickAddCustomerModal, setShowQuickAddCustomerModal] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+
+  const loadCustomers = async () => {
+    try {
+      setIsFetchingCustomers(true);
+      const res = await fetchWithAuth(`${API_URL}/customers`);
+      const data = await res.json();
+      if (data.success) {
+        setCustomersList(data.customers || []);
+      }
+    } catch (err) {
+      console.error('Error loading customers:', err);
+    } finally {
+      setIsFetchingCustomers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showPaymentModal || showBillOutModal) {
+      loadCustomers();
+    }
+  }, [showPaymentModal, showBillOutModal]);
+
+  const filteredCustomers = customersList.filter(c => {
+    const q = (customerSearch || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.includes(q)) ||
+      (c.email && c.email.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredBillCustomers = customersList.filter(c => {
+    const q = (billCustomerSearch || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.includes(q)) ||
+      (c.email && c.email.toLowerCase().includes(q))
+    );
+  });
+
+  const handleQuickRegisterCustomer = async () => {
+    if (!newCustName.trim() || !newCustPhone.trim()) {
+      alert('Please enter customer name and phone number');
+      return;
+    }
+    try {
+      const res = await fetchWithAuth(`${API_URL}/customers/register`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newCustName.trim(),
+          phone: newCustPhone.trim(),
+          pin: '0000'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.customer) {
+        setSelectedCustomer(data.customer);
+        setBillCustomer(data.customer);
+        setShowQuickAddCustomerModal(false);
+        setNewCustName('');
+        setNewCustPhone('');
+        loadCustomers();
+      } else {
+        alert(data.error || 'Failed to register customer');
+      }
+    } catch (err) {
+      console.error('Error registering customer:', err);
+      alert('Failed to register customer');
+    }
+  };
   const [billDiscount, setBillDiscount] = useState(0);
   const [splitPaymentMode, setSplitPaymentMode] = useState(false);
   const [splitPayments, setSplitPayments] = useState([{ method: 'cash', amount: '', reference: '' }]);
@@ -6606,7 +6686,7 @@ function POSPage({
       } else {
         const received = parseFloat(billAmountReceived) || 0;
         body.payment_method = billPaymentMethod;
-        body.payment_reference = billPaymentMethod === 'cash' ? `Cash: ${received.toFixed(2)}` : null;
+        body.payment_reference = billPaymentMethod === 'cash' ? `Cash: ${received.toFixed(2)}` : (billPaymentReference.trim() || null);
         body.amount_received = received;
       }
 
@@ -6645,6 +6725,7 @@ function POSPage({
         setBillOutOrder(null);
         setBillPaymentMethod('cash');
         setBillAmountReceived('');
+        setBillPaymentReference('');
         setBillCustomer(null);
         setBillDiscount(0);
         setSplitPaymentMode(false);
@@ -7192,7 +7273,8 @@ function POSPage({
       total_amount: total,
       payment_method: paymentMethod,
       payment_reference: paymentMethod === 'cash' ? `Cash: ${received.toFixed(2)}` :
-        paymentMethod === 'credit' ? `Credit: ${selectedCustomer?.name}` : null,
+        paymentMethod === 'credit' ? `Credit: ${selectedCustomer?.name}` :
+        (paymentReference.trim() || null),
       payment_status: paymentMethod === 'credit' ? 'credit' : 'paid',
       order_type: 'pos',
       service_type: serviceType,
@@ -8225,22 +8307,47 @@ function POSPage({
                     </div>
                   )}
 
-                  {/* Customer Search - Even more Compact */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Customer</label>
+                  {(paymentMethod === 'gcash' || paymentMethod === 'card') && (
+                    <div className="pt-2 animate-fadeIn space-y-2">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">
+                        {paymentMethod === 'gcash' ? 'GCash Reference No. / Ref ID' : 'Card / Payment Reference'}
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentReference}
+                        onChange={(e) => setPaymentReference(e.target.value)}
+                        placeholder={paymentMethod === 'gcash' ? "e.g. 100294819234" : "e.g. Approval / Ref No."}
+                        className="w-full border-2 border-gray-100 focus:border-cyan-500 rounded-2xl px-4 py-3 text-sm font-bold outline-none bg-gray-50 transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  {/* Customer Search Section */}
+                  <div className="space-y-1.5 relative">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                        Customer {paymentMethod === 'credit' && <span className="text-red-500 font-bold ml-1">(Required for Credit)</span>}
+                      </label>
+                      {!selectedCustomer && (
+                        <button
+                          type="button"
+                          onClick={() => setShowQuickAddCustomerModal(true)}
+                          className="text-xs text-cyan-600 font-bold hover:underline flex items-center gap-1"
+                        >
+                          + Quick Add Customer
+                        </button>
+                      )}
+                    </div>
                     {selectedCustomer ? (
                       <div className="bg-cyan-50 border-2 border-cyan-100 p-4 rounded-2xl flex justify-between items-center shadow-sm">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-sm">
-                            {selectedCustomer.name.substring(0, 2).toUpperCase()}
+                            {selectedCustomer.name?.substring(0, 2).toUpperCase() || 'CU'}
                           </div>
                           <div>
                             <p className="font-black text-gray-900 text-sm leading-none">{selectedCustomer.name}</p>
                             <p className="text-[11px] text-gray-500 font-bold mt-1 uppercase tracking-tight">
-                              {selectedCustomer.loyalty_tier} • {selectedCustomer.loyalty_points} Points
-                              <span className="ml-2 text-cyan-600 animate-pulse">
-                                (+{(total * parseFloat(sysConfig.loyalty_points_per_php || 0.02)).toFixed(0)} points)
-                              </span>
+                              {selectedCustomer.phone || 'No phone'} • Balance: ₱{parseFloat(selectedCustomer.credit_balance || 0).toFixed(2)}
                             </p>
                           </div>
                         </div>
@@ -8254,10 +8361,57 @@ function POSPage({
                         <input
                           type="text"
                           value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          placeholder="Search loyalty members..."
+                          onChange={(e) => {
+                            setCustomerSearch(e.target.value);
+                            setShowCustomerDropdown(true);
+                          }}
+                          onFocus={() => setShowCustomerDropdown(true)}
+                          placeholder="Search customer by name or phone..."
                           className="w-full pl-12 pr-4 py-4 border-2 border-gray-100 rounded-2xl focus:outline-none focus:border-cyan-500 text-sm font-bold bg-gray-50 uppercase tracking-tight"
                         />
+
+                        {/* Customer Results Dropdown */}
+                        {showCustomerDropdown && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-cyan-200 rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto">
+                            {filteredCustomers.length > 0 ? (
+                              filteredCustomers.map((cust) => (
+                                <div
+                                  key={cust.id}
+                                  onClick={() => {
+                                    setSelectedCustomer(cust);
+                                    setShowCustomerDropdown(false);
+                                    setCustomerSearch('');
+                                  }}
+                                  className="px-4 py-3 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-0 flex justify-between items-center transition-colors"
+                                >
+                                  <div>
+                                    <p className="font-bold text-sm text-gray-800">{cust.name}</p>
+                                    <p className="text-xs text-gray-400">{cust.phone || cust.email || 'No contact info'}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                      Bal: ₱{parseFloat(cust.credit_balance || 0).toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center">
+                                <p className="text-xs text-gray-500 mb-2">No matching customers found.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setShowCustomerDropdown(false);
+                                    setShowQuickAddCustomerModal(true);
+                                  }}
+                                  className="px-4 py-2 bg-cyan-600 text-white rounded-xl text-xs font-bold hover:bg-cyan-700 transition-colors"
+                                >
+                                  + Register "{customerSearch}" as New Customer
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -8555,6 +8709,104 @@ function POSPage({
                           )}
                         </div>
                       )}
+
+                      {(billPaymentMethod === 'gcash' || billPaymentMethod === 'card') && (
+                        <div className="mt-3">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            {billPaymentMethod === 'gcash' ? 'GCash Reference No. / Ref ID' : 'Card / Payment Reference'}
+                          </label>
+                          <input
+                            type="text"
+                            value={billPaymentReference}
+                            onChange={(e) => setBillPaymentReference(e.target.value)}
+                            placeholder={billPaymentMethod === 'gcash' ? "e.g. 100294819234" : "e.g. Approval / Ref No."}
+                            className="w-full border-2 border-gray-200 focus:border-cyan-600 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none transition-colors"
+                          />
+                        </div>
+                      )}
+
+                      {/* Customer Selection Section for Bill Out */}
+                      <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs font-bold text-gray-700">
+                            Customer Account {billPaymentMethod === 'credit' && <span className="text-red-500 font-bold ml-1">(Required for Credit)</span>}
+                          </p>
+                          {!billCustomer && (
+                            <button
+                              type="button"
+                              onClick={() => setShowQuickAddCustomerModal(true)}
+                              className="text-[11px] text-cyan-600 font-bold hover:underline"
+                            >
+                              + Quick Add
+                            </button>
+                          )}
+                        </div>
+
+                        {billCustomer ? (
+                          <div className="bg-cyan-50 border border-cyan-300 p-2.5 rounded-lg flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-xs text-gray-800">{billCustomer.name}</p>
+                              <p className="text-[10px] text-gray-500">{billCustomer.phone || 'No phone'} • Credit Bal: ₱{parseFloat(billCustomer.credit_balance || 0).toFixed(2)}</p>
+                            </div>
+                            <button onClick={() => setBillCustomer(null)} className="text-red-500 hover:text-red-700 p-1">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={billCustomerSearch}
+                              onChange={(e) => {
+                                setBillCustomerSearch(e.target.value);
+                                setShowBillCustomerDropdown(true);
+                              }}
+                              onFocus={() => setShowBillCustomerDropdown(true)}
+                              placeholder="Search customer for credit..."
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-medium bg-white outline-none focus:border-cyan-600"
+                            />
+                            {showBillCustomerDropdown && (
+                              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-cyan-300 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                                {filteredBillCustomers.length > 0 ? (
+                                  filteredBillCustomers.map((cust) => (
+                                    <div
+                                      key={cust.id}
+                                      onClick={() => {
+                                        setBillCustomer(cust);
+                                        setShowBillCustomerDropdown(false);
+                                        setBillCustomerSearch('');
+                                      }}
+                                      className="px-3 py-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-0 flex justify-between items-center"
+                                    >
+                                      <div>
+                                        <p className="font-bold text-xs text-gray-800">{cust.name}</p>
+                                        <p className="text-[10px] text-gray-400">{cust.phone || 'No phone'}</p>
+                                      </div>
+                                      <span className="text-[10px] font-bold text-gray-500">
+                                        ₱{parseFloat(cust.credit_balance || 0).toFixed(2)}
+                                      </span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="p-3 text-center">
+                                    <p className="text-[11px] text-gray-500 mb-1.5">No customer found.</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setShowBillCustomerDropdown(false);
+                                        setShowQuickAddCustomerModal(true);
+                                      }}
+                                      className="px-3 py-1 bg-cyan-600 text-white rounded text-[11px] font-bold"
+                                    >
+                                      + Register New Customer
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </>
                   ) : (
                     <div className="space-y-2">
@@ -8577,6 +8829,15 @@ function POSPage({
                             placeholder="0.00"
                             className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-bold text-center bg-white outline-none focus:border-gray-500 tabular-nums"
                           />
+                          {(payment.method === 'gcash' || payment.method === 'card') && (
+                            <input
+                              type="text"
+                              value={payment.reference || ''}
+                              onChange={(e) => { const updated = [...splitPayments]; updated[idx].reference = e.target.value; setSplitPayments(updated); }}
+                              placeholder="Ref No."
+                              className="w-28 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-medium bg-white outline-none focus:border-gray-500"
+                            />
+                          )}
                           {splitPayments.length > 1 && (
                             <button onClick={() => setSplitPayments(splitPayments.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
                               <X size={14} />
@@ -9004,6 +9265,60 @@ function POSPage({
                   className="h-14 bg-gray-50 text-gray-800 rounded-2xl font-black text-xl"
                 >
                   00
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showQuickAddCustomerModal && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-dashboard">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Quick Add Customer</h3>
+                <button onClick={() => setShowQuickAddCustomerModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    value={newCustName}
+                    onChange={(e) => setNewCustName(e.target.value)}
+                    placeholder="e.g. Juan Dela Cruz"
+                    className="w-full border-2 border-gray-100 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none bg-gray-50"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Phone Number *</label>
+                  <input
+                    type="text"
+                    value={newCustPhone}
+                    onChange={(e) => setNewCustPhone(e.target.value)}
+                    placeholder="e.g. 09171234567"
+                    className="w-full border-2 border-gray-200 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddCustomerModal(false)}
+                  className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 text-xs font-bold hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickRegisterCustomer}
+                  className="flex-1 py-3 bg-cyan-600 text-white rounded-xl text-xs font-black uppercase tracking-tight hover:bg-cyan-700 shadow-md transition-all"
+                >
+                  Save & Select
                 </button>
               </div>
             </div>

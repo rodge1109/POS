@@ -10,6 +10,24 @@ const generateOrderNumber = () => {
   return `ORD-${timestamp}-${random}`;
 };
 
+const getTaxRate = async (clientOrPool, companyId) => {
+  try {
+    const res = await clientOrPool.query(
+      `SELECT value FROM system_settings WHERE key = 'tax_rate' AND (company_id::text = $1::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936') LIMIT 1`,
+      [companyId || '562b9f65-608f-455f-8340-ba9a2811b936']
+    );
+    if (res.rows.length > 0 && res.rows[0].value !== null && res.rows[0].value !== undefined) {
+      const parsed = parseFloat(res.rows[0].value);
+      if (!isNaN(parsed) && parsed >= 0) {
+        return parsed / 100;
+      }
+    }
+  } catch (e) {
+    console.error('Error fetching tax_rate setting:', e);
+  }
+  return 0.12;
+};
+
 // GET all tables with status and current order summary
 router.get('/', async (req, res) => {
   try {
@@ -89,7 +107,8 @@ router.post('/:id/open-check', async (req, res) => {
       const itemQty = parseFloat(item.quantity || 1);
       subtotal += (isNaN(itemPrice) ? 0 : itemPrice) * (isNaN(itemQty) ? 1 : itemQty);
     }
-    const taxAmount = isNaN(subtotal) ? 0 : subtotal * 0.12; 
+    const taxRateMultiplier = await getTaxRate(client, req.company_id);
+    const taxAmount = isNaN(subtotal) ? 0 : subtotal * taxRateMultiplier; 
     const totalAmount = subtotal + taxAmount;
 
     if (isNaN(totalAmount)) {
@@ -259,7 +278,8 @@ router.post('/:id/add-items', async (req, res) => {
       [orderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     const newSubtotal = parseFloat(totalsResult.rows[0].subtotal || 0);
-    const newTax = isNaN(newSubtotal) ? 0 : newSubtotal * 0.12;
+    const taxRateMultiplier = await getTaxRate(client, req.company_id);
+    const newTax = isNaN(newSubtotal) ? 0 : newSubtotal * taxRateMultiplier;
     const newTotal = newSubtotal + newTax;
 
     if (isNaN(newTotal)) {
@@ -610,8 +630,9 @@ router.post('/:id/split-check', async (req, res) => {
 
     // Create new order for the split items
     const orderNumber = generateOrderNumber();
+    const taxRateMultiplier = await getTaxRate(client, req.company_id);
     const splitSubtotal = itemsResult.rows.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-    const splitTax = splitSubtotal * 0.12;
+    const splitTax = splitSubtotal * taxRateMultiplier;
     const splitTotal = splitSubtotal + splitTax;
 
     const newOrderResult = await client.query(
@@ -632,7 +653,7 @@ router.post('/:id/split-check', async (req, res) => {
       [originalOrderId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
     );
     const origSubtotal = parseFloat(origTotals.rows[0].subtotal);
-    const origTax = origSubtotal * 0.12;
+    const origTax = origSubtotal * taxRateMultiplier;
     const origTotal = origSubtotal + origTax;
 
     await client.query(

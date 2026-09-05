@@ -643,6 +643,19 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Handle credit purchase - update customer credit balance and ledger
+    if (payment_method === 'credit' && customerId) {
+      await client.query(
+        `UPDATE customers SET credit_balance = credit_balance + $1 WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [canonicalTotal, customerId, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+      await client.query(
+        `INSERT INTO customer_ledger (customer_id, order_id, transaction_type, amount, notes, created_by, company_id)
+         VALUES ($1::text, $2::text, 'credit_purchase', $3, $4, 'POS', $5::text)`,
+        [customerId, order.id, canonicalTotal, `Credit purchase - ${order.order_number}`, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+    }
+
     await client.query('COMMIT');
 
     /*
