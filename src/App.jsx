@@ -8418,38 +8418,40 @@ function POSPage({
                 </div>
 
                 {/* Right Column: Keypad (Calculator) - HIDDEN ON MOBILE */}
-                <div className={`hidden md:flex flex-col border-l border-gray-100 bg-gray-50/50 p-6 gap-6 ${paymentMethod === 'cash' ? '' : 'opacity-30 grayscale pointer-events-none'}`}>
-                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] text-center mt-2">Numpad Entry</div>
+                <div className="hidden md:flex flex-col border-l border-gray-100 bg-gray-50/50 p-6 gap-6">
+                  <div className={`flex flex-col gap-3 flex-1 ${paymentMethod === 'cash' ? '' : 'opacity-30 grayscale pointer-events-none'}`}>
+                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] text-center mt-2">Numpad Entry</div>
 
-                  <div className="grid grid-cols-3 gap-3 flex-1">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
+                    <div className="grid grid-cols-3 gap-3 flex-1">
+                      {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'].map((key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => handleAmountKeypadInput(key)}
+                          disabled={paymentMethod !== 'cash'}
+                          className="flex items-center justify-center bg-white border-b-4 border-gray-200 rounded-2xl text-2xl font-black text-gray-800 shadow-lg hover:border-cyan-600 hover:text-cyan-600 transition-all active:translate-y-1 active:border-b-0 disabled:cursor-not-allowed h-full min-h-[70px]"
+                        >
+                          {key === 'backspace' ? <span className="text-red-500">⌫</span> : key}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-2">
                       <button
-                        key={key}
                         type="button"
-                        onClick={() => handleAmountKeypadInput(key)}
-                        disabled={paymentMethod !== 'cash'}
-                        className="flex items-center justify-center bg-white border-b-4 border-gray-200 rounded-2xl text-2xl font-black text-gray-800 shadow-lg hover:border-cyan-600 hover:text-cyan-600 transition-all active:translate-y-1 active:border-b-0 disabled:cursor-not-allowed h-full min-h-[70px]"
+                        onClick={() => handleAmountKeypadInput('clear')}
+                        className="h-16 bg-white border-b-4 border-red-200 rounded-2xl font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-all active:translate-y-1 active:border-b-0"
                       >
-                        {key === 'backspace' ? <span className="text-red-500">⌫</span> : key}
+                        Clear
                       </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => handleAmountKeypadInput('clear')}
-                      className="h-16 bg-white border-b-4 border-red-200 rounded-2xl font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-all active:translate-y-1 active:border-b-0"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAmountKeypadInput('00')}
-                      className="h-16 bg-white border-b-4 border-gray-200 rounded-2xl font-black text-gray-800 text-xl hover:border-cyan-600 hover:text-cyan-600 transition-all active:translate-y-1 active:border-b-0"
-                    >
-                      00
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAmountKeypadInput('00')}
+                        className="h-16 bg-white border-b-4 border-gray-200 rounded-2xl font-black text-gray-800 text-xl hover:border-cyan-600 hover:text-cyan-600 transition-all active:translate-y-1 active:border-b-0"
+                      >
+                        00
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-auto space-y-3">
