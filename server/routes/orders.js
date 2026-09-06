@@ -895,4 +895,160 @@ router.get('/:id/adjustments', async (req, res) => {
   }
 });
 
+// POST process refund for an order (Full or Partial Item Void)
+router.post('/:id/refund', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const {
+      refund_type = 'full', // 'full' or 'partial'
+      item_ids = [],        // array of order_item ids for partial refund
+      reason = 'Order Cancellation / Refund',
+      restock = true,       // whether to restock items into inventory
+      created_by = 'POS Cashier'
+    } = req.body;
+
+    await client.query('BEGIN');
+
+    // 1. Fetch order
+    const orderResult = await client.query(
+      `SELECT * FROM orders WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936') FOR UPDATE`,
+      [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+    );
+
+    if (orderResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    const order = orderResult.rows[0];
+
+    if (order.order_status === 'refunded' || order.order_status === 'voided') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: `Order is already ${order.order_status}` });
+    }
+
+    // Fetch items
+    const itemsResult = await client.query(
+      `SELECT * FROM order_items WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+      [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+    );
+
+    const allItems = itemsResult.rows;
+    let targetItems = [];
+    let refundAmount = 0;
+
+    if (refund_type === 'full') {
+      targetItems = allItems.filter(item => item.status !== 'voided');
+      refundAmount = parseFloat(order.total_amount || 0);
+
+      // Update order status to refunded
+      await client.query(
+        `UPDATE orders SET order_status = 'refunded', payment_status = 'refunded', updated_at = CURRENT_TIMESTAMP WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+
+      // Update all item statuses to voided
+      await client.query(
+        `UPDATE order_items SET status = 'voided' WHERE order_id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+    } else {
+      // Partial item void/refund
+      if (!Array.isArray(item_ids) || item_ids.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'No items selected for partial refund' });
+      }
+
+      targetItems = allItems.filter(item => item_ids.map(String).includes(String(item.id)) && item.status !== 'voided');
+      if (targetItems.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'Selected items are already voided or invalid' });
+      }
+
+      // Mark selected items as voided
+      await client.query(
+        `UPDATE order_items SET status = 'voided' WHERE id::text = ANY($1::text[]) AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [targetItems.map(i => String(i.id)), req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+
+      // Recalculate remaining active items subtotal, tax, total
+      const activeItems = allItems.filter(item => !item_ids.map(String).includes(String(item.id)) && item.status !== 'voided');
+
+      const newSubtotal = activeItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+      const taxRateRes = await client.query(
+        `SELECT value FROM system_settings WHERE key = 'tax_rate' AND (company_id::text = $1::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936') LIMIT 1`,
+        [req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+      let taxRate = 0.12;
+      if (taxRateRes.rows.length > 0 && taxRateRes.rows[0].value) {
+        const parsed = parseFloat(taxRateRes.rows[0].value);
+        if (!isNaN(parsed) && parsed >= 0) taxRate = parsed / 100;
+      }
+
+      const newTax = Math.round((newSubtotal * taxRate) * 100) / 100;
+      const discount = parseFloat(order.discount_amount || 0);
+      const newTotal = Math.max(0, Math.round((newSubtotal + newTax - discount) * 100) / 100);
+
+      refundAmount = Math.max(0, parseFloat(order.total_amount || 0) - newTotal);
+
+      // Update order totals
+      await client.query(
+        `UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3, updated_at = CURRENT_TIMESTAMP WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [newSubtotal, newTax, newTotal, id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+    }
+
+    // 2. Inventory Restock
+    if (restock && targetItems.length > 0) {
+      for (const item of targetItems) {
+        if (item.product_id) {
+          await client.query(
+            `UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+            [item.quantity || 1, item.product_id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+          );
+        }
+      }
+    }
+
+    // 3. Customer Credit Balance Reversal (if paid via Credit)
+    if (order.payment_method === 'credit' && order.customer_id && refundAmount > 0) {
+      await client.query(
+        `UPDATE customers SET credit_balance = GREATEST(0, credit_balance - $1) WHERE id::text = $2::text AND (company_id::text = $3::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        [refundAmount, order.customer_id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+
+      await client.query(
+        `INSERT INTO customer_ledger (customer_id, order_id, transaction_type, amount, notes, created_by, company_id)
+         VALUES ($1::text, $2::text, 'refund', $3, $4, $5, $6::text)`,
+        [order.customer_id, id, -refundAmount, `Refund (${refund_type}): ${reason}`, created_by, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+    }
+
+    // 4. Audit Log Entry in order_item_adjustments
+    for (const item of targetItems) {
+      await client.query(
+        `INSERT INTO order_item_adjustments (order_item_id, order_id, adjustment_type, reason, original_amount, created_by, company_id)
+         VALUES ($1, $2::text, $3, $4, $5, $6, $7)`,
+        [item.id, id, refund_type === 'full' ? 'refund' : 'void', reason.trim(), item.subtotal || 0, created_by, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Order ${refund_type === 'full' ? 'refunded' : 'partially voided'} successfully`,
+      refundAmount,
+      order_id: id
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error processing refund:', error);
+    res.status(500).json({ success: false, error: 'Failed to process refund: ' + (error.message || '') });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;

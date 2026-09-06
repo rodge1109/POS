@@ -11683,6 +11683,102 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
   const [ordersReconciliation, setOrdersReconciliation] = useState(null);
   const [ordersReconciliationError, setOrdersReconciliationError] = useState('');
 
+  // Refund Modal State
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedOrderForRefund, setSelectedOrderForRefund] = useState(null);
+  const [refundOrderItems, setRefundOrderItems] = useState([]);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+  const [refundType, setRefundType] = useState('full');
+  const [selectedRefundItemIds, setSelectedRefundItemIds] = useState([]);
+  const [refundReason, setRefundReason] = useState('Accidental Double Punch / Duplicate');
+  const [customRefundReason, setCustomRefundReason] = useState('');
+  const [refundRestock, setRefundRestock] = useState(true);
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+
+  // View Order Details Modal State
+  const [showViewOrderModal, setShowViewOrderModal] = useState(false);
+  const [viewOrderDetails, setViewOrderDetails] = useState(null);
+
+  const handleOpenRefundModal = async (order) => {
+    setSelectedOrderForRefund(order);
+    setRefundType('full');
+    setSelectedRefundItemIds([]);
+    setRefundReason('Accidental Double Punch / Duplicate');
+    setCustomRefundReason('');
+    setRefundRestock(true);
+    setShowRefundModal(true);
+    setLoadingOrderDetails(true);
+
+    try {
+      const res = await fetchWithAuth(`${API_URL}/orders/${order.id}`);
+      const data = await res.json();
+      if (data.success && data.order) {
+        setRefundOrderItems(data.order.items || []);
+      } else {
+        setRefundOrderItems([]);
+      }
+    } catch (err) {
+      console.error('Error fetching order items for refund:', err);
+      setRefundOrderItems([]);
+    } finally {
+      setLoadingOrderDetails(false);
+    }
+  };
+
+  const handleViewOrderDetails = async (order) => {
+    setViewOrderDetails(order);
+    setShowViewOrderModal(true);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/orders/${order.id}`);
+      const data = await res.json();
+      if (data.success && data.order) {
+        setViewOrderDetails(data.order);
+      }
+    } catch (err) {
+      console.error('Error fetching order details:', err);
+    }
+  };
+
+  const handleProcessRefund = async () => {
+    if (!selectedOrderForRefund) return;
+
+    if (refundType === 'partial' && selectedRefundItemIds.length === 0) {
+      alert('Please select at least one item to void/refund');
+      return;
+    }
+
+    const effectiveReason = refundReason === 'Other' ? (customRefundReason.trim() || 'Refund') : refundReason;
+
+    setIsSubmittingRefund(true);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/orders/${selectedOrderForRefund.id}/refund`, {
+        method: 'POST',
+        body: JSON.stringify({
+          refund_type: refundType,
+          item_ids: selectedRefundItemIds,
+          reason: effectiveReason,
+          restock: refundRestock,
+          created_by: 'POS Cashier'
+        })
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        alert(`Refund processed successfully! Refund Amount: Php ${(result.refundAmount || 0).toFixed(2)}`);
+        setShowRefundModal(false);
+        setSelectedOrderForRefund(null);
+        fetchOrders();
+      } else {
+        alert(result.error || 'Failed to process refund');
+      }
+    } catch (err) {
+      console.error('Error processing refund:', err);
+      alert('Failed to process refund');
+    } finally {
+      setIsSubmittingRefund(false);
+    }
+  };
+
   const views = [
     { id: 'orders-active', name: 'Active Orders' },
     { id: 'orders-history', name: 'Order History' },
@@ -11901,7 +11997,22 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
                     </td>
                     <td className="px-6 py-4 text-right font-medium">Php {(parseFloat(order.total_amount) || 0).toFixed(2)}</td>
                     <td className="px-6 py-4 text-center">
-                      <button className="text-blue-600 hover:text-blue-800 text-sm">View</button>
+                      <div className="flex justify-center items-center gap-2">
+                        <button
+                          onClick={() => handleViewOrderDetails(order)}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-bold px-2.5 py-1 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          View
+                        </button>
+                        {!['refunded', 'voided'].includes(String(order.order_status || '').toLowerCase()) && (
+                          <button
+                            onClick={() => handleOpenRefundModal(order)}
+                            className="text-red-600 hover:text-red-800 text-xs font-bold px-2.5 py-1 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                          >
+                            Refund / Void
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -11913,6 +12024,281 @@ function OrdersPage({ currentView, setCurrentPage, lastSyncTime }) {
           </div>
         )}
       </div>
+
+      {/* Refund & Line-Item Void Modal */}
+      {showRefundModal && selectedOrderForRefund && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-dashboard">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="bg-red-600 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight">Process Refund / Void</h3>
+                <p className="text-xs text-red-100 opacity-90 font-medium">
+                  Order #{selectedOrderForRefund.order_number} • {selectedOrderForRefund.payment_method?.toUpperCase()}
+                </p>
+              </div>
+              <button onClick={() => setShowRefundModal(false)} className="text-red-200 hover:text-white transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Scrollable Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              
+              {/* Refund Mode Selection */}
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Refund Type</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRefundType('full')}
+                    className={`py-3 px-4 rounded-xl border-2 font-bold text-xs transition-all ${
+                      refundType === 'full'
+                        ? 'bg-red-50 border-red-600 text-red-700 shadow-sm'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Full Order Refund
+                    <br /><span className="text-[10px] font-normal opacity-80">Cancel full order & refund ₱{parseFloat(selectedOrderForRefund.total_amount || 0).toFixed(2)}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRefundType('partial')}
+                    className={`py-3 px-4 rounded-xl border-2 font-bold text-xs transition-all ${
+                      refundType === 'partial'
+                        ? 'bg-orange-50 border-orange-600 text-orange-700 shadow-sm'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Partial Line-Item Void
+                    <br /><span className="text-[10px] font-normal opacity-80">Void specific double-punched item(s)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Item Selection (Partial Refund Mode) */}
+              {refundType === 'partial' && (
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-3">
+                  <p className="text-xs font-black text-gray-600 uppercase tracking-wider">Select Item(s) to Void & Refund</p>
+                  {loadingOrderDetails ? (
+                    <p className="text-xs text-gray-400 animate-pulse">Loading order items...</p>
+                  ) : refundOrderItems.length === 0 ? (
+                    <p className="text-xs text-gray-500">No items available for partial refund.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                      {refundOrderItems.map((item) => {
+                        const isVoided = item.status === 'voided';
+                        const isChecked = selectedRefundItemIds.includes(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                              isVoided
+                                ? 'opacity-40 bg-gray-100 border-gray-200 pointer-events-none'
+                                : isChecked
+                                ? 'bg-orange-50 border-orange-400 text-orange-900 shadow-xs'
+                                : 'bg-white border-gray-200 hover:border-orange-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                disabled={isVoided}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedRefundItemIds([...selectedRefundItemIds, item.id]);
+                                  } else {
+                                    setSelectedRefundItemIds(selectedRefundItemIds.filter(id => id !== item.id));
+                                  }
+                                }}
+                                className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
+                              />
+                              <div>
+                                <p className="text-xs font-bold text-gray-800">
+                                  {item.quantity}× {item.product_name} {item.size_name ? `(${item.size_name})` : ''}
+                                </p>
+                                {isVoided && <span className="text-[10px] font-bold text-red-500">ALREADY VOIDED</span>}
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-gray-700">₱{parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Inventory Restock Option */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Restock Items to Active Inventory?</p>
+                  <p className="text-[10px] text-gray-500">Uncheck if items were already prepared/consumed (logs as wastage).</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={refundRestock}
+                    onChange={(e) => setRefundRestock(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+
+              {/* Reason Dropdown */}
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">Audit Reason *</label>
+                <select
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  className="w-full border-2 border-gray-200 focus:border-red-500 rounded-xl px-3 py-2.5 text-xs font-bold bg-white outline-none"
+                >
+                  <option value="Accidental Double Punch / Duplicate">Accidental Double Punch / Duplicate</option>
+                  <option value="Customer Cancellation">Customer Cancellation</option>
+                  <option value="Wrong Order / Item Error">Wrong Order / Item Error</option>
+                  <option value="Product Quality Complaint">Product Quality Complaint</option>
+                  <option value="Other">Other Reason...</option>
+                </select>
+
+                {refundReason === 'Other' && (
+                  <input
+                    type="text"
+                    value={customRefundReason}
+                    onChange={(e) => setCustomRefundReason(e.target.value)}
+                    placeholder="Specify reason for refund..."
+                    className="w-full mt-2 border-2 border-gray-200 focus:border-red-500 rounded-xl px-3 py-2 text-xs font-semibold outline-none bg-gray-50"
+                  />
+                )}
+              </div>
+
+              {/* Reversal Summary Indicator */}
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-1">
+                <div className="flex justify-between items-center text-xs font-bold text-red-900">
+                  <span>Estimated Refund Total:</span>
+                  <span className="text-base font-black text-red-600 tabular-nums">
+                    ₱{refundType === 'full'
+                      ? parseFloat(selectedOrderForRefund.total_amount || 0).toFixed(2)
+                      : refundOrderItems.filter(i => selectedRefundItemIds.includes(i.id)).reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-red-600 font-medium">
+                  {selectedOrderForRefund.payment_method === 'credit'
+                    ? '• Will credit back customer account balance.'
+                    : selectedOrderForRefund.payment_method === 'cash'
+                    ? '• Will reduce active shift expected cash drawer total.'
+                    : '• Digital wallet refund reference will be recorded in audit log.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 border-t border-gray-100 flex gap-2 bg-gray-50 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowRefundModal(false)}
+                className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-600 text-xs font-bold hover:bg-gray-100 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleProcessRefund}
+                disabled={isSubmittingRefund}
+                className={`flex-1 py-3 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-red-700 shadow-md transition-all ${
+                  isSubmittingRefund ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isSubmittingRefund ? 'Processing...' : 'Confirm & Process Refund'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Details View Modal */}
+      {showViewOrderModal && viewOrderDetails && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-dashboard">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="bg-cyan-600 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tight">Order #{viewOrderDetails.order_number}</h3>
+                <p className="text-xs text-cyan-100 font-medium">{new Date(viewOrderDetails.created_at).toLocaleString()}</p>
+              </div>
+              <button onClick={() => setShowViewOrderModal(false)} className="text-cyan-200 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-2 gap-3 text-xs bg-cyan-50 p-3 rounded-xl border border-cyan-100">
+                <div>
+                  <span className="text-gray-500 font-medium">Type:</span> <span className="font-bold uppercase text-gray-800">{viewOrderDetails.order_type}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-medium">Status:</span> <span className="font-bold uppercase text-cyan-700">{viewOrderDetails.order_status}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-medium">Payment:</span> <span className="font-bold uppercase text-gray-800">{viewOrderDetails.payment_method}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-medium">Customer:</span> <span className="font-bold text-gray-800">{viewOrderDetails.customer_name || 'Walk-in'}</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">Order Items</p>
+                <div className="space-y-2 border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto">
+                  {(viewOrderDetails.items || []).map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs py-1 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className={`font-bold ${item.status === 'voided' ? 'line-through text-red-400' : 'text-gray-800'}`}>
+                          {item.quantity}× {item.product_name || item.name} {item.size_name ? `(${item.size_name})` : ''}
+                        </p>
+                        {item.status === 'voided' && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold">VOIDED</span>}
+                      </div>
+                      <span className="font-black text-gray-700">₱{parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-3 rounded-xl space-y-1 text-xs">
+                <div className="flex justify-between text-gray-500">
+                  <span>Subtotal</span>
+                  <span>₱{parseFloat(viewOrderDetails.subtotal || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Tax</span>
+                  <span>₱{parseFloat(viewOrderDetails.tax_amount || 0).toFixed(2)}</span>
+                </div>
+                {parseFloat(viewOrderDetails.discount_amount || 0) > 0 && (
+                  <div className="flex justify-between text-cyan-600 font-bold">
+                    <span>Discount</span>
+                    <span>-₱{parseFloat(viewOrderDetails.discount_amount).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-black text-gray-900 pt-1 border-t border-gray-200">
+                  <span>Total Amount</span>
+                  <span className="text-cyan-600">₱{parseFloat(viewOrderDetails.total_amount || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowViewOrderModal(false)}
+                className="px-5 py-2 bg-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
