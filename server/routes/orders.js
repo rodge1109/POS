@@ -269,12 +269,12 @@ router.get('/reconciliation', async (req, res) => {
       const orderStatus = String(row.order_status || '').toLowerCase();
       const isVoidedOrRefunded = ['voided', 'refunded', 'cancelled'].includes(orderStatus);
 
-      const orderTotal = toCents(row.total_amount);
-      const subtotalCents = toCents(row.subtotal);
+      const orderTotal = isVoidedOrRefunded ? 0 : toCents(row.total_amount);
+      const subtotalCents = isVoidedOrRefunded ? 0 : toCents(row.subtotal);
       const itemsSubtotalCents = toCents(row.items_subtotal);
-      const taxCents = toCents(row.tax_amount);
-      const deliveryCents = toCents(row.delivery_fee);
-      const discountCents = toCents(row.discount_amount || 0);
+      const taxCents = isVoidedOrRefunded ? 0 : toCents(row.tax_amount);
+      const deliveryCents = isVoidedOrRefunded ? 0 : toCents(row.delivery_fee);
+      const discountCents = isVoidedOrRefunded ? 0 : toCents(row.discount_amount || 0);
 
       // For voided/refunded, expected total is 0. 
       // For normal orders, it's (Items + Tax + Delivery) - Discount
@@ -283,7 +283,7 @@ router.get('/reconciliation', async (req, res) => {
         : (itemsSubtotalCents + taxCents + deliveryCents - discountCents);
 
       const diff = orderTotal - expected;
-      const subtotalDiff = subtotalCents - itemsSubtotalCents;
+      const subtotalDiff = isVoidedOrRefunded ? 0 : (subtotalCents - itemsSubtotalCents);
       const reasons = [];
 
       if ((Number(row.adjustment_count) || 0) > 0) {
@@ -299,7 +299,7 @@ router.get('/reconciliation', async (req, res) => {
         reasons.push('Split-check child order');
       }
       if (isVoidedOrRefunded) {
-        reasons.push(`Order is ${orderStatus} (Expected total: 0)`);
+        reasons.push(`Order is ${orderStatus} (Net expected total: 0)`);
       }
       if (discountCents > 0) {
         reasons.push(`Contains ₱${fromCents(discountCents).toFixed(2)} in discounts/promos`);
@@ -314,7 +314,7 @@ router.get('/reconciliation', async (req, res) => {
         order_total: fromCents(orderTotal),
         expected_total: fromCents(expected),
         difference: fromCents(diff),
-        balanced: diff === 0,
+        balanced: diff === 0 && subtotalDiff === 0,
         possible_reasons: reasons
       };
     });
@@ -942,9 +942,9 @@ router.post('/:id/refund', async (req, res) => {
       targetItems = allItems.filter(item => item.status !== 'voided');
       refundAmount = parseFloat(order.total_amount || 0);
 
-      // Update order status to refunded
+      // Update order status to refunded and zero out financial totals
       await client.query(
-        `UPDATE orders SET order_status = 'refunded', payment_status = 'refunded' WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        `UPDATE orders SET order_status = 'refunded', payment_status = 'refunded', subtotal = 0, tax_amount = 0, total_amount = 0 WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
         [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
 
