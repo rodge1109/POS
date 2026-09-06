@@ -944,7 +944,7 @@ router.post('/:id/refund', async (req, res) => {
 
       // Update order status to refunded
       await client.query(
-        `UPDATE orders SET order_status = 'refunded', payment_status = 'refunded', updated_at = CURRENT_TIMESTAMP WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        `UPDATE orders SET order_status = 'refunded', payment_status = 'refunded' WHERE id::text = $1::text AND (company_id::text = $2::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
         [id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
 
@@ -994,7 +994,7 @@ router.post('/:id/refund', async (req, res) => {
 
       // Update order totals
       await client.query(
-        `UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3, updated_at = CURRENT_TIMESTAMP WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
+        `UPDATE orders SET subtotal = $1, tax_amount = $2, total_amount = $3 WHERE id::text = $4::text AND (company_id::text = $5::text OR company_id::text = '562b9f65-608f-455f-8340-ba9a2811b936')`,
         [newSubtotal, newTax, newTotal, id, req.company_id || '562b9f65-608f-455f-8340-ba9a2811b936']
       );
     }
