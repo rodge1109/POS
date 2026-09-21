@@ -311,22 +311,63 @@ router.put('/:id', async (req, res) => {
 
 // DELETE product
 router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM products WHERE id = $1 AND company_id = $2 RETURNING *',
+    await client.query('BEGIN');
+
+    // 1. Check if product exists and belongs to company
+    const checkRes = await client.query(
+      'SELECT id, name FROM products WHERE id = $1 AND company_id = $2',
       [id, req.company_id]
     );
 
-    if (result.rows.length === 0) {
+    if (checkRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
 
-    res.json({ success: true, message: 'Product deleted' });
+    // 2. Check if product has sales or inventory transaction history
+    const historyCheck = await client.query(
+      `SELECT 
+        (SELECT COUNT(*) FROM order_items WHERE product_id = $1) +
+        (SELECT COUNT(*) FROM inventory_transactions WHERE product_id = $1) as count`,
+      [id]
+    );
+
+    const hasHistory = parseInt(historyCheck.rows[0]?.count || 0) > 0;
+    let message = '';
+    let softDeleted = false;
+
+    if (hasHistory) {
+      // Soft Delete: Deactivate product so historical order reports remain valid
+      await client.query(
+        'UPDATE products SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND company_id = $2',
+        [id, req.company_id]
+      );
+      message = 'Product deactivated (soft-deleted to preserve past order history)';
+      softDeleted = true;
+    } else {
+      // Hard Delete: Safe to remove from DB completely
+      await client.query('DELETE FROM product_sizes WHERE product_id = $1 AND company_id = $2', [id, req.company_id]);
+      await client.query('DELETE FROM product_modifiers WHERE product_id = $1 AND company_id = $2', [id, req.company_id]);
+      await client.query('DELETE FROM product_composition WHERE product_id = $1 AND company_id = $2', [id, req.company_id]);
+      await client.query('DELETE FROM combo_items WHERE product_id = $1 AND company_id = $2', [id, req.company_id]);
+      await client.query('DELETE FROM packaged_items WHERE product_id = $1 AND company_id = $2', [id, req.company_id]);
+
+      await client.query('DELETE FROM products WHERE id = $1 AND company_id = $2', [id, req.company_id]);
+      message = 'Product deleted successfully';
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message, softDeleted });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting product:', error);
-    res.status(500).json({ success: false, error: 'Failed to delete product' });
+    res.status(500).json({ success: false, error: 'Failed to delete product: ' + error.message });
+  } finally {
+    client.release();
   }
 });
 
