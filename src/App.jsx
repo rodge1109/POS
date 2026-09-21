@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, ClipboardCheck, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic, Lock } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, ChevronDown, Check, Shield, Box, X, Search, User, UtensilsCrossed, ShoppingBag, Truck, LayoutGrid, ArrowLeft, Receipt, Edit3, TrendingUp, ClipboardList, ClipboardCheck, Package, BarChart2, Settings, AlertTriangle, Clock, Activity, Layout, Zap, FileText, PieChart, Upload, Printer, Mail, Calculator, WifiOff, Wifi, Maximize, Minimize, Menu, Download, Mic, Lock, Key, AlertCircle, CheckCircle } from 'lucide-react';
 
 
 // ─── Offline DB (IndexedDB) — loaded dynamically so a failure never crashes the app ───
@@ -189,8 +189,158 @@ const fallbackMenuData = [
 
 
 
+// Change Admin Password Modal Component
+function ChangeAdminPasswordModal({ isOpen, onClose, fetchWithAuth, API_URL }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('All fields are required.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/auth/change-admin-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess('Admin password updated successfully!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => {
+          onClose();
+          setSuccess('');
+        }, 1500);
+      } else {
+        setError(data.error || 'Failed to update password');
+      }
+    } catch (err) {
+      setError(err.message || 'Error changing password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-gray-100 relative">
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
+              <Key className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Change Admin Password</h3>
+              <p className="text-xs text-gray-500">Update your administrator portal login credentials</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{success}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Current Admin Password</label>
+            <input
+              type="password"
+              required
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:border-cyan-500 outline-none transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">New Admin Password</label>
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:border-cyan-500 outline-none transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:border-cyan-500 outline-none transition-all"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // Main App Component
 export default function App() {
+  const [isChangeAdminPasswordModalOpen, setIsChangeAdminPasswordModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [currentPage, setCurrentPage] = useState(() => {
     const savedEmp = localStorage.getItem('employee');
@@ -1497,6 +1647,7 @@ export default function App() {
         onEndShift={openShiftEndModal}
         isListening={isListening}
         toggleVoiceSearch={() => toggleVoiceSearch(setSearchQuery)}
+        onChangeAdminPasswordClick={() => setIsChangeAdminPasswordModalOpen(true)}
       />
 
       {currentPage !== 'home' && (
@@ -1764,6 +1915,8 @@ export default function App() {
                 setCurrentPage={setCurrentPage}
                 setShiftReport={setShiftReport}
                 triggerShiftReportPrint={triggerShiftReportPrint}
+                employee={employee}
+                onOpenChangeAdminPasswordModal={() => setIsChangeAdminPasswordModalOpen(true)}
               />
             ) : (
               <AccessDeniedPage message="Access Denied. You do not have permission to access Staff Management." onBack={() => setCurrentPage('dashboard')} />
@@ -1836,6 +1989,12 @@ export default function App() {
         )}
 
         {showCart && <CartDrawer setShowCart={setShowCart} setCurrentPage={setCurrentPage} />}
+        <ChangeAdminPasswordModal
+          isOpen={isChangeAdminPasswordModalOpen}
+          onClose={() => setIsChangeAdminPasswordModalOpen(false)}
+          fetchWithAuth={fetchWithAuth}
+          API_URL={API_URL}
+        />
         {showSizeModal && selectedProduct && (
           <SizeModal
             product={selectedProduct}
@@ -2271,7 +2430,7 @@ function SizeModal({ product, onClose, onSelectSize }) {
 }
 
 // Header Component
-function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, employee, onEmployeeLogout, currentShift, onEndShift, isListening, toggleVoiceSearch }) {
+function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, employee, onEmployeeLogout, currentShift, onEndShift, isListening, toggleVoiceSearch, onChangeAdminPasswordClick }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const activeCompanyId = localStorage.getItem('active_company_id') || '';
 
@@ -2400,6 +2559,12 @@ function Header({ currentPage, setCurrentPage, searchQuery, setSearchQuery, empl
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Clock In/Out
                       </button>
+                      {employee?.role === 'admin' && (
+                        <button onClick={onChangeAdminPasswordClick} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-2">
+                          <Key className="w-4 h-4" />
+                          Change Admin Password
+                        </button>
+                      )}
                       <div className="border-t border-gray-100 mt-1 pt-1 text-red-600">
                         {currentShift && (
                           <button
@@ -14895,10 +15060,12 @@ function InventoryPage({ currentView, setCurrentPage, menuData, refreshProducts 
 }
 
 // Staff Page
-function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftReportPrint }) {
+function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftReportPrint, employee, onOpenChangeAdminPasswordModal }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({ id: '', name: '', username: '', pin: '', role: 'cashier', active: true });
   const [formData, setFormData] = useState({ username: '', pin: '', name: '', role: 'cashier' });
   const [formError, setFormError] = useState('');
 
@@ -15347,18 +15514,58 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
     }
   };
 
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    try {
+      const payload = {
+        name: editFormData.name,
+        role: editFormData.role,
+        active: editFormData.active
+      };
+      if (editFormData.pin) {
+        payload.pin = editFormData.pin;
+      }
+      const response = await fetchWithAuth(`${API_URL}/auth/employees/${editFormData.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchEmployees();
+        setShowEditModal(false);
+        setFormError('');
+      } else {
+        setFormError(data.error || 'Failed to update employee');
+      }
+    } catch (error) {
+      setFormError('Network error. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 pt-0">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Staff Management</h1>
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 font-medium shadow-sm transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Employee
-          </button>
+          <div className="flex items-center gap-3">
+            {employee?.role === 'admin' && (
+              <button
+                onClick={onOpenChangeAdminPasswordModal}
+                className="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 font-medium shadow-sm transition-all flex items-center gap-2"
+              >
+                <Key className="w-4 h-4" />
+                Change Admin Password
+              </button>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 font-medium shadow-sm transition-all flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Employee
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -15409,10 +15616,34 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button className="text-cyan-600 hover:text-cyan-700 text-xs font-bold uppercase tracking-wider hover:underline" onClick={() => {
-                        setSelectedEmpForPerms(emp);
-                        setCurrentPage('staff-permissions');
-                      }}>Permissions</button>
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          className="text-amber-600 hover:text-amber-700 text-xs font-bold uppercase tracking-wider hover:underline"
+                          onClick={() => {
+                            setEditFormData({
+                              id: emp.id,
+                              name: emp.name,
+                              username: emp.username,
+                              pin: '',
+                              role: emp.role,
+                              active: emp.active
+                            });
+                            setFormError('');
+                            setShowEditModal(true);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-cyan-600 hover:text-cyan-700 text-xs font-bold uppercase tracking-wider hover:underline"
+                          onClick={() => {
+                            setSelectedEmpForPerms(emp);
+                            setCurrentPage('staff-permissions');
+                          }}
+                        >
+                          Permissions
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -15964,6 +16195,106 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
                     className="flex-1 px-4 py-3 bg-cyan-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-cyan-100 hover:shadow-cyan-200 hover:-translate-y-0.5 transition-all"
                   >
                     Create Account
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Employee Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500" />
+              <button onClick={() => setShowEditModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-black text-gray-800 mb-1">Edit Team Member</h2>
+              <p className="text-gray-400 text-xs font-medium mb-6 uppercase tracking-wider">Update Details & PIN</p>
+
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:bg-white transition-all font-medium text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Username (Read only)</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={editFormData.username}
+                    className="w-full px-4 py-2.5 bg-gray-100 border border-gray-100 rounded-xl font-medium text-sm text-gray-400 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">New 4-Digit PIN (Leave empty to keep current)</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    value={editFormData.pin}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, pin: e.target.value.replace(/\D/g, '') }))}
+                    placeholder="••••"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:bg-white transition-all font-medium text-sm tracking-[.5em]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Role Grade</label>
+                    <select
+                      value={editFormData.role}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, role: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:bg-white transition-all font-bold text-sm text-gray-700"
+                    >
+                      <option value="waiter">WAITER (L1)</option>
+                      <option value="cashier">CASHIER (L2)</option>
+                      <option value="manager">MANAGER (L3)</option>
+                      <option value="admin">ADMINISTRATOR (ROOT)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
+                    <select
+                      value={editFormData.active ? 'true' : 'false'}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, active: e.target.value === 'true' }))}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:bg-white transition-all font-bold text-sm text-gray-700"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+
+                {formError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                    <p className="text-red-600 text-[11px] font-bold">{formError}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => { setShowEditModal(false); setFormError(''); }}
+                    className="flex-1 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-amber-100 hover:shadow-amber-200 hover:-translate-y-0.5 transition-all"
+                  >
+                    Save Changes
                   </button>
                 </div>
               </form>

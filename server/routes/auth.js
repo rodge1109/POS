@@ -1,5 +1,6 @@
  import express from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import pool from '../config/database.js';
 import fs from 'fs';
 import path from 'path';
@@ -204,14 +205,13 @@ router.post('/admin-login', async (req, res) => {
       });
     }
 
-    // Find admin by email and password
-    // Join with companies to get the company name for the device context
+    // Find admin by email or username
     const result = await pool.query(
-      `SELECT e.id, e.username, e.name, e.role, e.company_id, e.permissions, c.name as company_name 
+      `SELECT e.id, e.username, e.name, e.role, e.company_id, e.permissions, e.password_hash, c.name as company_name 
        FROM employees e 
        LEFT JOIN companies c ON e.company_id = c.id
-       WHERE (e.username = $1 OR e.email = $1) AND e.password_hash = $2 AND e.role = $3 AND e.active = true`,
-      [email.toLowerCase(), password, 'admin']
+       WHERE (e.username = $1 OR e.email = $1) AND e.role = $2 AND e.active = true`,
+      [email.toLowerCase(), 'admin']
     );
 
     if (result.rows.length === 0) {
@@ -222,6 +222,26 @@ router.post('/admin-login', async (req, res) => {
     }
 
     const employee = result.rows[0];
+
+    // Verify password (supports bcrypt hash or direct match)
+    let isMatch = false;
+    if (employee.password_hash) {
+      if (employee.password_hash.startsWith('$2a$') || employee.password_hash.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(password, employee.password_hash);
+      } else {
+        isMatch = (employee.password_hash === password);
+      }
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials or not an administrator'
+      });
+    }
+
+    // Clean sensitive password_hash field before token & output
+    delete employee.password_hash;
 
     // Create JWT token
     const token = jwt.sign(
@@ -342,6 +362,65 @@ router.post('/change-password', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Change PIN error:', error);
     res.status(500).json({ success: false, error: 'Failed to change PIN' });
+  }
+});
+
+// POST /api/auth/change-admin-password - Change Admin Password (requires token)
+router.post('/change-admin-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters long' });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Only administrators can change admin passwords' });
+    }
+
+    // Get current employee
+    const result = await pool.query(
+      'SELECT * FROM employees WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Employee not found' });
+    }
+
+    const employee = result.rows[0];
+
+    // Verify current password
+    let isMatch = false;
+    if (employee.password_hash) {
+      if (employee.password_hash.startsWith('$2a$') || employee.password_hash.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(currentPassword, employee.password_hash);
+      } else {
+        isMatch = (employee.password_hash === currentPassword);
+      }
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password in database
+    await pool.query(
+      'UPDATE employees SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [hashedPassword, req.user.id]
+    );
+
+    res.json({ success: true, message: 'Admin password updated successfully' });
+  } catch (error) {
+    console.error('Change admin password error:', error);
+    res.status(500).json({ success: false, error: 'Failed to change admin password: ' + error.message });
   }
 });
 
