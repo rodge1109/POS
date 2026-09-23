@@ -195,6 +195,7 @@ router.post('/register-company', async (req, res) => {
 
 // POST /api/auth/admin-login - Admin login via email/password
 router.post('/admin-login', async (req, res) => {
+  try {
     const rawIdentifier = (req.body.email || req.body.username || '').trim();
     const password = (req.body.password || '').trim();
 
