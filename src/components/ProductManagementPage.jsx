@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Search, Trash2, Upload, X, UtensilsCrossed, Camera, Maximize } from 'lucide-react';
-import { API_URL, fetchWithAuth } from '../App';
+import { fetchWithAuth } from '../App';
+import { API_URL } from '../utils/apiConfig';
 
 // Product Management Page
 function ProductManagementPage({ menuData, refreshProducts, currentView, categories }) {

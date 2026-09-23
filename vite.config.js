@@ -20,8 +20,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-charts': ['chart.js', 'react-chartjs-2'],
-          'vendor-utils': ['axios', 'html5-qrcode'],
+          'vendor-utils': ['axios', 'html5-qrcode', 'date-fns'],
           'vendor-icons': ['lucide-react'],
         }
       }

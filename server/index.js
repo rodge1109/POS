@@ -5,6 +5,7 @@ import session from 'express-session';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import compression from 'compression';
 import productsRoutes from './routes/products.js';
 import ordersRoutes from './routes/orders.js';
 import customersRoutes from './routes/customers.js';
@@ -30,6 +31,9 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
+
+// Enable Gzip compression middleware
+app.use(compression());
 
 // Required for Cloudflare/Render to handle headers correctly
 app.set('trust proxy', 1);
@@ -57,11 +61,15 @@ app.use(session({
   }
 }));
 
-// Serve built frontend
+// Serve built frontend with 7-day browser caching headers
+const staticOptions = { maxAge: '7d', etag: true };
 const distCandidates = [path.resolve(process.cwd(), 'dist'), path.resolve(__dirname, '../dist')];
 let staticPath = null;
 for (const p of distCandidates) { if (fs.existsSync(p)) { staticPath = p; break; } }
-if (staticPath) { app.use(express.static(staticPath)); }
+if (staticPath) { app.use(express.static(staticPath, staticOptions)); }
+
+const uploadsDir = path.resolve(process.cwd(), 'uploads');
+if (fs.existsSync(uploadsDir)) { app.use('/uploads', express.static(uploadsDir, staticOptions)); }
 
 // Public Routes
 app.use('/api/auth', authRoutes);

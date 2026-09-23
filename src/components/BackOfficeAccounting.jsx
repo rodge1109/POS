@@ -7,7 +7,8 @@ import {
     CheckCircle, Clock, AlertCircle, ChevronRight, ChevronDown,
     Settings, Edit2, Trash, X, Hash, Percent, Globe, Package, Zap, Box, Check
 } from 'lucide-react';
-import { API_URL, fetchWithAuth } from '../App';
+import { fetchWithAuth } from '../App';
+import { API_URL } from '../utils/apiConfig';
 
 export default function BackOfficeAccounting() {
     const [activeTab, setActiveTab] = useState('overview');

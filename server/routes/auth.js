@@ -195,23 +195,23 @@ router.post('/register-company', async (req, res) => {
 
 // POST /api/auth/admin-login - Admin login via email/password
 router.post('/admin-login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+    const rawIdentifier = (req.body.email || req.body.username || '').trim();
+    const password = (req.body.password || '').trim();
 
-    if (!email || !password) {
+    if (!rawIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Email and password are required'
+        error: 'Email/username and password are required'
       });
     }
 
-    // Find admin by email or username
+    // Find admin by email or username (case-insensitive)
     const result = await pool.query(
       `SELECT e.id, e.username, e.name, e.role, e.company_id, e.permissions, e.password_hash, c.name as company_name 
        FROM employees e 
        LEFT JOIN companies c ON e.company_id = c.id
-       WHERE (e.username = $1 OR e.email = $1) AND e.role = $2 AND e.active = true`,
-      [email.toLowerCase(), 'admin']
+       WHERE (LOWER(e.username) = LOWER($1) OR LOWER(e.email) = LOWER($1)) AND e.role = $2 AND e.active = true`,
+      [rawIdentifier, 'admin']
     );
 
     if (result.rows.length === 0) {
@@ -464,10 +464,10 @@ router.post('/employees', verifyToken, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid role' });
     }
 
-    // Check if username exists
+    // Check if username exists (case-insensitive)
     const existingUser = await pool.query(
-      'SELECT id FROM employees WHERE username = $1 AND company_id = $2',
-      [username.toLowerCase().trim(), req.company_id]
+      'SELECT id FROM employees WHERE LOWER(username) = LOWER($1) AND company_id = $2',
+      [(username || '').trim(), req.company_id]
     );
 
     if (existingUser.rows.length > 0) {

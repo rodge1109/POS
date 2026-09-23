@@ -137,8 +137,8 @@ const useCart = () => {
   return context;
 };
 
-// API URL - Backend server (proxied via Vite locally, absolute for production)
-export const API_URL = import.meta.env.VITE_API_URL || '/api';
+import { API_URL, API_BASE_URL } from './utils/apiConfig';
+export { API_URL, API_BASE_URL };
 
 // Helper for authenticated API calls
 export const fetchWithAuth = async (url, options = {}) => {
@@ -5857,7 +5857,7 @@ function AdminLoginPage({ onLogin, onBack }) {
     try {
       const response = await fetchWithAuth(`${API_URL}/auth/admin-login`, {
         method: 'POST',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: (email || '').trim(), password })
       });
       const data = await response.json();
       if (data.success) {
@@ -5887,7 +5887,7 @@ function AdminLoginPage({ onLogin, onBack }) {
         </div>
         <form onSubmit={handleSubmit} className="px-10 pb-12 space-y-5">
           <div className="space-y-4">
-            <input required type="email" placeholder="Admin Email" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+            <input required type="text" placeholder="Admin Email / Username" autoCapitalize="none" autoCorrect="off" spellCheck="false" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
             <input required type="password" placeholder="Password" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-cyan-500 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
           {error && <div className="bg-red-50 text-red-500 text-[10px] font-black uppercase p-4 rounded-xl text-center border border-red-100">{error}</div>}
@@ -16142,6 +16142,9 @@ function StaffPage({ currentView, setCurrentPage, setShiftReport, triggerShiftRe
                     <input
                       type="text"
                       required
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck="false"
                       value={formData.username}
                       onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium text-sm text-gray-600"
